@@ -1,45 +1,40 @@
-// The format of this file is specified in https://probe.rs/docs/tools/vscode/#start-a-debug-session-with-minimum-configuration
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "preLaunchTask": "rust: cargo build",
-            "type": "probe-rs-debug",
-            "request": "launch",
-            "name": "rp2040-project",
-            "cwd": "${workspaceFolder}",
-            "chip": "rp2040",
-            // RP2040 doesn't support connectUnderReset
-            "connectUnderReset": false,
-            "speed": 4000,
-            "runtimeExecutable": "probe-rs-debugger",
-            "runtimeArgs": [
-                "debug"
-            ],
-            "flashingConfig": {
-                "flashingEnabled": true,
-                "resetAfterFlashing": true,
-                "haltAfterReset": true,
-            },
-            "coreConfigs": [
-                {
-                    "coreIndex": 0,
-                    "programBinary": "target/thumbv6m-none-eabi/debug/rp2040-project-template",
-                    "chip": "RP2040",
-                    // Uncomment this if you've downloaded the SVD from
-                    // https://github.com/raspberrypi/pico-sdk/raw/1.3.1/src/rp2040/hardware_regs/rp2040.svd
-                    // and placed it in the .vscode directory
-                    // "svdFile": "./.vscode/rp2040.svd",
-                    "rttEnabled": true,
-                    "options": {
-                        "env": {
-                            "DEFMT_LOG": "debug"
-                        }
-                    },
-                }
-            ],
-            "consoleLogLevel": "Info", //Error, Warn, Info, Debug, Trace
-            "wireProtocol": "Swd"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Cortex Debug",
+      "preLaunchTask": "rust: cargo build",
+      "cwd": "${workspaceRoot}",
+      "executable": "target/thumbv6m-none-eabi/debug/rp2040-project-template",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "serverArgs": [
+        "-c",
+        "adapter speed 5000"
+      ],
+      "gdbPath": "gdb-multiarch",
+      "device": "RP2040",
+      "configFiles": [
+        //"interface/picoprobe.cfg",
+        "interface/cmsis-dap.cfg",
+        "target/rp2040.cfg"
+      ],
+      "svdFile": "${env:PICO_SDK_PATH}/src/rp2040/hardware_regs/rp2040.svd",
+      "runToEntryPoint": "main",
+      // Give restart the same functionality as runToEntryPoint - main
+      "postRestartCommands": [
+        "break main",
+        "continue"
+      ]
+    }
+  ]
 }
