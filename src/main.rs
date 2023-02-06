@@ -21,10 +21,11 @@ use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
     pac,
     sio::Sio,
-    Timer,
+    usb,
     watchdog::Watchdog,
-    usb
+    Timer,
 };
+use fugit::RateExtU32;
 
 // USB Device support
 use usb_device::{class_prelude::*, prelude::*};
@@ -35,6 +36,9 @@ use usbd_serial::SerialPort;
 // Used to demonstrate writing formatted strings
 use core::fmt::Write;
 use heapless::String;
+
+mod lotus;
+use lotus::LotusLedMatrix;
 
 #[entry]
 fn main() -> ! {
@@ -67,7 +71,28 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
-    let mut led_pin = pins.led.into_push_pull_output();
+    // Enable LED controller
+    // SDB
+    let mut led_enable = pins.gpio29.into_push_pull_output();
+    led_enable.set_high().unwrap();
+    // INTB. Currently ignoring
+    pins.gpio28.into_floating_input();
+
+    let mut i2c = bsp::hal::I2C::i2c1(
+        pac.I2C1,
+        pins.gpio26.into_mode::<bsp::hal::gpio::FunctionI2C>(),
+        pins.gpio27.into_mode::<bsp::hal::gpio::FunctionI2C>(),
+        100.kHz(),
+        &mut pac.RESETS,
+        &clocks.peripheral_clock,
+    );
+
+    let mut matrix = LotusLedMatrix::configure(i2c);
+    matrix
+        .setup(&mut delay)
+        .expect("failed to setup rgb controller");
+
+    matrix.set_scaling(0xA0).expect("failed to set scaling");
 
     // Set up the USB driver
     let usb_bus = UsbBusAllocator::new(usb::UsbBus::new(
@@ -90,6 +115,26 @@ fn main() -> ! {
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut said_hello = false;
+
+    //matrix.fill_brightness(0xFF).unwrap();
+    //matrix.device.fill(0xFF).unwrap();
+
+    // 1st Right to left
+    for i in 0..9 {
+        matrix.device.pixel(i, i, 0xFF);
+    }
+    // 1st Left to right
+    for i in 0..9 {
+        matrix.device.pixel(8 - i, 9 + i, 0xFF);
+    }
+    // 2nd right to left
+    for i in 0..9 {
+        matrix.device.pixel(i, 18 + i, 0xFF);
+    }
+    // 2nd left to right
+    for i in 0..9 {
+        matrix.device.pixel(8 - i, 27 + i, 0xFF);
+    }
     loop {
         // A welcome message at the beginning
         if !said_hello && timer.get_counter() >= 2_000_000 {

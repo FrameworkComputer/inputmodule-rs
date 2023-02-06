@@ -28,6 +28,8 @@ usb-device= "0.2.9"
 heapless = "0.7.9"
 usbd-serial = "0.1.1"
 usbd-hid = "0.5.1"
+is31fl3741 = "0.2.1"
+fugit = "0.3.6"
 
 # cargo build/run
 [profile.dev]
