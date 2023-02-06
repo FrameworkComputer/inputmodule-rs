@@ -37,7 +37,7 @@ use usbd_serial::SerialPort;
 use core::fmt::Write;
 use heapless::String;
 
-mod lotus;
+pub mod lotus;
 use lotus::LotusLedMatrix;
 
 #[entry]
@@ -48,10 +48,8 @@ fn main() -> ! {
     let mut watchdog = Watchdog::new(pac.WATCHDOG);
     let sio = Sio::new(pac.SIO);
 
-    // External high-speed crystal on the pico board is 12Mhz
-    let external_xtal_freq_hz = 12_000_000u32;
     let clocks = init_clocks_and_plls(
-        external_xtal_freq_hz,
+        bsp::XOSC_CRYSTAL_FREQ,
         pac.XOSC,
         pac.CLOCKS,
         pac.PLL_SYS,
@@ -78,7 +76,7 @@ fn main() -> ! {
     // INTB. Currently ignoring
     pins.gpio28.into_floating_input();
 
-    let mut i2c = bsp::hal::I2C::i2c1(
+    let i2c = bsp::hal::I2C::i2c1(
         pac.I2C1,
         pins.gpio26.into_mode::<bsp::hal::gpio::FunctionI2C>(),
         pins.gpio27.into_mode::<bsp::hal::gpio::FunctionI2C>(),
@@ -121,19 +119,19 @@ fn main() -> ! {
 
     // 1st Right to left
     for i in 0..9 {
-        matrix.device.pixel(i, i, 0xFF);
+        matrix.device.pixel(i, i, 0xFF).unwrap();
     }
     // 1st Left to right
     for i in 0..9 {
-        matrix.device.pixel(8 - i, 9 + i, 0xFF);
+        matrix.device.pixel(8 - i, 9 + i, 0xFF).unwrap();
     }
     // 2nd right to left
     for i in 0..9 {
-        matrix.device.pixel(i, 18 + i, 0xFF);
+        matrix.device.pixel(i, 18 + i, 0xFF).unwrap();
     }
     // 2nd left to right
     for i in 0..9 {
-        matrix.device.pixel(8 - i, 27 + i, 0xFF);
+        matrix.device.pixel(8 - i, 27 + i, 0xFF).unwrap();
     }
     loop {
         // A welcome message at the beginning
