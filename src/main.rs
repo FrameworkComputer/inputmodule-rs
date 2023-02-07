@@ -80,7 +80,7 @@ fn main() -> ! {
         pac.I2C1,
         pins.gpio26.into_mode::<bsp::hal::gpio::FunctionI2C>(),
         pins.gpio27.into_mode::<bsp::hal::gpio::FunctionI2C>(),
-        100.kHz(),
+        1000.kHz(),
         &mut pac.RESETS,
         &clocks.peripheral_clock,
     );
