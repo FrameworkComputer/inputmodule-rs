@@ -28,6 +28,13 @@ use bsp::hal::{
 };
 use fugit::RateExtU32;
 
+use rp2040_hal::{
+    gpio::{
+        bank0::{Gpio26, Gpio27},
+        Function, Pin, I2C,
+    },
+    pac::I2C1,
+};
 // USB Device support
 use usb_device::{class_prelude::*, prelude::*};
 
@@ -40,6 +47,18 @@ use heapless::String;
 
 pub mod lotus;
 use lotus::LotusLedMatrix;
+
+type Foo = LotusLedMatrix<
+    bsp::hal::I2C<
+        I2C1,
+        (
+            bsp::hal::gpio::Pin<Gpio26, bsp::hal::gpio::Function<bsp::hal::gpio::I2C>>,
+            bsp::hal::gpio::Pin<Gpio27, bsp::hal::gpio::Function<bsp::hal::gpio::I2C>>,
+        ),
+    >,
+>;
+
+type Grid = [[u8; 34]; 9];
 
 #[entry]
 fn main() -> ! {
@@ -115,26 +134,31 @@ fn main() -> ! {
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut said_hello = false;
 
-    //matrix.fill_brightness(0xFF).unwrap();
-    //matrix.device.fill(0xFF).unwrap();
+    let rotate = false;
+    //full_brightness(&mut matrix);
+    //let mut grid = gradient();
+    //let mut grid = zigzag();
+    //let mut grid = double_gradient();
+    let update_percentage = false;
+    let mut p = 10;
+    let mut grid = percentage(p);
 
-    // 1st Right to left
-    for i in 0..9 {
-        matrix.device.pixel(i, i, 0xFF).unwrap();
-    }
-    // 1st Left to right
-    for i in 0..9 {
-        matrix.device.pixel(8 - i, 9 + i, 0xFF).unwrap();
-    }
-    // 2nd right to left
-    for i in 0..9 {
-        matrix.device.pixel(i, 18 + i, 0xFF).unwrap();
-    }
-    // 2nd left to right
-    for i in 0..9 {
-        matrix.device.pixel(8 - i, 27 + i, 0xFF).unwrap();
-    }
+    fill_grid(grid, &mut matrix);
+    let mut prev_timer = timer.get_counter();
+
     loop {
+        if timer.get_counter() > prev_timer + 20_000 {
+            fill_grid(grid, &mut matrix);
+            if update_percentage {}
+
+            if rotate {
+                for x in 0..9 {
+                    grid[x].rotate_right(1);
+                }
+            }
+            prev_timer = timer.get_counter();
+        }
+
         // A welcome message at the beginning
         if !said_hello && timer.get_counter() >= 2_000_000 {
             said_hello = true;
@@ -163,10 +187,23 @@ fn main() -> ! {
                 }
                 Ok(count) => {
                     // Convert to upper case
-                    buf.iter_mut().take(count).for_each(|b| {
-                        if *b == 'r' as u8 {
-                            reset_to_usb_boot(0, 0);
+                    if count == 1 {
+                        match buf[0] as char {
+                            'r' => reset_to_usb_boot(0, 0),
+                            '0' => grid = percentage(0),
+                            '1' => grid = percentage(10),
+                            '2' => grid = percentage(20),
+                            '3' => grid = percentage(30),
+                            '4' => grid = percentage(40),
+                            '5' => grid = percentage(50),
+                            '6' => grid = percentage(60),
+                            '7' => grid = percentage(70),
+                            '8' => grid = percentage(80),
+                            '9' => grid = percentage(90),
+                            _ => {}
                         }
+                    }
+                    buf.iter_mut().take(count).for_each(|b| {
                         b.make_ascii_uppercase();
                     });
                     // Send back to the host
@@ -184,6 +221,93 @@ fn main() -> ! {
             }
         }
     }
+}
+
+// Gradient getting brighter from top to bottom
+fn gradient() -> Grid {
+    let mut grid: Grid = [[0; 34]; 9];
+    for y in 0..34 {
+        for x in 0..9 {
+            grid[x][y] = (1 * (y + 1)) as u8;
+        }
+    }
+    grid
+}
+
+// Fill a percentage of the rows from the bottom up
+fn percentage(percentage: u16) -> Grid {
+    let mut grid: Grid = [[0; 34]; 9];
+    let first_row = 34 * percentage / 100;
+    for y in (34 - first_row)..34 {
+        for x in 0..9 {
+            grid[x][y as usize] = 0xFF;
+        }
+    }
+    grid
+}
+
+// Double sided gradient, bright in the middle, dim top and bottom
+fn double_gradient() -> Grid {
+    let mut grid: Grid = [[0; 34]; 9];
+    for y in 0..(34 / 2) {
+        for x in 0..9 {
+            grid[x][y] = (1 * (y + 1)) as u8;
+        }
+    }
+    for y in (34 / 2)..34 {
+        for x in 0..9 {
+            grid[x][y] = 34 - (1 * (y + 1)) as u8;
+        }
+    }
+    grid
+}
+
+fn fill_grid(grid: Grid, matrix: &mut Foo) {
+    for y in 0..34 {
+        for x in 0..9 {
+            matrix.device.pixel(x, y, grid[x as usize][y as usize]);
+        }
+    }
+}
+
+fn fill_grid_pixels(grid: Grid, matrix: &mut Foo) {
+    for y in 0..34 {
+        for x in 0..9 {
+            matrix.device.pixel(x, y, grid[x as usize][y as usize]);
+        }
+    }
+}
+
+fn full_brightness(matrix: &mut Foo) {
+    // Fills every pixel individually
+    matrix.fill_brightness(0xFF).unwrap();
+
+    // Fills full page at once
+    //matrix.device.fill(0xFF).unwrap();
+}
+
+fn zigzag() -> Grid {
+    let mut grid: Grid = [[0; 34]; 9];
+    // 1st Right to left
+    for i in 0..9 {
+        grid[i][i] = 0xFF;
+    }
+    // 1st Left to right
+    for i in 0..9 {
+        grid[8 - i][9 + i] = 0xFF;
+    }
+    // 2nd right to left
+    for i in 0..9 {
+        grid[i][18 + i] = 0xFF;
+    }
+    // 2nd left to right
+    for i in 0..9 {
+        if 27 + i < 34 {
+            grid[8 - i][27 + i] = 0xFF;
+        }
+    }
+    grid[1][33] = 0xFF;
+    grid
 }
 
 // End of file
