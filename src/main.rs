@@ -20,6 +20,7 @@ use lotus_led_hal as bsp;
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
     pac,
+    rom_data::reset_to_usb_boot,
     sio::Sio,
     usb,
     watchdog::Watchdog,
@@ -163,6 +164,9 @@ fn main() -> ! {
                 Ok(count) => {
                     // Convert to upper case
                     buf.iter_mut().take(count).for_each(|b| {
+                        if *b == 'r' as u8 {
+                            reset_to_usb_boot(0, 0);
+                        }
                         b.make_ascii_uppercase();
                     });
                     // Send back to the host
