@@ -93,10 +93,10 @@ fn main() -> ! {
 
     // Enable LED controller
     // SDB
-    let mut led_enable = pins.gpio29.into_push_pull_output();
+    let mut led_enable = pins.sdb.into_push_pull_output();
     led_enable.set_high().unwrap();
     // INTB. Currently ignoring
-    pins.gpio28.into_floating_input();
+    pins.intb.into_floating_input();
 
     let i2c = bsp::hal::I2C::i2c1(
         pac.I2C1,
