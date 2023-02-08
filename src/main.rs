@@ -47,6 +47,8 @@ use heapless::String;
 
 pub mod lotus;
 use lotus::LotusLedMatrix;
+mod mapping;
+use mapping::*;
 
 type Foo = LotusLedMatrix<
     bsp::hal::I2C<
@@ -135,13 +137,14 @@ fn main() -> ! {
     let mut said_hello = false;
 
     let rotate = false;
+    let mut grid = display_letters();
     //full_brightness(&mut matrix);
     //let mut grid = gradient();
     //let mut grid = zigzag();
     //let mut grid = double_gradient();
     let update_percentage = false;
     let mut p = 10;
-    let mut grid = percentage(p);
+    //let mut grid = percentage(p);
 
     fill_grid(grid, &mut matrix);
     let mut prev_timer = timer.get_counter();
@@ -219,6 +222,27 @@ fn main() -> ! {
                     }
                 }
             }
+        }
+    }
+}
+
+fn display_letters() -> Grid {
+    let mut grid: Grid = [[0; 34]; 9];
+
+    display_letter(26, &mut grid, CAP_L);
+    display_letter(20, &mut grid, CAP_O);
+    display_letter(12, &mut grid, CAP_T);
+    display_letter(0, &mut grid, CAP_S);
+    display_letter(5, &mut grid, CAP_U);
+
+    grid
+}
+
+fn display_letter(pos: usize, grid: &mut Grid, letter: SingleDisplayData) {
+    for x in 0..8 {
+        for y in 0..8 {
+            let val = if letter[x] & (1 << y) > 0 { 0xFF } else { 0 };
+            grid[8 - x][y + pos] = val;
         }
     }
 }
