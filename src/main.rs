@@ -123,26 +123,17 @@ fn main() -> ! {
     let mut said_hello = false;
 
     let rotate = false;
-    let mut grid = display_letters();
-    //full_brightness(&mut matrix);
-    //let mut grid = gradient();
-    //let mut grid = zigzag();
-    //let mut grid = double_gradient();
-    let update_percentage = false;
-    //let mut p = 10;
-    //let mut grid = percentage(p);
+    full_brightness(&mut matrix);
+    let mut grid = percentage(100);
 
-    fill_grid(grid, &mut matrix);
     let mut prev_timer = timer.get_counter();
 
     loop {
         if timer.get_counter() > prev_timer + 20_000 {
-            fill_grid(grid, &mut matrix);
-            if update_percentage {}
-
             if rotate {
                 for x in 0..9 {
                     grid[x].rotate_right(1);
+                    fill_grid(grid, &mut matrix);
                 }
             }
             prev_timer = timer.get_counter();
@@ -175,36 +166,44 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
-                    // Convert to upper case
-                    if count == 1 {
-                        match buf[0] as char {
-                            'r' => reset_to_usb_boot(0, 0),
-                            '0' => grid = percentage(0),
-                            '1' => grid = percentage(10),
-                            '2' => grid = percentage(20),
-                            '3' => grid = percentage(30),
-                            '4' => grid = percentage(40),
-                            '5' => grid = percentage(50),
-                            '6' => grid = percentage(60),
-                            '7' => grid = percentage(70),
-                            '8' => grid = percentage(80),
-                            '9' => grid = percentage(90),
+                    if count > 4 && buf[0] == 0x32 && buf[1] == 0xAC {
+                        let command = buf[2];
+                        let arg = buf[3];
+
+                        let mut text: String<64> = String::new();
+                        writeln!(&mut text, "Command: {command}, arg: {arg}").unwrap();
+                        let _ = serial.write(text.as_bytes());
+
+                        match command {
+                            0x00 => {
+                                let _ = serial.write("Brightness".as_bytes());
+                                matrix.set_scaling(arg).expect("failed to set scaling");
+                            }
+                            0x01 => {
+                                let _ = serial.write("Pattern".as_bytes());
+                                match arg {
+                                    0 => {
+                                        let p = if count >= 5 { buf[4] } else { 100 };
+                                        grid = percentage(p as u16);
+                                    }
+                                    1 => grid = gradient(),
+                                    2 => grid = double_gradient(),
+                                    3 => grid = display_letters(),
+                                    4 => grid = zigzag(),
+                                    5 => full_brightness(&mut matrix),
+                                    _ => {}
+                                }
+                            }
+                            0x02 => {
+                                let _ = serial.write("Bootloader Reset".as_bytes());
+                                reset_to_usb_boot(0, 0);
+                            }
+                            0x03 => {
+                                let _ = serial.write("Sleep".as_bytes());
+                                // TODO: Implement sleep
+                            }
                             _ => {}
                         }
-                    }
-                    buf.iter_mut().take(count).for_each(|b| {
-                        b.make_ascii_uppercase();
-                    });
-                    // Send back to the host
-                    let mut wr_ptr = &buf[..count];
-                    while !wr_ptr.is_empty() {
-                        match serial.write(wr_ptr) {
-                            Ok(len) => wr_ptr = &wr_ptr[len..],
-                            // On error, just drop unwritten data.
-                            // One possible error is Err(WouldBlock), meaning the USB
-                            // write buffer is full.
-                            Err(_) => break,
-                        };
                     }
                 }
             }
