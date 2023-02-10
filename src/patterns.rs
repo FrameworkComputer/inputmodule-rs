@@ -91,14 +91,14 @@ pub fn fill_grid(grid: Grid, matrix: &mut Foo) {
 }
 
 pub fn fill_grid_pixels(grid: Grid, matrix: &mut Foo) {
+    let mut brightnesses = [0x00; 0xB4 + 0xAB];
     for y in 0..34 {
         for x in 0..9 {
-            matrix
-                .device
-                .pixel(x, y, grid[x as usize][y as usize])
-                .unwrap();
+            let (register, page) = (matrix.device.calc_pixel)(x, y);
+            brightnesses[(page * 0xAA + register) as usize] = grid[x as usize][y as usize];
         }
     }
+    matrix.device.fill_matrix(&brightnesses).unwrap();
 }
 
 pub fn full_brightness(matrix: &mut Foo) {
