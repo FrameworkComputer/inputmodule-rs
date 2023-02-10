@@ -7,7 +7,7 @@
 use bsp::entry;
 use defmt::*;
 use defmt_rtt as _;
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::v2::{InputPin, OutputPin};
 use panic_probe as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
@@ -81,6 +81,8 @@ fn main() -> ! {
     led_enable.set_high().unwrap();
     // INTB. Currently ignoring
     pins.intb.into_floating_input();
+
+    let _sleep = pins.sleep.into_pull_down_input();
 
     let i2c = bsp::hal::I2C::i2c1(
         pac.I2C1,
