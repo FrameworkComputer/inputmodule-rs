@@ -130,10 +130,10 @@ fn main() -> ! {
 
     loop {
         if timer.get_counter() > prev_timer + 20_000 {
+            fill_grid(grid, &mut matrix);
             if rotate {
                 for x in 0..9 {
                     grid[x].rotate_right(1);
-                    fill_grid(grid, &mut matrix);
                 }
             }
             prev_timer = timer.get_counter();
