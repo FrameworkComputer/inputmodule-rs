@@ -115,8 +115,8 @@ fn main() -> ! {
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0020))
         .manufacturer("Framework")
         .product("Lotus LED Matrix")
-        .serial_number("TEST")
-        .device_class(2) // from: https://www.usb.org/defined-class-codes
+        .serial_number("FRAKDE??0000000000")
+        .device_class(2) // Communications and CDC Control. From: https://www.usb.org/defined-class-codes
         .build();
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
