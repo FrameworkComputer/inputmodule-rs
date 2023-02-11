@@ -7,6 +7,7 @@ pub enum _CommandVals {
     _Pattern = 0x01,
     _BootloaderReset = 0x02,
     _Sleep = 0x03,
+    _Animate = 0x04,
 }
 
 pub enum PatternVals {
@@ -24,6 +25,7 @@ pub enum Command {
     BootloaderReset,
     Percentage(u8),
     Sleep,
+    Animate(bool),
     _Unknown,
 }
 
@@ -55,6 +57,7 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
             },
             0x02 => Some(Command::BootloaderReset),
             0x03 => Some(Command::Sleep),
+            0x04 => Some(Command::Animate(arg == 1)),
             _ => None, //Some(Command::Unknown),
         }
     } else {
@@ -62,7 +65,7 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
     }
 }
 
-pub fn handle_command(command: Command, grid: &mut Grid, matrix: &mut Foo) {
+pub fn handle_command(command: Command, grid: &mut Grid, matrix: &mut Foo, animate: &mut bool) {
     match command {
         Command::Brightness(br) => {
             //let _ = serial.write("Brightness".as_bytes());
@@ -91,6 +94,7 @@ pub fn handle_command(command: Command, grid: &mut Grid, matrix: &mut Foo) {
             //let _ = serial.write("Sleep".as_bytes());
             // TODO: Implement sleep
         }
+        Command::Animate(a) => *animate = a,
         _ => {}
     }
 }

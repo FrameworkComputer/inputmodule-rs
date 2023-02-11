@@ -125,7 +125,7 @@ fn main() -> ! {
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut said_hello = false;
 
-    let rotate = false;
+    let mut rotate = false;
     // Default on
     let mut grid = percentage(100);
     fill_grid(grid, &mut matrix);
@@ -134,7 +134,7 @@ fn main() -> ! {
 
     loop {
         if timer.get_counter().ticks() > prev_timer + 20_000 {
-            //fill_grid(grid, &mut matrix);
+            fill_grid(grid, &mut matrix);
             if rotate {
                 for x in 0..9 {
                     grid[x].rotate_right(1);
@@ -171,7 +171,7 @@ fn main() -> ! {
                 }
                 Ok(count) => {
                     if let Some(command) = parse_command(count, &buf) {
-                        handle_command(command, &mut grid, &mut matrix);
+                        handle_command(command, &mut grid, &mut matrix, &mut rotate);
                         fill_grid(grid, &mut matrix);
                     }
                 }

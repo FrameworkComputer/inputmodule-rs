@@ -13,8 +13,7 @@ def main():
                     type=bool)
     parser.add_argument("--brightness", help="Brightness",
                     type=int)
-    parser.add_argument("--animate", help="Animate",
-                    type=bool)
+    parser.add_argument('--animate', action=argparse.BooleanOptionalAction)
     parser.add_argument("--pattern", help="Pattern",
                     type=str, choices=['full', 'lotus', 'gradient', 'double-gradient', 'zigzag'])
     parser.add_argument("--percentage", help="Percentage",
@@ -25,9 +24,9 @@ def main():
         print("bootloader")
         command = FWK_MAGIC + [0x02, 0x00]
         send_command(command)
-    elif args.sleep:
-        pass
-    elif args.brightness:
+    elif args.sleep is not None:
+        print("sleep")
+    elif args.brightness is not None:
         if args.brightness > 255 or args.brightness < 0:
             print("Brightness must be 0-255")
             sys.exit(1)
@@ -39,7 +38,7 @@ def main():
             sys.exit(1)
         command = FWK_MAGIC + [0x01, 0x00, args.percentage]
         send_command(command)
-    elif 'pattern' in args:
+    elif args.pattern is not None:
         if args.pattern == 'full':
             command = FWK_MAGIC + [0x01, 5]
             send_command(command)
@@ -54,6 +53,11 @@ def main():
             send_command(command)
         elif args.pattern == 'zigzag':
             command = FWK_MAGIC + [0x01, 4]
+            send_command(command)
+        else:
+            print("Invalid pattern")
+    elif args.animate is not None:
+            command = FWK_MAGIC + [0x04, args.animate]
             send_command(command)
     else:
         print("Provide arg")
