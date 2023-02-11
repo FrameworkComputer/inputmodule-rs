@@ -77,31 +77,6 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
-    // Enable LED controller
-    // SDB
-    let mut led_enable = pins.sdb.into_push_pull_output();
-    led_enable.set_high().unwrap();
-    // INTB. Currently ignoring
-    pins.intb.into_floating_input();
-
-    let _sleep = pins.sleep.into_pull_down_input();
-
-    let i2c = bsp::hal::I2C::i2c1(
-        pac.I2C1,
-        pins.gpio26.into_mode::<bsp::hal::gpio::FunctionI2C>(),
-        pins.gpio27.into_mode::<bsp::hal::gpio::FunctionI2C>(),
-        1000.kHz(),
-        &mut pac.RESETS,
-        &clocks.peripheral_clock,
-    );
-
-    let mut matrix = LotusLedMatrix::configure(i2c);
-    matrix
-        .setup(&mut delay)
-        .expect("failed to setup rgb controller");
-
-    matrix.set_scaling(0xA0).expect("failed to set scaling");
-
     // Set up the USB driver
     let usb_bus = UsbBusAllocator::new(usb::UsbBus::new(
         pac.USBCTRL_REGS,
@@ -121,18 +96,45 @@ fn main() -> ! {
         .device_class(2) // Communications and CDC Control. From: https://www.usb.org/defined-class-codes
         .build();
 
+    // Enable LED controller
+    // SDB
+    let mut led_enable = pins.sdb.into_push_pull_output();
+    led_enable.set_high().unwrap();
+    // INTB. Currently ignoring
+    pins.intb.into_floating_input();
+
+    let sleep = pins.sleep.into_pull_down_input();
+    let _sleeping = sleep.is_low().unwrap();
+
+    let i2c = bsp::hal::I2C::i2c1(
+        pac.I2C1,
+        pins.gpio26.into_mode::<bsp::hal::gpio::FunctionI2C>(),
+        pins.gpio27.into_mode::<bsp::hal::gpio::FunctionI2C>(),
+        1000.kHz(),
+        &mut pac.RESETS,
+        &clocks.peripheral_clock,
+    );
+
+    let mut matrix = LotusLedMatrix::configure(i2c);
+    matrix
+        .setup(&mut delay)
+        .expect("failed to setup rgb controller");
+
+    matrix.set_scaling(150).expect("failed to set scaling");
+
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut said_hello = false;
 
     let rotate = false;
-    full_brightness(&mut matrix);
+    // Default on
     let mut grid = percentage(100);
+    fill_grid(grid, &mut matrix);
 
     let mut prev_timer = timer.get_counter();
 
     loop {
         if timer.get_counter() > prev_timer + 20_000 {
-            fill_grid(grid, &mut matrix);
+            //fill_grid(grid, &mut matrix);
             if rotate {
                 for x in 0..9 {
                     grid[x].rotate_right(1);

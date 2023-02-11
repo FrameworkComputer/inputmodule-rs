@@ -23,7 +23,7 @@ def main():
 
     if args.bootloader:
         print("bootloader")
-        command = FWK_MAGIC + [0x02]
+        command = FWK_MAGIC + [0x02, 0x00]
         send_command(command)
     elif args.sleep:
         pass
