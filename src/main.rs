@@ -130,21 +130,21 @@ fn main() -> ! {
     let mut grid = percentage(100);
     fill_grid(grid, &mut matrix);
 
-    let mut prev_timer = timer.get_counter();
+    let mut prev_timer = timer.get_counter().ticks();
 
     loop {
-        if timer.get_counter() > prev_timer + 20_000 {
+        if timer.get_counter().ticks() > prev_timer + 20_000 {
             //fill_grid(grid, &mut matrix);
             if rotate {
                 for x in 0..9 {
                     grid[x].rotate_right(1);
                 }
             }
-            prev_timer = timer.get_counter();
+            prev_timer = timer.get_counter().ticks();
         }
 
         // A welcome message at the beginning
-        if !said_hello && timer.get_counter() >= 2_000_000 {
+        if !said_hello && timer.get_counter().ticks() >= 2_000_000 {
             said_hello = true;
             let _ = serial.write(b"Hello, World!\r\n");
 

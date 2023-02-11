@@ -4,12 +4,12 @@ name = "rp2040-project-template"
 version = "0.1.0"
 
 [dependencies]
-cortex-m = "0.7"
+cortex-m = { version = "0.7", features = ["critical-section-single-core"]}
 cortex-m-rt = "0.7"
-embedded-hal = { version = "0.2.5", features = ["unproven"] }
+embedded-hal = { version = "0.2.7", features = ["unproven"] }
 
 defmt = "0.3"
-defmt-rtt = "0.3"
+defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 # We're using a Pico by default on this template
@@ -19,7 +19,7 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 # sparkfun-pro-micro-rp2040 = "0.3"
 
 # If you're not going to use a Board Support Package you'll need these:
-rp2040-hal = { version="0.6", features=["rt"] }
+rp2040-hal = { version="0.7", features=["rt"] }
 rp2040-boot2 = "0.2"
 
 # USB Serial
