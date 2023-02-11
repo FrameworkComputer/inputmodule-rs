@@ -20,7 +20,6 @@ use lotus_led_hal as bsp;
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
     pac,
-    rom_data::reset_to_usb_boot,
     sio::Sio,
     usb,
     watchdog::Watchdog,
@@ -45,6 +44,9 @@ pub mod mapping;
 
 pub mod patterns;
 use patterns::*;
+
+mod control;
+use control::*;
 
 #[entry]
 fn main() -> ! {
@@ -166,44 +168,9 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
-                    if count > 4 && buf[0] == 0x32 && buf[1] == 0xAC {
-                        let command = buf[2];
-                        let arg = buf[3];
-
-                        let mut text: String<64> = String::new();
-                        writeln!(&mut text, "Command: {command}, arg: {arg}").unwrap();
-                        let _ = serial.write(text.as_bytes());
-
-                        match command {
-                            0x00 => {
-                                let _ = serial.write("Brightness".as_bytes());
-                                matrix.set_scaling(arg).expect("failed to set scaling");
-                            }
-                            0x01 => {
-                                let _ = serial.write("Pattern".as_bytes());
-                                match arg {
-                                    0 => {
-                                        let p = if count >= 5 { buf[4] } else { 100 };
-                                        grid = percentage(p as u16);
-                                    }
-                                    1 => grid = gradient(),
-                                    2 => grid = double_gradient(),
-                                    3 => grid = display_letters(),
-                                    4 => grid = zigzag(),
-                                    5 => full_brightness(&mut matrix),
-                                    _ => {}
-                                }
-                            }
-                            0x02 => {
-                                let _ = serial.write("Bootloader Reset".as_bytes());
-                                reset_to_usb_boot(0, 0);
-                            }
-                            0x03 => {
-                                let _ = serial.write("Sleep".as_bytes());
-                                // TODO: Implement sleep
-                            }
-                            _ => {}
-                        }
+                    if let Some(command) = parse_command(count, &buf) {
+                        handle_command(command, &mut grid, &mut matrix);
+                        fill_grid(grid, &mut matrix);
                     }
                 }
             }

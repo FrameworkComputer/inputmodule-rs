@@ -7,9 +7,9 @@ use crate::lotus::LotusLedMatrix;
 use crate::lotus_led_hal as bsp;
 use crate::mapping::*;
 
-type Grid = [[u8; 34]; 9];
+pub type Grid = [[u8; 34]; 9];
 
-type Foo = LotusLedMatrix<
+pub type Foo = LotusLedMatrix<
     bsp::hal::I2C<
         I2C1,
         (
