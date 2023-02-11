@@ -37,7 +37,7 @@ codegen-units = 1
 debug = 2
 debug-assertions = true
 incremental = false
-opt-level = 0 # To allow single-stepping through code
+opt-level = 3 # To allow single-stepping through code
 overflow-checks = true
 
 # cargo build/run --release
