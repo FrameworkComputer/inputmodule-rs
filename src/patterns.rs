@@ -3,11 +3,9 @@ use rp2040_hal::{
     pac::I2C1,
 };
 
-use crate::lotus::LotusLedMatrix;
 use crate::lotus_led_hal as bsp;
 use crate::mapping::*;
-
-pub type Grid = [[u8; 34]; 9];
+use crate::{lotus::LotusLedMatrix, Grid};
 
 pub type Foo = LotusLedMatrix<
     bsp::hal::I2C<

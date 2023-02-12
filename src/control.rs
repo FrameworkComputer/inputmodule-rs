@@ -1,6 +1,6 @@
 use rp2040_hal::rom_data::reset_to_usb_boot;
 
-use crate::patterns::*;
+use crate::{patterns::*, State};
 
 pub enum _CommandVals {
     _Brightness = 0x00,
@@ -68,23 +68,24 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
     }
 }
 
-pub fn handle_command(command: Command, grid: &mut Grid, matrix: &mut Foo, animate: &mut bool) {
+pub fn handle_command(command: Command, state: &mut State, matrix: &mut Foo) {
     match command {
         Command::Brightness(br) => {
             //let _ = serial.write("Brightness".as_bytes());
+            state.brightness = br;
             matrix.set_scaling(br).expect("failed to set scaling");
         }
         Command::Percentage(p) => {
             //let p = if count >= 5 { buf[4] } else { 100 };
-            *grid = percentage(p as u16);
+            state.grid = percentage(p as u16);
         }
         Command::Pattern(pattern) => {
             //let _ = serial.write("Pattern".as_bytes());
             match pattern {
-                PatternVals::Gradient => *grid = gradient(),
-                PatternVals::DoubleGradient => *grid = double_gradient(),
                 PatternVals::DisplayLetters => *grid = display_letters(),
-                PatternVals::ZigZag => *grid = zigzag(),
+                PatternVals::Gradient => state.grid = gradient(),
+                PatternVals::DoubleGradient => state.grid = double_gradient(),
+                PatternVals::ZigZag => state.grid = zigzag(),
                 PatternVals::FullBrightness => full_brightness(matrix),
                 _ => {}
             }
@@ -97,7 +98,7 @@ pub fn handle_command(command: Command, grid: &mut Grid, matrix: &mut Foo, anima
             //let _ = serial.write("Sleep".as_bytes());
             // TODO: Implement sleep
         }
-        Command::Animate(a) => *animate = a,
+        Command::Animate(a) => state.animate = a,
         Command::Panic => panic!("Ahhh"),
         _ => {}
     }

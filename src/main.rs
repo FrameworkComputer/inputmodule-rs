@@ -107,6 +107,14 @@ use patterns::*;
 mod control;
 use control::*;
 
+pub type Grid = [[u8; 34]; 9];
+
+pub struct State {
+    grid: Grid,
+    animate: bool,
+    brightness: u8,
+}
+
 #[entry]
 fn main() -> ! {
     let mut pac = pac::Peripherals::take().unwrap();
@@ -173,29 +181,34 @@ fn main() -> ! {
         &clocks.peripheral_clock,
     );
 
+    let mut state = State {
+        grid: percentage(100),
+        animate: false,
+        brightness: 120,
+    };
+
     let mut matrix = LotusLedMatrix::configure(i2c);
     matrix
         .setup(&mut delay)
         .expect("failed to setup rgb controller");
 
-    matrix.set_scaling(150).expect("failed to set scaling");
+    matrix
+        .set_scaling(state.brightness)
+        .expect("failed to set scaling");
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut said_hello = false;
 
-    let mut rotate = false;
-    // Default on
-    let mut grid = percentage(100);
-    fill_grid(grid, &mut matrix);
+    fill_grid(state.grid, &mut matrix);
 
     let mut prev_timer = timer.get_counter().ticks();
 
     loop {
         if timer.get_counter().ticks() > prev_timer + 20_000 {
-            fill_grid(grid, &mut matrix);
-            if rotate {
+            fill_grid(state.grid, &mut matrix);
+            if state.animate {
                 for x in 0..9 {
-                    grid[x].rotate_right(1);
+                    state.grid[x].rotate_right(1);
                 }
             }
             prev_timer = timer.get_counter().ticks();
@@ -229,8 +242,8 @@ fn main() -> ! {
                 }
                 Ok(count) => {
                     if let Some(command) = parse_command(count, &buf) {
-                        handle_command(command, &mut grid, &mut matrix, &mut rotate);
-                        fill_grid(grid, &mut matrix);
+                        handle_command(command, &mut state, &mut matrix);
+                        fill_grid(state.grid, &mut matrix);
                     }
                 }
             }
