@@ -18,6 +18,8 @@ def main():
                     type=str, choices=['full', 'lotus', 'gradient', 'double-gradient', 'zigzag'])
     parser.add_argument("--percentage", help="Percentage",
                     type=int)
+    parser.add_argument("--panic", help="Panic",
+                    action="store_true")
     args = parser.parse_args()
 
     if args.bootloader:
@@ -58,6 +60,9 @@ def main():
             print("Invalid pattern")
     elif args.animate is not None:
             command = FWK_MAGIC + [0x04, args.animate]
+            send_command(command)
+    elif args.panic is not None:
+            command = FWK_MAGIC + [0x05, 0x00]
             send_command(command)
     else:
         print("Provide arg")

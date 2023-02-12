@@ -8,6 +8,7 @@ pub enum _CommandVals {
     _BootloaderReset = 0x02,
     _Sleep = 0x03,
     _Animate = 0x04,
+    _Panic = 0x05,
 }
 
 pub enum PatternVals {
@@ -26,6 +27,7 @@ pub enum Command {
     Percentage(u8),
     Sleep,
     Animate(bool),
+    Panic,
     _Unknown,
 }
 
@@ -58,6 +60,7 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
             0x02 => Some(Command::BootloaderReset),
             0x03 => Some(Command::Sleep),
             0x04 => Some(Command::Animate(arg == 1)),
+            0x05 => Some(Command::Panic),
             _ => None, //Some(Command::Unknown),
         }
     } else {
@@ -95,6 +98,7 @@ pub fn handle_command(command: Command, grid: &mut Grid, matrix: &mut Foo, anima
             // TODO: Implement sleep
         }
         Command::Animate(a) => *animate = a,
+        Command::Panic => panic!("Ahhh"),
         _ => {}
     }
 }
