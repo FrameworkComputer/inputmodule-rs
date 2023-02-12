@@ -15,9 +15,11 @@ pub enum PatternVals {
     _Percentage = 0x00,
     Gradient,
     DoubleGradient,
-    DisplayLetters,
+    DisplayLotus,
     ZigZag,
     FullBrightness,
+    DisplayPanic,
+    DisplayLotus2,
 }
 
 pub enum Command {
@@ -52,9 +54,11 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
                 }
                 0x01 => Some(Command::Pattern(PatternVals::Gradient)),
                 0x02 => Some(Command::Pattern(PatternVals::DoubleGradient)),
-                0x03 => Some(Command::Pattern(PatternVals::DisplayLetters)),
+                0x03 => Some(Command::Pattern(PatternVals::DisplayLotus)),
                 0x04 => Some(Command::Pattern(PatternVals::ZigZag)),
                 0x05 => Some(Command::Pattern(PatternVals::FullBrightness)),
+                0x06 => Some(Command::Pattern(PatternVals::DisplayPanic)),
+                0x07 => Some(Command::Pattern(PatternVals::DisplayLotus2)),
                 _ => None,
             },
             0x02 => Some(Command::BootloaderReset),
@@ -82,11 +86,13 @@ pub fn handle_command(command: Command, state: &mut State, matrix: &mut Foo) {
         Command::Pattern(pattern) => {
             //let _ = serial.write("Pattern".as_bytes());
             match pattern {
-                PatternVals::DisplayLetters => *grid = display_letters(),
                 PatternVals::Gradient => state.grid = gradient(),
                 PatternVals::DoubleGradient => state.grid = double_gradient(),
+                PatternVals::DisplayLotus => state.grid = display_lotus(),
                 PatternVals::ZigZag => state.grid = zigzag(),
                 PatternVals::FullBrightness => full_brightness(matrix),
+                PatternVals::DisplayPanic => state.grid = display_panic(),
+                PatternVals::DisplayLotus2 => state.grid = display_lotus2(),
                 _ => {}
             }
         }

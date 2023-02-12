@@ -15,7 +15,7 @@ def main():
                     type=int)
     parser.add_argument('--animate', action=argparse.BooleanOptionalAction)
     parser.add_argument("--pattern", help="Pattern",
-                    type=str, choices=['full', 'lotus', 'gradient', 'double-gradient', 'zigzag'])
+                    type=str, choices=['full', 'lotus', 'gradient', 'double-gradient', 'zigzag', 'panic', 'lotus2'])
     parser.add_argument("--percentage", help="Percentage",
                     type=int)
     parser.add_argument("--panic", help="Panic",
@@ -55,6 +55,12 @@ def main():
             send_command(command)
         elif args.pattern == 'zigzag':
             command = FWK_MAGIC + [0x01, 4]
+            send_command(command)
+        elif args.pattern == 'panic':
+            command = FWK_MAGIC + [0x01, 6]
+            send_command(command)
+        elif args.pattern == 'lotus2':
+            command = FWK_MAGIC + [0x01, 7]
             send_command(command)
         else:
             print("Invalid pattern")
