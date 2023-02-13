@@ -1,6 +1,7 @@
 # Lotus LED Matrix Module
 
 It's a 9x34 (306) LED matrix, controlled by RP2040 MCU and IS31FL3741A LED controller.
+
 Connection to the host system is via USB 2.0 and currently there is a USB Serial API to control it without reflashing.
 
 Rust project setup based off of: https://github.com/rp-rs/rp2040-project-template
@@ -8,7 +9,7 @@ Rust project setup based off of: https://github.com/rp-rs/rp2040-project-templat
 ## Features
 
 - Reset into bootloader when firmware crashes/panics
-- API over USB ACM Serial Port - Requires not Drivers on Windows and Linux
+- API over USB ACM Serial Port - Requires no Drivers on Windows and Linux
   - Display various pre-programmed patterns
   - Light up a percentage of the screen
   - Change brightness
@@ -29,7 +30,7 @@ Future features:
 
 ## Control from the host
 
-Requirements: Python and [PySimpleGUI](https://www.pysimplegui.org).
+Requirements: Python, [PySimpleGUI](https://www.pysimplegui.org) and optionally [pillow](https://pillow.readthedocs.io/en/stable/index.html)
 
 Use `control.py`. Either the commandline, see `control.py --help` or the graphical version: `control.py --gui`
 
@@ -50,6 +51,23 @@ options:
   --clock               Display the current time
   --gui                 Launch the graphical version of the program
   --panic               Crash the firmware (TESTING ONLY)
+```
+
+Examples
+
+```sh
+# Launch graphical application
+./control.py --gui
+
+# Show current time and keep updating it
+./control.py --clock
+
+# Draw PNG or GIF
+./control.py --image stripe.gif
+./control.py --image stripe.png
+
+# Change brightness (0-255)
+./control.py --brightness 50
 ```
 
 ## Building

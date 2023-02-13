@@ -14,3 +14,6 @@ target/
 !.vscode/settings.json
 
 *.uf2
+
+# Panic dump
+message.bin

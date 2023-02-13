@@ -350,7 +350,6 @@ def number(num):
             0, 0, 0, 0, 0,
         ]
     }
-    print(numbers[num])
     return numbers[num]
 
 
