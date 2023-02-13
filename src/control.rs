@@ -9,6 +9,7 @@ pub enum _CommandVals {
     _Sleep = 0x03,
     _Animate = 0x04,
     _Panic = 0x05,
+    _Draw = 0x06,
 }
 
 pub enum PatternVals {
@@ -30,6 +31,7 @@ pub enum Command {
     Sleep,
     Animate(bool),
     Panic,
+    Draw([u8; 39]),
     _Unknown,
 }
 
@@ -65,6 +67,15 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
             0x03 => Some(Command::Sleep),
             0x04 => Some(Command::Animate(arg == 1)),
             0x05 => Some(Command::Panic),
+            0x06 => {
+                if count >= 3 + 39 {
+                    let mut bytes = [0; 39];
+                    bytes.clone_from_slice(&buf[3..3 + 39]);
+                    Some(Command::Draw(bytes))
+                } else {
+                    None
+                }
+            }
             _ => None, //Some(Command::Unknown),
         }
     } else {
@@ -106,6 +117,7 @@ pub fn handle_command(command: Command, state: &mut State, matrix: &mut Foo) {
         }
         Command::Animate(a) => state.animate = a,
         Command::Panic => panic!("Ahhh"),
+        Command::Draw(vals) => state.grid = draw(&vals),
         _ => {}
     }
 }

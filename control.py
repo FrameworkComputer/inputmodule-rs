@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
 import argparse
 import sys
+import time
+from datetime import datetime
+
+# Need to install
 import serial
+
+# Optional dependencies:
+# from PIL import Image
+# import PySimpleGUI as sg
 
 FWK_MAGIC = [0x32, 0xAC]
 PATTERNS = ['full', 'lotus', 'gradient', 'double-gradient', 'zigzag', 'panic', 'lotus2']
+DRAW_PATTERNS = ['off', 'on', 'foo']
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -44,27 +54,71 @@ def main():
         animate(args.animate)
     elif args.panic:
         command = FWK_MAGIC + [0x05, 0x00]
-        #send_command(command)
+        send_command(command)
+    elif args.draw is not None:
+        draw(args.draw)
+    elif args.image is not None:
+        image(args.image)
     elif args.gui:
         gui()
+    elif args.clock:
+        clock()
     else:
         print("Provide arg")
+
 
 def bootloader():
     command = FWK_MAGIC + [0x02, 0x00]
     send_command(command)
 
+
 def percentage(p):
     command = FWK_MAGIC + [0x01, 0x00, p]
     send_command(command)
+
 
 def brightness(b):
     command = FWK_MAGIC + [0x00, b]
     send_command(command)
 
+
 def animate(b):
     command = FWK_MAGIC + [0x04, b]
     send_command(command)
+
+
+def image(image_file):
+    from PIL import Image
+    im = Image.open(image_file)
+    width, height = im.size
+    pixel_values = list(im.getdata())
+    vals = [0 for _ in range(39)]
+    for i, pixel in enumerate(pixel_values):
+        # PNG has tuple, GIF has single value per pixel
+        if pixel == (255, 255, 255) or pixel == 1:
+            vals[int(i/8)] = vals[int(i/8)] | (1 << i % 8)
+    command = FWK_MAGIC + [0x06] + vals
+    send_command(command)
+
+
+def draw(p):
+    if p == 'off':
+        vals = [0x00 for _ in range(39)]
+        command = FWK_MAGIC + [0x06] + vals
+        send_command(command)
+    elif p == 'on':
+        vals = [0xFF for _ in range(39)]
+        command = FWK_MAGIC + [0x06] + vals
+        send_command(command)
+    elif p == 'foo':
+        vals = [0xFF for _ in range(39)]
+        vals[1] = 0x00
+        vals[2] = 0x00
+        vals[3] = 0x00
+        vals[8] = 0x00
+        command = FWK_MAGIC + [0x06] + vals
+        send_command(command)
+
 
 def pattern(p):
     if p == 'full':
@@ -91,10 +145,34 @@ def pattern(p):
     else:
         print("Invalid pattern")
 
+
+def clock():
+    while True:
+        vals = [0x00 for _ in range(39)]
+
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+        print("Current Time =", current_time)
+        for digit_i, digit in enumerate(current_time):
+            offset = digit_i * 7
+            digit_pixels = number(digit)
+            for pixel_x in range(5):
+                for pixel_y in range(6):
+                    pixel_value = digit_pixels[pixel_x + pixel_y*5]
+                    i = (2+pixel_x) + (9*(pixel_y+offset))
+                    if pixel_value:
+                        vals[int(i/8)] = vals[int(i/8)] | (1 << i % 8)
+
+        command = FWK_MAGIC + [0x06] + vals
+        send_command(command)
+        time.sleep(1)
+
+
 def send_command(command):
     print(f"Sending command: {command}")
     with serial.Serial('/dev/ttyACM0', 9600) as s:
         s.write(command)
+
 
 def gui():
     import PySimpleGUI as sg
@@ -149,6 +227,112 @@ def gui():
             percentage(int(values['-PERCENTAGE-']))
 
     window.close()
+
+
+def number(num):
+    numbers = {
+        '0': [
+            0, 1, 1, 0, 0,
+            1, 0, 0, 1, 0,
+            1, 0, 0, 1, 0,
+            1, 0, 0, 1, 0,
+            1, 0, 0, 1, 0,
+            0, 1, 1, 0, 0,
+        ],
+
+        '1': [
+            0, 0, 1, 0, 0,
+            0, 1, 1, 0, 0,
+            1, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            1, 1, 1, 1, 1,
+        ],
+
+        '2': [
+            1, 1, 1, 1, 0,
+            0, 0, 0, 0, 1,
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+        ],
+
+        '3': [
+            1, 1, 1, 1, 0,
+            0, 0, 0, 0, 1,
+            1, 1, 1, 1, 1,
+            0, 0, 0, 0, 1,
+            0, 0, 0, 0, 1,
+            1, 1, 1, 1, 0,
+        ],
+
+        '4': [
+            0, 0, 0, 1, 0,
+            0, 0, 1, 1, 0,
+            0, 1, 0, 1, 0,
+            1, 1, 1, 1, 1,
+            0, 0, 0, 1, 0,
+            0, 0, 0, 1, 0,
+        ],
+
+        '5': [
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+            0, 0, 0, 0, 1,
+            0, 0, 0, 0, 1,
+            1, 1, 1, 1, 0,
+        ],
+
+        '6': [
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 1, 1, 0,
+        ],
+
+        '7': [
+            1, 1, 1, 1, 1,
+            0, 0, 0, 0, 1,
+            0, 0, 0, 1, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+        ],
+
+        '8': [
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 1, 1, 0,
+        ],
+
+        '9': [
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            1, 1, 1, 1, 1,
+            0, 0, 0, 0, 1,
+            0, 0, 0, 0, 1,
+            0, 1, 1, 1, 0,
+        ],
+
+        ':': [
+            0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 0, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 0, 0, 0,
+        ]
+    }
+    print(numbers[num])
+    return numbers[num]
+
 
 if __name__ == "__main__":
     main()

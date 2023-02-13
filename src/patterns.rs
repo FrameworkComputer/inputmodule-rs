@@ -17,6 +17,26 @@ pub type Foo = LotusLedMatrix<
     >,
 >;
 
+pub fn draw(bytes: &[u8; 39]) -> Grid {
+    let mut grid: Grid = [[0; 34]; 9];
+
+    for y in 0..34 {
+        for x in 0..9 {
+            let index = x + 9 * y;
+            let byte = index / 8;
+            let bit = index % 8;
+            let val = if bytes[byte] & (1 << bit) > 0 {
+                0xFF
+            } else {
+                0x00
+            };
+            grid[8 - x][y] = val;
+        }
+    }
+
+    grid
+}
+
 pub fn display_panic() -> Grid {
     let grid: Grid = [
         [
