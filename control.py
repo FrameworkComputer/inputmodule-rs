@@ -16,6 +16,8 @@ PATTERNS = ['full', 'lotus', 'gradient',
             'double-gradient', 'zigzag', 'panic', 'lotus2']
 DRAW_PATTERNS = ['off', 'on', 'foo']
 
+SERIAL_DEV = None
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -41,7 +43,13 @@ def main():
                         action="store_true")
     parser.add_argument("--panic", help="Crash the firmware (TESTING ONLY)",
                         action="store_true")
+    parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
+                        default='/dev/ttyACM0')
     args = parser.parse_args()
+
+    if args.serial_dev is not None:
+        global SERIAL_DEV
+        SERIAL_DEV = args.serial_dev
 
     if args.bootloader:
         bootloader()
@@ -180,7 +188,8 @@ def clock():
 
 def send_command(command):
     print(f"Sending command: {command}")
-    with serial.Serial('/dev/ttyACM0', 9600) as s:
+    global SERIAL_DEV
+    with serial.Serial(SERIAL_DEV, 9600) as s:
         s.write(command)
 
 
@@ -249,6 +258,8 @@ def gui():
     window.close()
 
 
+# 5x6 font. Leaves 2 pixels on each side empty
+# We can leave one row empty below and then the display fits 5 of these digits.
 def number(num):
     numbers = {
         '0': [

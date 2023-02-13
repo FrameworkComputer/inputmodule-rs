@@ -51,6 +51,9 @@ options:
   --clock               Display the current time
   --gui                 Launch the graphical version of the program
   --panic               Crash the firmware (TESTING ONLY)
+  --serial-dev SERIAL_DEV
+                        Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
+
 ```
 
 Examples
