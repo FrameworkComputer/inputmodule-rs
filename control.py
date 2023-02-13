@@ -29,7 +29,7 @@ def main():
                         help='Start/stop vertical scrolling')
     parser.add_argument("--pattern", help='Display a pattern',
                         type=str, choices=PATTERNS)
-    #parser.add_argument("--draw", help="Draw",
+    # parser.add_argument("--draw", help="Draw",
     #                    type=str, choices=DRAW_PATTERNS)
     parser.add_argument("--image", help="Display a PNG or GIF image (black and white only)",
                         type=argparse.FileType('rb'))
@@ -65,8 +65,8 @@ def main():
     elif args.panic:
         command = FWK_MAGIC + [0x05, 0x00]
         send_command(command)
-    elif args.draw is not None:
-        draw(args.draw)
+    # elif args.draw is not None:
+    #    draw(args.draw)
     elif args.image is not None:
         image(args.image)
     elif args.gui:
@@ -192,7 +192,8 @@ def gui():
         [sg.Button("Bootloader")],
 
         [sg.Text("Brightness")],
-        [sg.Slider((0,255), orientation='h', k='-BRIGHTNESS-', enable_events=True)],
+        [sg.Slider((0, 255), orientation='h',
+                   k='-BRIGHTNESS-', enable_events=True)],
 
         [sg.Text("Animation")],
         [sg.Button("Start Animation"), sg.Button("Stop Animation")],
@@ -201,19 +202,20 @@ def gui():
         [sg.Combo(PATTERNS, k='-COMBO-', enable_events=True)],
 
         [sg.Text("Display Percentage")],
-        [sg.Slider((0,100), orientation='h', k='-PERCENTAGE-', enable_events=True)],
+        [sg.Slider((0, 100), orientation='h',
+                   k='-PERCENTAGE-', enable_events=True)],
 
-        #[sg.Text("Sleep")],
-        #[sg.Button("Sleep"), sg.Button("Wake")]
-        #[sg.Button("Panic")]
+        [sg.Text("Sleep")],
+        [sg.Button("Sleep"), sg.Button("Wake")],
+        # [sg.Button("Panic")]
 
         [sg.Button("Quit")]
     ]
     window = sg.Window("Lotus LED Matrix Control", layout)
     while True:
         event, values = window.read()
-        print('Event', event)
-        print('Values', values)
+        # print('Event', event)
+        # print('Values', values)
 
         if event == "Quit" or event == sg.WIN_CLOSED:
             break
@@ -235,6 +237,14 @@ def gui():
 
         if event == '-PERCENTAGE-':
             percentage(int(values['-PERCENTAGE-']))
+
+        if event == 'Sleep':
+            command = FWK_MAGIC + [0x03, True]
+            send_command(command)
+
+        if event == 'Wake':
+            command = FWK_MAGIC + [0x03, False]
+            send_command(command)
 
     window.close()
 
