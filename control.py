@@ -12,32 +12,42 @@ import serial
 # import PySimpleGUI as sg
 
 FWK_MAGIC = [0x32, 0xAC]
-PATTERNS = ['full', 'lotus', 'gradient', 'double-gradient', 'zigzag', 'panic', 'lotus2']
+PATTERNS = ['full', 'lotus', 'gradient',
+            'double-gradient', 'zigzag', 'panic', 'lotus2']
 DRAW_PATTERNS = ['off', 'on', 'foo']
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bootloader", help="Bootloader",
-                    action="store_true")
-    #parser.add_argument('--sleep', action=argparse.BooleanOptionalAction)
-    parser.add_argument("--brightness", help="Brightness",
-                    type=int)
-    parser.add_argument('--animate', action=argparse.BooleanOptionalAction)
-    parser.add_argument("--pattern", help="Pattern",
-                    type=str, choices=PATTERNS)
-    parser.add_argument("--percentage", help="Percentage",
-                    type=int)
-    parser.add_argument("--panic", help="Panic",
-                    action="store_true")
-    parser.add_argument("--gui", help="GUI",
-                    action="store_true")
+    parser.add_argument("--bootloader", help="Jump to the bootloader to flash new firmware",
+                        action="store_true")
+    parser.add_argument('--sleep', help='Simulate the host going to sleep or waking up',
+                        action=argparse.BooleanOptionalAction)
+    parser.add_argument("--brightness", help="Adjust the brightness. Value 0-255",
+                        type=int)
+    parser.add_argument('--animate', action=argparse.BooleanOptionalAction,
+                        help='Start/stop vertical scrolling')
+    parser.add_argument("--pattern", help='Display a pattern',
+                        type=str, choices=PATTERNS)
+    #parser.add_argument("--draw", help="Draw",
+    #                    type=str, choices=DRAW_PATTERNS)
+    parser.add_argument("--image", help="Display a PNG or GIF image (black and white only)",
+                        type=argparse.FileType('rb'))
+    parser.add_argument("--percentage", help="Fill a percentage of the screen",
+                        type=int)
+    parser.add_argument("--clock", help="Display the current time",
+                        action="store_true")
+    parser.add_argument("--gui", help="Launch the graphical version of the program",
+                        action="store_true")
+    parser.add_argument("--panic", help="Crash the firmware (TESTING ONLY)",
+                        action="store_true")
     args = parser.parse_args()
 
     if args.bootloader:
         bootloader()
-    #elif args.sleep is not None:
-    #    print(f"sleep: {args.sleep}")
+    elif args.sleep is not None:
+        command = FWK_MAGIC + [0x03, args.sleep]
+        send_command(command)
     elif args.brightness is not None:
         if args.brightness > 255 or args.brightness < 0:
             print("Brightness must be 0-255")

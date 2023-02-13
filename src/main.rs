@@ -1,10 +1,9 @@
-//! Blinks the LED on a Pico board
-//!
-//! This will blink an LED attached to GP25, which is the pin the Pico uses for the on-board LED.
+//! Lotus LED Matrix Module
 #![no_std]
 #![no_main]
 
 use bsp::entry;
+use cortex_m::delay::{self, Delay};
 //use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
@@ -109,10 +108,17 @@ use control::*;
 
 pub type Grid = [[u8; 34]; 9];
 
+#[derive(Clone)]
+enum SleepState {
+    Awake,
+    Sleeping(Grid),
+}
+
 pub struct State {
     grid: Grid,
     animate: bool,
     brightness: u8,
+    sleeping: SleepState,
 }
 
 #[entry]
@@ -169,8 +175,7 @@ fn main() -> ! {
     // INTB. Currently ignoring
     pins.intb.into_floating_input();
 
-    let sleep = pins.sleep.into_pull_down_input();
-    let _sleeping = sleep.is_low().unwrap();
+    let _sleep = pins.sleep.into_pull_down_input();
 
     let i2c = bsp::hal::I2C::i2c1(
         pac.I2C1,
@@ -185,6 +190,7 @@ fn main() -> ! {
         grid: percentage(100),
         animate: false,
         brightness: 120,
+        sleeping: SleepState::Awake,
     };
 
     let mut matrix = LotusLedMatrix::configure(i2c);
@@ -196,14 +202,20 @@ fn main() -> ! {
         .set_scaling(state.brightness)
         .expect("failed to set scaling");
 
-    let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut said_hello = false;
 
     fill_grid(state.grid, &mut matrix);
 
+    let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
 
     loop {
+        // TODO: Current hardware revision does not have the sleep pin wired up :(
+        // Go to sleep if the host is sleeping
+        //let host_sleeping = sleep.is_low().unwrap();
+        //handle_sleep(host_sleeping, &mut state, &mut matrix, &mut delay);
+
+        // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + 20_000 {
             fill_grid(state.grid, &mut matrix);
             if state.animate {
@@ -242,7 +254,12 @@ fn main() -> ! {
                 }
                 Ok(count) => {
                     if let Some(command) = parse_command(count, &buf) {
-                        handle_command(command, &mut state, &mut matrix);
+                        handle_command(&command, &mut state, &mut matrix);
+
+                        if let Command::Sleep(go_sleeping) = command {
+                            handle_sleep(go_sleeping, &mut state, &mut matrix, &mut delay);
+                        }
+
                         fill_grid(state.grid, &mut matrix);
                     }
                 }
@@ -251,4 +268,55 @@ fn main() -> ! {
     }
 }
 
-// End of file
+fn handle_sleep(go_sleeping: bool, state: &mut State, matrix: &mut Foo, delay: &mut Delay) {
+    match (state.sleeping.clone(), go_sleeping) {
+        (SleepState::Awake, false) => return,
+        (SleepState::Awake, true) => {
+            state.sleeping = SleepState::Sleeping(state.grid);
+            //state.grid = display_sleep();
+            fill_grid(state.grid, matrix);
+
+            // Slowly decrease brightness
+            delay.delay_ms(1000);
+            let mut brightness = state.brightness;
+            loop {
+                delay.delay_ms(100);
+                brightness = if brightness <= 5 { 0 } else { brightness - 5 };
+                matrix
+                    .set_scaling(brightness)
+                    .expect("failed to set scaling");
+                if brightness == 0 {
+                    break;
+                }
+            }
+
+            // TODO: Set up SLEEP# pin as interrupt and wfi
+            //cortex_m::asm::wfi();
+        }
+        (SleepState::Sleeping(_), true) => return,
+        (SleepState::Sleeping(old_grid), false) => {
+            // Restore back grid before sleeping
+            state.sleeping = SleepState::Awake;
+            state.grid = old_grid;
+            fill_grid(state.grid, matrix);
+
+            // Slowly increase brightness
+            delay.delay_ms(1000);
+            let mut brightness = 0;
+            loop {
+                delay.delay_ms(100);
+                brightness = if brightness >= state.brightness - 5 {
+                    state.brightness
+                } else {
+                    brightness + 5
+                };
+                matrix
+                    .set_scaling(brightness)
+                    .expect("failed to set scaling");
+                if brightness == state.brightness {
+                    break;
+                }
+            }
+        }
+    }
+}

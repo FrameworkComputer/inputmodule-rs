@@ -28,7 +28,7 @@ pub enum Command {
     Pattern(PatternVals),
     BootloaderReset,
     Percentage(u8),
-    Sleep,
+    Sleep(bool),
     Animate(bool),
     Panic,
     Draw([u8; 39]),
@@ -64,7 +64,7 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
                 _ => None,
             },
             0x02 => Some(Command::BootloaderReset),
-            0x03 => Some(Command::Sleep),
+            0x03 => Some(Command::Sleep(arg == 1)),
             0x04 => Some(Command::Animate(arg == 1)),
             0x05 => Some(Command::Panic),
             0x06 => {
@@ -83,16 +83,16 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
     }
 }
 
-pub fn handle_command(command: Command, state: &mut State, matrix: &mut Foo) {
+pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) {
     match command {
         Command::Brightness(br) => {
             //let _ = serial.write("Brightness".as_bytes());
-            state.brightness = br;
-            matrix.set_scaling(br).expect("failed to set scaling");
+            state.brightness = *br;
+            matrix.set_scaling(*br).expect("failed to set scaling");
         }
         Command::Percentage(p) => {
             //let p = if count >= 5 { buf[4] } else { 100 };
-            state.grid = percentage(p as u16);
+            state.grid = percentage(*p as u16);
         }
         Command::Pattern(pattern) => {
             //let _ = serial.write("Pattern".as_bytes());
@@ -111,11 +111,10 @@ pub fn handle_command(command: Command, state: &mut State, matrix: &mut Foo) {
             //let _ = serial.write("Bootloader Reset".as_bytes());
             reset_to_usb_boot(0, 0);
         }
-        Command::Sleep => {
-            //let _ = serial.write("Sleep".as_bytes());
-            // TODO: Implement sleep
+        Command::Sleep(_go_sleeping) => {
+            //sleep(go_sleeping, state, matrix);
         }
-        Command::Animate(a) => state.animate = a,
+        Command::Animate(a) => state.animate = *a,
         Command::Panic => panic!("Ahhh"),
         Command::Draw(vals) => state.grid = draw(&vals),
         _ => {}
