@@ -106,6 +106,29 @@ use patterns::*;
 mod control;
 use control::*;
 
+//                            FRA                - Framwork
+//                               KDE             - Lotus C2 LED Matrix
+//                                  AM           - Atemitech
+//                                    00         - Default Configuration
+//                                      00000000 - Device Identifier
+const DEFAULT_SERIAL: &str = "FRAKDEAM0000000000";
+// Get serial number from last 4K block of the first 1M
+const FLASH_OFFSET: usize = 0x10000000;
+const LAST_4K_BLOCK: usize = 0xff000;
+const SERIALNUM_LEN: usize = 18;
+
+fn get_serialnum() -> Option<&'static str> {
+    // Flash is mapped into memory, just read it from there
+    let ptr: *const u8 = (FLASH_OFFSET + LAST_4K_BLOCK) as *const u8;
+    unsafe {
+        let slice: &[u8] = core::slice::from_raw_parts(ptr, SERIALNUM_LEN);
+        if slice[0] == 0xFF || slice[0] == 0x00 {
+            return None;
+        }
+        core::str::from_utf8(slice).ok()
+    }
+}
+
 pub type Grid = [[u8; 34]; 9];
 
 #[derive(Clone)]
@@ -161,10 +184,16 @@ fn main() -> ! {
     // Set up the USB Communications Class Device driver
     let mut serial = SerialPort::new(&usb_bus);
 
+    let serialnum = if let Some(serialnum) = get_serialnum() {
+        serialnum
+    } else {
+        DEFAULT_SERIAL
+    };
+
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0020))
         .manufacturer("Framework")
         .product("Lotus LED Matrix")
-        .serial_number("FRAKDE??0000000000")
+        .serial_number(serialnum)
         .device_class(2) // Communications and CDC Control. From: https://www.usb.org/defined-class-codes
         .build();
 
