@@ -1,9 +1,10 @@
 //! Lotus LED Matrix Module
 #![no_std]
 #![no_main]
+#![allow(clippy::needless_range_loop)]
 
 use bsp::entry;
-use cortex_m::delay::{self, Delay};
+use cortex_m::delay::Delay;
 //use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
@@ -129,8 +130,15 @@ fn get_serialnum() -> Option<&'static str> {
     }
 }
 
-pub type Grid = [[u8; 34]; 9];
+#[derive(Clone)]
+pub struct Grid([[u8; HEIGHT]; WIDTH]);
+impl Default for Grid {
+    fn default() -> Self {
+        Grid([[0; HEIGHT]; WIDTH])
+    }
+}
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 enum SleepState {
     Awake,
@@ -204,7 +212,7 @@ fn main() -> ! {
     // INTB. Currently ignoring
     pins.intb.into_floating_input();
 
-    let _sleep = pins.sleep.into_pull_down_input();
+    let sleep = pins.sleep.into_pull_down_input();
 
     let i2c = bsp::hal::I2C::i2c1(
         pac.I2C1,
@@ -233,7 +241,7 @@ fn main() -> ! {
 
     let mut said_hello = false;
 
-    fill_grid(state.grid, &mut matrix);
+    fill_grid(&state.grid, &mut matrix);
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
@@ -241,15 +249,15 @@ fn main() -> ! {
     loop {
         // TODO: Current hardware revision does not have the sleep pin wired up :(
         // Go to sleep if the host is sleeping
-        //let host_sleeping = sleep.is_low().unwrap();
+        let _host_sleeping = sleep.is_low().unwrap();
         //handle_sleep(host_sleeping, &mut state, &mut matrix, &mut delay);
 
         // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + 20_000 {
-            fill_grid(state.grid, &mut matrix);
+            fill_grid(&state.grid, &mut matrix);
             if state.animate {
-                for x in 0..9 {
-                    state.grid[x].rotate_right(1);
+                for x in 0..WIDTH {
+                    state.grid.0[x].rotate_right(1);
                 }
             }
             prev_timer = timer.get_counter().ticks();
@@ -289,7 +297,7 @@ fn main() -> ! {
                             handle_sleep(go_sleeping, &mut state, &mut matrix, &mut delay);
                         }
 
-                        fill_grid(state.grid, &mut matrix);
+                        fill_grid(&state.grid, &mut matrix);
                     }
                 }
             }
@@ -299,11 +307,11 @@ fn main() -> ! {
 
 fn handle_sleep(go_sleeping: bool, state: &mut State, matrix: &mut Foo, delay: &mut Delay) {
     match (state.sleeping.clone(), go_sleeping) {
-        (SleepState::Awake, false) => return,
+        (SleepState::Awake, false) => (),
         (SleepState::Awake, true) => {
-            state.sleeping = SleepState::Sleeping(state.grid);
+            state.sleeping = SleepState::Sleeping(state.grid.clone());
             //state.grid = display_sleep();
-            fill_grid(state.grid, matrix);
+            fill_grid(&state.grid, matrix);
 
             // Slowly decrease brightness
             delay.delay_ms(1000);
@@ -322,12 +330,12 @@ fn handle_sleep(go_sleeping: bool, state: &mut State, matrix: &mut Foo, delay: &
             // TODO: Set up SLEEP# pin as interrupt and wfi
             //cortex_m::asm::wfi();
         }
-        (SleepState::Sleeping(_), true) => return,
+        (SleepState::Sleeping(_), true) => (),
         (SleepState::Sleeping(old_grid), false) => {
             // Restore back grid before sleeping
             state.sleeping = SleepState::Awake;
             state.grid = old_grid;
-            fill_grid(state.grid, matrix);
+            fill_grid(&state.grid, matrix);
 
             // Slowly increase brightness
             delay.delay_ms(1000);

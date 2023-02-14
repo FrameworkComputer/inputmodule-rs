@@ -116,7 +116,7 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) {
         }
         Command::Animate(a) => state.animate = *a,
         Command::Panic => panic!("Ahhh"),
-        Command::Draw(vals) => state.grid = draw(&vals),
+        Command::Draw(vals) => state.grid = draw(vals),
         _ => {}
     }
 }

@@ -7,6 +7,9 @@ use crate::lotus_led_hal as bsp;
 use crate::mapping::*;
 use crate::{lotus::LotusLedMatrix, Grid};
 
+pub const WIDTH: usize = 9;
+pub const HEIGHT: usize = 34;
+
 pub type Foo = LotusLedMatrix<
     bsp::hal::I2C<
         I2C1,
@@ -18,11 +21,11 @@ pub type Foo = LotusLedMatrix<
 >;
 
 pub fn draw(bytes: &[u8; 39]) -> Grid {
-    let mut grid: Grid = [[0; 34]; 9];
+    let mut grid = Grid::default();
 
-    for y in 0..34 {
-        for x in 0..9 {
-            let index = x + 9 * y;
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            let index = x + WIDTH * y;
             let byte = index / 8;
             let bit = index % 8;
             let val = if bytes[byte] & (1 << bit) > 0 {
@@ -30,14 +33,14 @@ pub fn draw(bytes: &[u8; 39]) -> Grid {
             } else {
                 0x00
             };
-            grid[8 - x][y] = val;
+            grid.0[8 - x][y] = val;
         }
     }
 
     grid
 }
 pub fn display_sleep() -> Grid {
-    [
+    Grid([
         [
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -83,11 +86,11 @@ pub fn display_sleep() -> Grid {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ],
-    ]
+    ])
 }
 
 pub fn display_panic() -> Grid {
-    let grid: Grid = [
+    Grid([
         [
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -133,13 +136,11 @@ pub fn display_panic() -> Grid {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ],
-    ];
-
-    grid
+    ])
 }
 
 pub fn display_lotus() -> Grid {
-    let mut grid: Grid = [[0; 34]; 9];
+    let mut grid = Grid::default();
 
     display_letter(26, &mut grid, CAP_L);
     display_letter(20, &mut grid, CAP_O);
@@ -151,7 +152,7 @@ pub fn display_lotus() -> Grid {
 }
 
 pub fn display_lotus2() -> Grid {
-    [
+    Grid([
         [
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -197,24 +198,26 @@ pub fn display_lotus2() -> Grid {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ],
-    ]
+    ])
 }
 
 pub fn display_letter(pos: usize, grid: &mut Grid, letter: SingleDisplayData) {
-    for x in 0..8 {
-        for y in 0..8 {
+    let letter_size = 8;
+    for x in 0..letter_size {
+        for y in 0..letter_size {
             let val = if letter[x] & (1 << y) > 0 { 0xFF } else { 0 };
-            grid[8 - x][y + pos] = val;
+            grid.0[letter_size - x][y + pos] = val;
         }
     }
 }
 
 /// Gradient getting brighter from top to bottom
 pub fn gradient() -> Grid {
-    let mut grid: Grid = [[0; 34]; 9];
-    for y in 0..34 {
-        for x in 0..9 {
-            grid[x][y] = (1 * (y + 1)) as u8;
+    let gradient_drop = 1; // Brightness drop between rows
+    let mut grid = Grid::default();
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            grid.0[x][y] = (gradient_drop * (y + 1)) as u8;
         }
     }
     grid
@@ -222,11 +225,11 @@ pub fn gradient() -> Grid {
 
 /// Fill a percentage of the rows from the bottom up
 pub fn percentage(percentage: u16) -> Grid {
-    let mut grid: Grid = [[0; 34]; 9];
-    let first_row = 34 * percentage / 100;
-    for y in (34 - first_row)..34 {
-        for x in 0..9 {
-            grid[x][y as usize] = 0xFF;
+    let mut grid = Grid::default();
+    let first_row = HEIGHT * (percentage as usize) / 100;
+    for y in (HEIGHT - first_row)..HEIGHT {
+        for x in 0..WIDTH {
+            grid.0[x][y] = 0xFF;
         }
     }
     grid
@@ -234,37 +237,36 @@ pub fn percentage(percentage: u16) -> Grid {
 
 /// Double sided gradient, bright in the middle, dim top and bottom
 pub fn double_gradient() -> Grid {
-    let mut grid: Grid = [[0; 34]; 9];
-    for y in 0..(34 / 2) {
-        for x in 0..9 {
-            grid[x][y] = (1 * (y + 1)) as u8;
+    let gradient_drop = 1; // Brightness drop between rows
+    let mut grid = Grid::default();
+    for y in 0..(HEIGHT / 2) {
+        for x in 0..WIDTH {
+            grid.0[x][y] = (gradient_drop * (y + 1)) as u8;
         }
     }
-    for y in (34 / 2)..34 {
-        for x in 0..9 {
-            grid[x][y] = 34 - (1 * (y + 1)) as u8;
+    for y in (HEIGHT / 2)..HEIGHT {
+        for x in 0..WIDTH {
+            grid.0[x][y] = (HEIGHT - gradient_drop * (y + 1)) as u8;
         }
     }
     grid
 }
 
-pub fn fill_grid(grid: Grid, matrix: &mut Foo) {
-    for y in 0..34 {
-        for x in 0..9 {
-            matrix
-                .device
-                .pixel(x, y, grid[x as usize][y as usize])
-                .unwrap();
+pub fn fill_grid(grid: &Grid, matrix: &mut Foo) {
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            matrix.device.pixel(x as u8, y as u8, grid.0[x][y]).unwrap();
         }
     }
 }
 
-pub fn fill_grid_pixels(grid: Grid, matrix: &mut Foo) {
+pub fn fill_grid_pixels(grid: &Grid, matrix: &mut Foo) {
+    // B4 LEDs on the first page, 0xAB on the second page
     let mut brightnesses = [0x00; 0xB4 + 0xAB];
-    for y in 0..34 {
-        for x in 0..9 {
-            let (register, page) = (matrix.device.calc_pixel)(x, y);
-            brightnesses[(page * 0xAA + register) as usize] = grid[x as usize][y as usize];
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            let (register, page) = (matrix.device.calc_pixel)(x as u8, y as u8);
+            brightnesses[(page * 0xAA + register) as usize] = grid.0[x][y];
         }
     }
     matrix.device.fill_matrix(&brightnesses).unwrap();
@@ -272,32 +274,36 @@ pub fn fill_grid_pixels(grid: Grid, matrix: &mut Foo) {
 
 pub fn full_brightness(matrix: &mut Foo) {
     // Fills every pixel individually
-    matrix.fill_brightness(0xFF).unwrap();
+    //matrix.fill_brightness(0xFF).unwrap();
 
     // Fills full page at once
-    //matrix.device.fill(0xFF).unwrap();
+    matrix.device.fill(0xFF).unwrap();
 }
 
 pub fn zigzag() -> Grid {
-    let mut grid: Grid = [[0; 34]; 9];
+    let mut grid = Grid::default();
+
     // 1st Right to left
-    for i in 0..9 {
-        grid[i][i] = 0xFF;
+    for i in 0..WIDTH {
+        grid.0[i][i] = 0xFF;
     }
     // 1st Left to right
-    for i in 0..9 {
-        grid[8 - i][9 + i] = 0xFF;
+    for i in 0..WIDTH {
+        grid.0[WIDTH - 1 - i][WIDTH + i] = 0xFF;
     }
     // 2nd right to left
-    for i in 0..9 {
-        grid[i][18 + i] = 0xFF;
+    for i in 0..WIDTH {
+        grid.0[i][2 * WIDTH + i] = 0xFF;
     }
     // 2nd left to right
-    for i in 0..9 {
-        if 27 + i < 34 {
-            grid[8 - i][27 + i] = 0xFF;
+    for i in 0..WIDTH {
+        if 3 * WIDTH + i < HEIGHT {
+            grid.0[WIDTH - 1 - i][3 * WIDTH + i] = 0xFF;
         }
     }
-    grid[1][33] = 0xFF;
+
+    // Finish it off nicely
+    grid.0[1][33] = 0xFF;
+
     grid
 }
