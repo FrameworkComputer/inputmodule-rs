@@ -88,7 +88,9 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) {
         Command::Brightness(br) => {
             //let _ = serial.write("Brightness".as_bytes());
             state.brightness = *br;
-            matrix.set_scaling(*br).expect("failed to set scaling");
+            matrix
+                .set_scaling(state.brightness)
+                .expect("failed to set scaling");
         }
         Command::Percentage(p) => {
             //let p = if count >= 5 { buf[4] } else { 100 };
@@ -101,7 +103,14 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) {
                 PatternVals::DoubleGradient => state.grid = double_gradient(),
                 PatternVals::DisplayLotus => state.grid = display_lotus(),
                 PatternVals::ZigZag => state.grid = zigzag(),
-                PatternVals::FullBrightness => full_brightness(matrix),
+                PatternVals::FullBrightness => {
+                    state.grid = percentage(100);
+                    full_brightness(matrix);
+                    state.brightness = 0xFF;
+                    matrix
+                        .set_scaling(state.brightness)
+                        .expect("failed to set scaling");
+                }
                 PatternVals::DisplayPanic => state.grid = display_panic(),
                 PatternVals::DisplayLotus2 => state.grid = display_lotus2(),
                 _ => {}

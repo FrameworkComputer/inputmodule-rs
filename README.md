@@ -49,11 +49,17 @@ options:
   --percentage PERCENTAGE
                         Fill a percentage of the screen
   --clock               Display the current time
+  --string STRING       Display a string or number, like FPS
+  --symbols SYMBOLS [SYMBOLS ...]
+                        Show symbols (degF, degC, :), snow, cloud, ...)
   --gui                 Launch the graphical version of the program
-  --panic               Crash the firmware (TESTING ONLY)
+  --blink               Blink the current pattern
+  --breathing           Breathing of the current pattern
+  --eq EQ [EQ ...]      Equalizer
+  --wpm                 WPM Demo
+  --random-eq           Random Equalizer
   --serial-dev SERIAL_DEV
                         Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
-
 ```
 
 Examples
