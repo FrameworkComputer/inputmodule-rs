@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timedelta
 import random
 import math
+import sys
 
 # Need to install
 import serial
@@ -58,9 +59,10 @@ def main():
     parser.add_argument("--breathing", help="Breathing of the current pattern",
                         action="store_true")
     parser.add_argument("--eq", help="Equalizer", nargs='+', type=int)
-    parser.add_argument("--wpm", help="WPM Demo", action="store_true")
     parser.add_argument(
         "--random-eq", help="Random Equalizer", action="store_true")
+    parser.add_argument("--wpm", help="WPM Demo", action="store_true")
+    parser.add_argument("--snake", help="Snake", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
     parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
@@ -107,6 +109,8 @@ def main():
         breathing()
     elif args.wpm:
         wpm_demo()
+    elif args.snake:
+        snake()
     elif args.eq is not None:
         eq(args.eq)
     elif args.random_eq:
@@ -302,6 +306,125 @@ def breathing():
             brightness(50 + i*20)
 
 
+direction = None
+body = []
+
+
+def opposite_direction(direction):
+    from getkey import keys
+    if direction == keys.RIGHT:
+        return keys.LEFT
+    elif direction == keys.LEFT:
+        return keys.RIGHT
+    elif direction == keys.UP:
+        return keys.DOWN
+    elif direction == keys.DOWN:
+        return keys.UP
+    return direction
+
+
+def keyscan():
+    from getkey import getkey, keys
+    global direction
+    global body
+
+    while True:
+        current_dir = direction
+        key = getkey()
+        if key in [keys.RIGHT, keys.UP, keys.LEFT, keys.DOWN]:
+            # Don't allow accidental suicide if we have a body
+            if key == opposite_direction(current_dir) and body:
+                continue
+            direction = key
+
+
+def game_over():
+    global body
+    while True:
+        show_string('GAME ')
+        time.sleep(0.75)
+        show_string('OVER!')
+        time.sleep(0.75)
+        score = len(body)
+        show_string(f'{score:>3} P')
+        time.sleep(0.75)
+
+
+def snake():
+    from getkey import keys
+    global direction
+    global body
+    head = (0, 0)
+    direction = keys.DOWN
+    food = (0, 0)
+    while food == head:
+        food = (random.randint(0, WIDTH-1),
+                random.randint(0, HEIGHT-1))
+
+    # Setting
+    WRAP = False
+
+    thread = threading.Thread(target=keyscan, args=(), daemon=True)
+    thread.start()
+
+    prev = datetime.now()
+    while True:
+        now = datetime.now()
+        delta = (now - prev) / timedelta(milliseconds=1)
+
+        if delta > 200:
+            prev = now
+        else:
+            continue
+
+        # Update position
+        (x, y) = head
+        oldhead = head
+        if direction == keys.RIGHT:
+            head = (x+1, y)
+        elif direction == keys.LEFT:
+            head = (x-1, y)
+        elif direction == keys.UP:
+            head = (x, y-1)
+        elif direction == keys.DOWN:
+            head = (x, y+1)
+
+        # Detect edge condition
+        (x, y) = head
+        if head in body:
+            return game_over()
+        elif x >= WIDTH or x < 0 or y >= HEIGHT or y < 0:
+            if WRAP:
+                if x >= WIDTH:
+                    x = 0
+                elif x < 0:
+                    x = WIDTH-1
+                elif y >= HEIGHT:
+                    y = 0
+                elif y < 0:
+                    y = HEIGHT-1
+                head = (x, y)
+            else:
+                return game_over()
+        elif head == food:
+            body.insert(0, oldhead)
+            while food == head:
+                food = (random.randint(0, WIDTH-1),
+                        random.randint(0, HEIGHT-1))
+        elif body:
+            body.pop()
+            body.insert(0, oldhead)
+
+        # Draw on screen
+        matrix = [[0 for _ in range(HEIGHT)] for _ in range(WIDTH)]
+        matrix[x][y] = 1
+        matrix[food[0]][food[1]] = 1
+        for bodypart in body:
+            (x, y) = bodypart
+            matrix[x][y] = 1
+        render_matrix(matrix)
+
+
 def wpm_demo():
     """Capture keypresses and calculate the WPM of the last 10 seconds
     TODO: I'm not sure my calculation is right."""
@@ -456,7 +579,7 @@ def clock():
 def send_command(command):
     """Send a command to the device.
     Opens new serial connection every time"""
-    print(f"Sending command: {command}")
+    # print(f"Sending command: {command}")
     global SERIAL_DEV
     with serial.Serial(SERIAL_DEV, 115200) as s:
         s.write(command)
@@ -902,6 +1025,62 @@ def convert_font(num):
             1, 0, 0, 0, 1,
             1, 0, 0, 0, 1,
             1, 1, 1, 1, 0,
+        ],
+        'O': [
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 1, 1, 0,
+        ],
+        'V': [
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 0, 1, 1,
+            0, 1, 0, 1, 1,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+        ],
+        'E': [
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+        ],
+        'R': [
+            1, 1, 1, 1, 0,
+            1, 0, 0, 1, 0,
+            1, 1, 1, 1, 0,
+            1, 1, 0, 0, 0,
+            1, 0, 1, 0, 0,
+            1, 0, 0, 1, 0,
+        ],
+        'G': [
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 0,
+            1, 0, 1, 1, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 1, 1, 0,
+        ],
+        'M': [
+            0, 0, 0, 0, 0,
+            0, 1, 0, 1, 0,
+            1, 0, 1, 0, 1,
+            1, 0, 1, 0, 1,
+            1, 0, 1, 0, 1,
+            1, 0, 1, 0, 1,
+        ],
+        'P': [
+            1, 1, 1, 0, 0,
+            1, 0, 0, 1, 0,
+            1, 0, 0, 1, 0,
+            1, 1, 1, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
         ],
     }
     if num in font:
