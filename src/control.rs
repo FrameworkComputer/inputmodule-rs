@@ -105,7 +105,6 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) {
                 PatternVals::ZigZag => state.grid = zigzag(),
                 PatternVals::FullBrightness => {
                     state.grid = percentage(100);
-                    full_brightness(matrix);
                     state.brightness = 0xFF;
                     matrix
                         .set_scaling(state.brightness)

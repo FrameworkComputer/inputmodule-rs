@@ -64,7 +64,7 @@ use rp2040_panic_usb_boot as _;
 //
 //    matrix.set_scaling(100).expect("failed to set scaling");
 //    let grid = display_panic();
-//    fill_grid(grid, &mut matrix);
+//    fill_grid_pixels(grid, &mut matrix);
 //
 //    loop {}
 //}
@@ -90,7 +90,7 @@ use fugit::RateExtU32;
 use usb_device::{class_prelude::*, prelude::*};
 
 // USB Communications Class Device support
-use usbd_serial::SerialPort;
+use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // Used to demonstrate writing formatted strings
 use core::fmt::Write;
@@ -202,7 +202,7 @@ fn main() -> ! {
         .manufacturer("Framework")
         .product("Lotus LED Matrix")
         .serial_number(serialnum)
-        .device_class(2) // Communications and CDC Control. From: https://www.usb.org/defined-class-codes
+        .device_class(USB_CLASS_CDC)
         .build();
 
     // Enable LED controller
@@ -241,7 +241,7 @@ fn main() -> ! {
 
     let mut said_hello = false;
 
-    fill_grid(&state.grid, &mut matrix);
+    fill_grid_pixels(&state.grid, &mut matrix);
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
@@ -254,7 +254,7 @@ fn main() -> ! {
 
         // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + 20_000 {
-            fill_grid(&state.grid, &mut matrix);
+            fill_grid_pixels(&state.grid, &mut matrix);
             if state.animate {
                 for x in 0..WIDTH {
                     state.grid.0[x].rotate_right(1);
@@ -297,7 +297,7 @@ fn main() -> ! {
                             handle_sleep(go_sleeping, &mut state, &mut matrix, &mut delay);
                         }
 
-                        fill_grid(&state.grid, &mut matrix);
+                        fill_grid_pixels(&state.grid, &mut matrix);
                     }
                 }
             }
@@ -311,7 +311,7 @@ fn handle_sleep(go_sleeping: bool, state: &mut State, matrix: &mut Foo, delay: &
         (SleepState::Awake, true) => {
             state.sleeping = SleepState::Sleeping(state.grid.clone());
             //state.grid = display_sleep();
-            fill_grid(&state.grid, matrix);
+            fill_grid_pixels(&state.grid, matrix);
 
             // Slowly decrease brightness
             delay.delay_ms(1000);
@@ -335,7 +335,7 @@ fn handle_sleep(go_sleeping: bool, state: &mut State, matrix: &mut Foo, delay: &
             // Restore back grid before sleeping
             state.sleeping = SleepState::Awake;
             state.grid = old_grid;
-            fill_grid(&state.grid, matrix);
+            fill_grid_pixels(&state.grid, matrix);
 
             // Slowly increase brightness
             delay.delay_ms(1000);

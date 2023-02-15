@@ -252,7 +252,9 @@ pub fn double_gradient() -> Grid {
     grid
 }
 
-pub fn fill_grid(grid: &Grid, matrix: &mut Foo) {
+/// Same as fill_grid_pixels but does each pixel individually
+/// So it's much slower because it has to send 306 I2C commands
+pub fn _fill_grid(grid: &Grid, matrix: &mut Foo) {
     for y in 0..HEIGHT {
         for x in 0..WIDTH {
             matrix.device.pixel(x as u8, y as u8, grid.0[x][y]).unwrap();
@@ -260,13 +262,14 @@ pub fn fill_grid(grid: &Grid, matrix: &mut Foo) {
     }
 }
 
+/// Just sends two I2C commands for the entire grid
 pub fn fill_grid_pixels(grid: &Grid, matrix: &mut Foo) {
     // B4 LEDs on the first page, 0xAB on the second page
     let mut brightnesses = [0x00; 0xB4 + 0xAB];
     for y in 0..HEIGHT {
         for x in 0..WIDTH {
             let (register, page) = (matrix.device.calc_pixel)(x as u8, y as u8);
-            brightnesses[(page * 0xAA + register) as usize] = grid.0[x][y];
+            brightnesses[(page as usize) * 0xB4 + (register as usize)] = grid.0[x][y];
         }
     }
     matrix.device.fill_matrix(&brightnesses).unwrap();
