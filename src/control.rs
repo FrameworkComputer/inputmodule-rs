@@ -10,6 +10,8 @@ pub enum _CommandVals {
     _Animate = 0x04,
     _Panic = 0x05,
     _Draw = 0x06,
+    _StageGreyCol = 0x07,
+    _DrawGreyColBuffer = 0x08,
 }
 
 pub enum PatternVals {
@@ -24,14 +26,24 @@ pub enum PatternVals {
 }
 
 pub enum Command {
+    /// Set brightness scaling
     Brightness(u8),
+    /// Display pre-programmed pattern
     Pattern(PatternVals),
+    /// Reset into bootloader
     BootloaderReset,
+    /// Light up a percentage of the screen
     Percentage(u8),
+    /// Go to sleepe or wake up
     Sleep(bool),
+    /// Start/stop animation (vertical scrolling)
     Animate(bool),
+    /// Panic. Just to test what happens
     Panic,
-    Draw([u8; 39]),
+    /// Draw black/white on the grid
+    Draw([u8; DRAW_BYTES]),
+    StageGreyCol(u8, [u8; HEIGHT]),
+    DrawGreyColBuffer,
     _Unknown,
 }
 
@@ -68,14 +80,24 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
             0x04 => Some(Command::Animate(arg == 1)),
             0x05 => Some(Command::Panic),
             0x06 => {
-                if count >= 3 + 39 {
-                    let mut bytes = [0; 39];
-                    bytes.clone_from_slice(&buf[3..3 + 39]);
+                if count >= 3 + DRAW_BYTES {
+                    let mut bytes = [0; DRAW_BYTES];
+                    bytes.clone_from_slice(&buf[3..3 + DRAW_BYTES]);
                     Some(Command::Draw(bytes))
                 } else {
                     None
                 }
             }
+            0x07 => {
+                if count >= 3 + 1 + HEIGHT {
+                    let mut bytes = [0; HEIGHT];
+                    bytes.clone_from_slice(&buf[4..4 + HEIGHT]);
+                    Some(Command::StageGreyCol(buf[3], bytes))
+                } else {
+                    None
+                }
+            }
+            0x08 => Some(Command::DrawGreyColBuffer),
             _ => None, //Some(Command::Unknown),
         }
     } else {
@@ -125,6 +147,15 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) {
         Command::Animate(a) => state.animate = *a,
         Command::Panic => panic!("Ahhh"),
         Command::Draw(vals) => state.grid = draw(vals),
+        Command::StageGreyCol(col, vals) => {
+            draw_grey_col(&mut state.col_buffer, *col, vals);
+        }
+        Command::DrawGreyColBuffer => {
+            // Copy the staging buffer to the real grid and display it
+            state.grid = state.col_buffer.clone();
+            // Zero the old staging buffer, just for good measure.
+            state.col_buffer = percentage(0);
+        }
         _ => {}
     }
 }

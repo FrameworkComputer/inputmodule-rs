@@ -10,6 +10,10 @@ use crate::{lotus::LotusLedMatrix, Grid};
 pub const WIDTH: usize = 9;
 pub const HEIGHT: usize = 34;
 
+/// Bytes needed to represent all LEDs with a single bit
+/// math.ceil(WIDTH * HEIGHT / 8)
+pub const DRAW_BYTES: usize = 39;
+
 pub type Foo = LotusLedMatrix<
     bsp::hal::I2C<
         I2C1,
@@ -20,7 +24,7 @@ pub type Foo = LotusLedMatrix<
     >,
 >;
 
-pub fn draw(bytes: &[u8; 39]) -> Grid {
+pub fn draw(bytes: &[u8; DRAW_BYTES]) -> Grid {
     let mut grid = Grid::default();
 
     for y in 0..HEIGHT {
@@ -39,6 +43,13 @@ pub fn draw(bytes: &[u8; 39]) -> Grid {
 
     grid
 }
+
+pub fn draw_grey_col(grid: &mut Grid, col: u8, levels: &[u8; HEIGHT]) {
+    for y in 0..HEIGHT {
+        grid.0[8 - col as usize][y as usize] = levels[y];
+    }
+}
+
 pub fn display_sleep() -> Grid {
     Grid([
         [

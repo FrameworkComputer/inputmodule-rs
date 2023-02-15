@@ -147,6 +147,7 @@ enum SleepState {
 
 pub struct State {
     grid: Grid,
+    col_buffer: Grid,
     animate: bool,
     brightness: u8,
     sleeping: SleepState,
@@ -225,6 +226,7 @@ fn main() -> ! {
 
     let mut state = State {
         grid: percentage(100),
+        col_buffer: Grid::default(),
         animate: false,
         brightness: 120,
         sleeping: SleepState::Awake,
