@@ -9,6 +9,7 @@ use cortex_m::delay::Delay;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 
+use rp2040_hal::gpio::bank0::Gpio29;
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
@@ -78,7 +79,7 @@ use lotus_led_hal as bsp;
 
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
-    pac,
+    gpio, pac,
     sio::Sio,
     usb,
     watchdog::Watchdog,
@@ -217,8 +218,8 @@ fn main() -> ! {
 
     let i2c = bsp::hal::I2C::i2c1(
         pac.I2C1,
-        pins.gpio26.into_mode::<bsp::hal::gpio::FunctionI2C>(),
-        pins.gpio27.into_mode::<bsp::hal::gpio::FunctionI2C>(),
+        pins.gpio26.into_mode::<gpio::FunctionI2C>(),
+        pins.gpio27.into_mode::<gpio::FunctionI2C>(),
         1000.kHz(),
         &mut pac.RESETS,
         &clocks.peripheral_clock,
@@ -293,10 +294,17 @@ fn main() -> ! {
                 }
                 Ok(count) => {
                     if let Some(command) = parse_command(count, &buf) {
-                        handle_command(&command, &mut state, &mut matrix);
-
                         if let Command::Sleep(go_sleeping) = command {
-                            handle_sleep(go_sleeping, &mut state, &mut matrix, &mut delay);
+                            handle_sleep(
+                                go_sleeping,
+                                &mut state,
+                                &mut matrix,
+                                &mut delay,
+                                &mut led_enable,
+                            );
+                        } else if let SleepState::Awake = state.sleeping {
+                            // While sleeping no command is handled, except waking up
+                            handle_command(&command, &mut state, &mut matrix);
                         }
 
                         fill_grid_pixels(&state.grid, &mut matrix);
@@ -307,7 +315,13 @@ fn main() -> ! {
     }
 }
 
-fn handle_sleep(go_sleeping: bool, state: &mut State, matrix: &mut Foo, delay: &mut Delay) {
+fn handle_sleep(
+    go_sleeping: bool,
+    state: &mut State,
+    matrix: &mut Foo,
+    delay: &mut Delay,
+    led_enable: &mut gpio::Pin<Gpio29, gpio::Output<gpio::PushPull>>,
+) {
     match (state.sleeping.clone(), go_sleeping) {
         (SleepState::Awake, false) => (),
         (SleepState::Awake, true) => {
@@ -329,6 +343,9 @@ fn handle_sleep(go_sleeping: bool, state: &mut State, matrix: &mut Foo, delay: &
                 }
             }
 
+            // Turn LED controller off to save power
+            led_enable.set_low().unwrap();
+
             // TODO: Set up SLEEP# pin as interrupt and wfi
             //cortex_m::asm::wfi();
         }
@@ -338,6 +355,9 @@ fn handle_sleep(go_sleeping: bool, state: &mut State, matrix: &mut Foo, delay: &
             state.sleeping = SleepState::Awake;
             state.grid = old_grid;
             fill_grid_pixels(&state.grid, matrix);
+
+            // Power LED controller back on
+            led_enable.set_high().unwrap();
 
             // Slowly increase brightness
             delay.delay_ms(1000);
