@@ -5,6 +5,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 import random
+import math
 
 # Need to install
 import serial
@@ -17,6 +18,9 @@ FWK_MAGIC = [0x32, 0xAC]
 PATTERNS = ['full', 'lotus', 'gradient',
             'double-gradient', 'zigzag', 'panic', 'lotus2']
 DRAW_PATTERNS = ['off', 'on', 'foo']
+GREYSCALE_DEPTH = 32
+WIDTH = 9
+HEIGHT = 34
 
 SERIAL_DEV = None
 
@@ -33,7 +37,9 @@ def main():
                         help='Start/stop vertical scrolling')
     parser.add_argument("--pattern", help='Display a pattern',
                         type=str, choices=PATTERNS)
-    parser.add_argument("--image", help="Display a PNG or GIF image (black and white only)",
+    parser.add_argument("--image", help="Display a PNG or GIF image in black and white only)",
+                        type=argparse.FileType('rb'))
+    parser.add_argument("--image-grey", help="Display a PNG or GIF image in greyscale",
                         type=argparse.FileType('rb'))
     parser.add_argument("--percentage", help="Fill a percentage of the screen",
                         type=int)
@@ -55,6 +61,8 @@ def main():
     parser.add_argument("--wpm", help="WPM Demo", action="store_true")
     parser.add_argument(
         "--random-eq", help="Random Equalizer", action="store_true")
+    parser.add_argument(
+        "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
     parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
                         default='/dev/ttyACM0')
     args = parser.parse_args()
@@ -86,7 +94,11 @@ def main():
         command = FWK_MAGIC + [0x05, 0x00]
         send_command(command)
     elif args.image is not None:
-        image(args.image)
+        image_bl(args.image)
+    elif args.image_grey is not None:
+        image_greyscale(args.image_grey)
+    elif args.all_brightnesses:
+        all_brightnesses()
     elif args.gui:
         gui()
     elif args.blink:
@@ -110,37 +122,125 @@ def main():
 
 
 def bootloader():
+    """Reboot into the bootloader to flash new firmware"""
     command = FWK_MAGIC + [0x02, 0x00]
     send_command(command)
 
 
 def percentage(p):
+    """Fill a percentage of the screen. Bottom to top"""
     command = FWK_MAGIC + [0x01, 0x00, p]
     send_command(command)
 
 
-def brightness(b):
+def brightness(b: int):
+    """Adjust the brightness scaling of the entire screen.
+    """
     command = FWK_MAGIC + [0x00, b]
     send_command(command)
 
 
-def animate(b):
+def animate(b: bool):
+    """Tell the firmware to start/stop animation.
+    Scrolls the currently saved grid vertically down."""
     command = FWK_MAGIC + [0x04, b]
     send_command(command)
 
 
-def image(image_file):
-    from PIL import Image
-    im = Image.open(image_file)
-    width, height = im.size
-    pixel_values = list(im.getdata())
+def image_bl(image_file):
+    """Display an image in black and white
+    Confirmed working with PNG and GIF.
+    Must be 9x34 in size.
+    Sends everything in a single command
+    """
     vals = [0 for _ in range(39)]
+
+    from PIL import Image
+    im = Image.open(image_file).convert("RGB")
+    width, height = im.size
+    assert (width == 9)
+    assert (height == 34)
+    pixel_values = list(im.getdata())
     for i, pixel in enumerate(pixel_values):
-        # PNG has tuple, GIF has single value per pixel
-        if pixel == (255, 255, 255) or pixel == 1:
-            vals[int(i/8)] = vals[int(i/8)] | (1 << i % 8)
+        brightness = sum(pixel) / 3
+        if brightness > 0xFF/2:
+            vals[int(i/8)] |= (1 << i % 8)
+
     command = FWK_MAGIC + [0x06] + vals
     send_command(command)
+
+
+def pixel_to_brightness(pixel):
+    """Calculate pixel brightness from an RGB triple"""
+    assert (len(pixel) == 3)
+    brightness = sum(pixel) / len(pixel)
+
+    # Poor man's scaling to make the greyscale pop better.
+    # Should find a good function.
+    if brightness > 200:
+        brightness = brightness
+    elif brightness > 150:
+        brightness = brightness * 0.8
+    elif brightness > 100:
+        brightness = brightness * 0.5
+    elif brightness > 50:
+        brightness = brightness
+    else:
+        brightness = brightness * 2
+
+    return int(brightness)
+
+
+def image_greyscale(image_file):
+    """Display an image in greyscale
+    Sends each 1x34 column and then commits => 10 commands
+    """
+    with serial.Serial(SERIAL_DEV, 115200) as s:
+        from PIL import Image
+        im = Image.open(image_file).convert("RGB")
+        width, height = im.size
+        assert (width == 9)
+        assert (height == 34)
+        pixel_values = list(im.getdata())
+        for x in range(0, WIDTH):
+            vals = [0 for _ in range(HEIGHT)]
+
+            for y in range(HEIGHT):
+                vals[y] = pixel_to_brightness(pixel_values[x+y*WIDTH])
+
+            send_col(s, x, vals)
+        commit_cols(s)
+
+
+def send_col(s, x, vals):
+    """Stage greyscale values for a single column. Must be committed with commit_cols()"""
+    command = FWK_MAGIC + [0x07, x] + vals
+    send_serial(s, command)
+
+
+def commit_cols(s):
+    """Commit the changes from sending individual cols with send_col(), displaying the matrix.
+    This makes sure that the matrix isn't partially updated."""
+    command = FWK_MAGIC + [0x08, 0x00]
+    send_serial(s, command)
+
+
+def all_brightnesses():
+    """Increase the brightness with each pixel.
+    Only 0-255 available, so it can't fill all 306 LEDs"""
+    with serial.Serial(SERIAL_DEV, 115200) as s:
+        for x in range(0, WIDTH):
+            vals = [0 for _ in range(HEIGHT)]
+
+            for y in range(HEIGHT):
+                brightness = x + WIDTH * y
+                if brightness > 255:
+                    vals[y] = 0
+                else:
+                    vals[y] = brightness
+
+            send_col(s, x, vals)
+        commit_cols(s)
 
 
 def countdown(seconds):
@@ -167,6 +267,8 @@ def countdown(seconds):
 
 
 def blinking():
+    """Blink brightness high/off every second.
+    Keeps currently displayed grid"""
     while True:
         brightness(0)
         time.sleep(0.5)
@@ -175,6 +277,8 @@ def blinking():
 
 
 def breathing():
+    """Animate breathing brightness.
+    Keeps currently displayed grid"""
     # Bright ranges appear similar, so we have to go through those faster
     while True:
         # Go quickly from 250 to 50
@@ -199,6 +303,8 @@ def breathing():
 
 
 def wpm_demo():
+    """Capture keypresses and calculate the WPM of the last 10 seconds
+    TODO: I'm not sure my calculation is right."""
     from getkey import getkey, keys
     start = datetime.now()
     keypresses = []
@@ -219,7 +325,10 @@ def wpm_demo():
 
 
 def random_eq():
+    """Display an equlizer looking animation with random values.
+    """
     while True:
+        # Lower values more likely, makes it look nicer
         weights = [i*i for i in range(33, 0, -1)]
         population = list(range(1, 34))
         vals = random.choices(population, weights=weights, k=9)
@@ -228,6 +337,7 @@ def random_eq():
 
 
 def eq(vals):
+    """Display 9 values in equalizer diagram starting from the middle, going up and down"""
     matrix = [[0 for _ in range(34)] for _ in range(9)]
 
     for (col, val) in enumerate(vals[:9]):
@@ -244,6 +354,8 @@ def eq(vals):
 
 
 def render_matrix(matrix):
+    """Show a black/white matrix
+    Send everything in a single command"""
     vals = [0x00 for _ in range(39)]
 
     for x in range(9):
@@ -268,6 +380,7 @@ def light_leds(leds):
 
 
 def pattern(p):
+    """Display a pattern that's already programmed into the firmware"""
     if p == 'full':
         command = FWK_MAGIC + [0x01, 5]
         send_command(command)
@@ -293,11 +406,13 @@ def pattern(p):
         print("Invalid pattern")
 
 
-def show_string(num):
-    show_font([convert_font(letter) for letter in str(num)[:5]])
+def show_string(s):
+    """Render a string with up to five letters"""
+    show_font([convert_font(letter) for letter in str(s)[:5]])
 
 
 def show_font(font_items):
+    """Render up to five 5x6 pixel font items"""
     vals = [0x00 for _ in range(39)]
 
     for digit_i, digit_pixels in enumerate(font_items):
@@ -314,6 +429,8 @@ def show_font(font_items):
 
 
 def show_symbols(symbols):
+    """Render a list of up to five symbols
+    Can use letters/numbers or symbol names, like 'sun', ':)'"""
     font_items = []
     for symbol in symbols:
         s = convert_symbol(symbol)
@@ -325,6 +442,8 @@ def show_symbols(symbols):
 
 
 def clock():
+    """Render the current time and display.
+    Loops forever, updating every second"""
     while True:
         now = datetime.now()
         current_time = now.strftime("%H:%M")
@@ -335,10 +454,18 @@ def clock():
 
 
 def send_command(command):
+    """Send a command to the device.
+    Opens new serial connection every time"""
     print(f"Sending command: {command}")
     global SERIAL_DEV
-    with serial.Serial(SERIAL_DEV, 9600) as s:
+    with serial.Serial(SERIAL_DEV, 115200) as s:
         s.write(command)
+
+
+def send_serial(s, command):
+    """Send serial command by using existing serial connection"""
+    global SERIAL_DEV
+    s.write(command)
 
 
 def gui():
@@ -558,11 +685,10 @@ def convert_symbol(symbol):
     else:
         return None
 
-# 5x6 font. Leaves 2 pixels on each side empty
-# We can leave one row empty below and then the display fits 5 of these digits.
-
 
 def convert_font(num):
+    """ 5x6 font. Leaves 2 pixels on each side empty
+    We can leave one row empty below and then the display fits 5 of these digits."""
     font = {
         '0': [
             0, 1, 1, 0, 0,

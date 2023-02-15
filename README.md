@@ -13,7 +13,8 @@ Rust project setup based off of: https://github.com/rp-rs/rp2040-project-templat
   - Display various pre-programmed patterns
   - Light up a percentage of the screen
   - Change brightness
-  - Send a black/white image to display
+  - Send a black/white image to the display
+  - Send a greyscale image to the display
   - Go to sleep
   - Reset into bootloader
   - Scroll and loop the display content vertically
@@ -45,7 +46,9 @@ options:
                         Start/stop vertical scrolling
   --pattern {full,lotus,gradient,double-gradient,zigzag,panic,lotus2}
                         Display a pattern
-  --image IMAGE         Display a PNG or GIF image (black and white only)
+  --image IMAGE         Display a PNG or GIF image in black and white only)
+  --image-grey IMAGE_GREY
+                        Display a PNG or GIF image in greyscale
   --percentage PERCENTAGE
                         Fill a percentage of the screen
   --clock               Display the current time
@@ -58,6 +61,7 @@ options:
   --eq EQ [EQ ...]      Equalizer
   --wpm                 WPM Demo
   --random-eq           Random Equalizer
+  --all-brightnesses    Show every pixel in a different brightness
   --serial-dev SERIAL_DEV
                         Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
 ```
