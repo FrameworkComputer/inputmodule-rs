@@ -275,7 +275,7 @@ fn main() -> ! {
 
             let time = timer.get_counter();
             let mut text: String<64> = String::new();
-            writeln!(&mut text, "Current timer ticks: {}", time).unwrap();
+            write!(&mut text, "Current timer ticks: {}\r\n", time).unwrap();
 
             // This only works reliably because the number of bytes written to
             // the serial port is smaller than the buffers available to the USB
