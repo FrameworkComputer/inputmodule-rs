@@ -59,8 +59,9 @@ options:
   --blink               Blink the current pattern
   --breathing           Breathing of the current pattern
   --eq EQ [EQ ...]      Equalizer
-  --wpm                 WPM Demo
   --random-eq           Random Equalizer
+  --wpm                 WPM Demo
+  --snake               Snake
   --all-brightnesses    Show every pixel in a different brightness
   --serial-dev SERIAL_DEV
                         Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
