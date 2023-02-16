@@ -142,7 +142,7 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) {
             reset_to_usb_boot(0, 0);
         }
         Command::Sleep(_go_sleeping) => {
-            //sleep(go_sleeping, state, matrix);
+            // Handled elsewhere
         }
         Command::Animate(a) => state.animate = *a,
         Command::Panic => panic!("Ahhh"),

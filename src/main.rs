@@ -204,6 +204,8 @@ fn main() -> ! {
         .manufacturer("Framework")
         .product("Lotus LED Matrix")
         .serial_number(serialnum)
+        .max_power(200) // Device uses roughly 164mW when all LEDs are at full brightness
+        .device_release(0x0011) // TODO: Assign dynamically based on crate version
         .device_class(USB_CLASS_CDC)
         .build();
 

@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "led_matrix_fw"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies]
 cortex-m = { version = "0.7", features = ["critical-section-single-core"]}
@@ -14,13 +14,7 @@ defmt-rtt = "0.4"
 #panic-probe = { version = "0.3", features = ["print-defmt"] }
 rp2040-panic-usb-boot = { git = "https://github.com/rwalkr/rp2040-panic-usb-boot" }
 
-# We're using a Pico by default on this template
-#rp-pico = "0.5"
-
-# but you can use any BSP. Uncomment this to use the pro_micro_rp2040 BSP instead
-# sparkfun-pro-micro-rp2040 = "0.3"
-
-# If you're not going to use a Board Support Package you'll need these:
+# Not using a BSP, we've got a LED Matrix BSP locally in this crate
 rp2040-hal = { version="0.7", features=["rt"] }
 rp2040-boot2 = "0.2"
 
@@ -39,7 +33,7 @@ codegen-units = 1
 debug = 2
 debug-assertions = true
 incremental = false
- # To allow single-stepping through code use 0. Will cause timing issues, though
+# To allow single-stepping through code use 0. Will cause timing issues, though
 opt-level = 3
 overflow-checks = true
 
