@@ -10,6 +10,8 @@ use embedded_hal::digital::v2::{InputPin, OutputPin};
 
 use rp2040_hal::{
     gpio::bank0::Gpio29,
+    gpio::Interrupt::EdgeHigh,
+    pac::interrupt,
     rosc::{Enabled, RingOscillator},
 };
 //#[cfg(debug_assertions)]
@@ -443,4 +445,26 @@ fn handle_sleep(
             }
         }
     }
+}
+
+/// Cannot be exited from software, module must be reset or woken by interrupt
+fn enter_deep_sleep() {
+    let pins: bsp::Pins = unimplemented!();
+    let mut led_enable = pins.sdb.into_push_pull_output();
+    let sleep = pins.sleep.into_pull_down_input();
+    sleep.set_interrupt_enabled(EdgeHigh, true);
+    led_enable.set_low().unwrap();
+
+    unsafe {
+        pac::NVIC::unmask(pac::Interrupt::IO_IRQ_BANK0);
+    }
+
+    // TODO: Set up SLEEP# pin as interrupt
+    cortex_m::asm::wfi();
+}
+
+/// Must be called from interrupt when SLEEP# goes high
+#[interrupt]
+fn IO_IRQ_BANK0() {
+    //led_enable.set_high().unwrap();
 }
