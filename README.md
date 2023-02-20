@@ -1,8 +1,6 @@
-# Lotus LED Matrix Module
+# Lotus Input Module Firmware
 
-It's a 9x34 (306) LED matrix, controlled by RP2040 MCU and IS31FL3741A LED controller.
-
-Connection to the host system is via USB 2.0 and currently there is a USB Serial API to control it without reflashing.
+See below sections for LED Matrix and LCD Display module details.
 
 Rust project setup based off of: https://github.com/rp-rs/rp2040-project-template
 
@@ -99,13 +97,15 @@ cargo install elf2uf2-rs --locked
 Build:
 
 ```sh
-cargo build
+cargo build --bin ledmatrix --features=ledmatrix
+cargo build --bin b1display --features=b1display
 ```
 
 Generate UF2 file:
 
 ```sh
-elf2uf2-rs target/thumbv6m-none-eabi/debug/led_matrix_fw led_matrix.uf2
+elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
+elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1dipslay.uf2
 ```
 
 ## Flashing
@@ -132,3 +132,11 @@ Additionally the panic message is written to flash, which can be read as follows
 sudo picotool save -r 0x15000000 0x15004000 message.bin
 strings message.bin | head
 ```
+
+## LED Matrix
+
+It's a 9x34 (306) LED matrix, controlled by RP2040 MCU and IS31FL3741A LED controller.
+
+Connection to the host system is via USB 2.0 and currently there is a USB Serial API to control it without reflashing.
+
+## B1 Display

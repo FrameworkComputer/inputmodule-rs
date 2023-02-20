@@ -3,7 +3,6 @@
 #![no_main]
 #![allow(clippy::needless_range_loop)]
 
-use bsp::entry;
 use cortex_m::delay::Delay;
 //use defmt::*;
 use defmt_rtt as _;
@@ -72,8 +71,8 @@ use rp2040_panic_usb_boot as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-mod lotus_led_hal;
-use lotus_led_hal as bsp;
+use bsp::entry;
+use lotus_input::lotus_led_hal as bsp;
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -97,16 +96,10 @@ use usbd_serial::{SerialPort, USB_CLASS_CDC};
 use core::fmt::Write;
 use heapless::String;
 
-pub mod lotus;
-use lotus::LotusLedMatrix;
-
-pub mod mapping;
-
-pub mod patterns;
-use patterns::*;
-
-mod control;
-use control::*;
+use lotus_input::control::*;
+use lotus_input::lotus::LotusLedMatrix;
+use lotus_input::matrix::*;
+use lotus_input::patterns::*;
 
 //                            FRA                - Framwork
 //                               KDE             - Lotus C2 LED Matrix
@@ -129,29 +122,6 @@ fn get_serialnum() -> Option<&'static str> {
         }
         core::str::from_utf8(slice).ok()
     }
-}
-
-#[derive(Clone)]
-pub struct Grid([[u8; HEIGHT]; WIDTH]);
-impl Default for Grid {
-    fn default() -> Self {
-        Grid([[0; HEIGHT]; WIDTH])
-    }
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(Clone)]
-enum SleepState {
-    Awake,
-    Sleeping(Grid),
-}
-
-pub struct State {
-    grid: Grid,
-    col_buffer: Grid,
-    animate: bool,
-    brightness: u8,
-    sleeping: SleepState,
 }
 
 #[entry]

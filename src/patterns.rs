@@ -3,12 +3,10 @@ use rp2040_hal::{
     pac::I2C1,
 };
 
+use crate::lotus::LotusLedMatrix;
 use crate::lotus_led_hal as bsp;
 use crate::mapping::*;
-use crate::{lotus::LotusLedMatrix, Grid};
-
-pub const WIDTH: usize = 9;
-pub const HEIGHT: usize = 34;
+use crate::matrix::*;
 
 /// Bytes needed to represent all LEDs with a single bit
 /// math.ceil(WIDTH * HEIGHT / 8)
