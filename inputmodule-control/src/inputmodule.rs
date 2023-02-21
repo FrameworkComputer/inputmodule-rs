@@ -8,10 +8,16 @@ const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 
 const BRIGHTNESS: u8 = 0x00;
 const PERCENTAGE: u8 = 0x01;
+const PATTERN: u8 = 0x01;
 const BOOTLOADER: u8 = 0x02;
 const SLEEPING: u8 = 0x03;
 const ANIMATE: u8 = 0x04;
-const PATTERN: u8 = 0x01;
+const SEND_COL: u8 = 0x07;
+const COMMIT_COLS: u8 = 0x08;
+const _B1_RESERVED: u8 = 0x09;
+
+const WIDTH: usize = 9;
+const HEIGHT: usize = 34;
 
 #[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
 enum Pattern {
@@ -54,6 +60,10 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     #[clap(value_enum)]
     pattern: Option<Pattern>,
+
+    /// Show every brightness, one per pixel
+    #[arg(long)]
+    all_brightnesses: bool,
 
     /// Serial device, like /dev/ttyACM0 or COM0
     #[arg(long)]
@@ -127,6 +137,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
             }
             if let Some(pattern) = ledmatrix_args.pattern {
                 pattern_cmd(&serialdev, pattern);
+            }
+            if ledmatrix_args.all_brightnesses {
+                all_brightnesses_cmd(&serialdev);
             }
         }
         Some(crate::Commands::B1Display(_b1display_args)) => {}
@@ -222,4 +235,45 @@ fn animate_cmd(serialdev: &str, arg: Option<bool>) {
         let animating = response[0] == 1;
         println!("Currently animating: {animating}");
     }
+}
+
+/// Stage greyscale values for a single column. Must be committed with commit_cols()
+fn send_col(port: &mut Box<dyn SerialPort>, x: u8, vals: &[u8]) {
+    let mut buffer: [u8; 64] = [0; 64];
+    buffer[0] = x;
+    buffer[1..vals.len()+1].copy_from_slice(vals);
+    simple_cmd_port(port, SEND_COL, &buffer[0..vals.len()+1]);
+}
+
+
+/// Commit the changes from sending individual cols with send_col(), displaying the matrix.
+/// This makes sure that the matrix isn't partially updated.
+fn commit_cols(port: &mut Box<dyn SerialPort>) {
+    simple_cmd_port(port, COMMIT_COLS, &[]);
+}
+
+
+///Increase the brightness with each pixel.
+///Only 0-255 available, so it can't fill all 306 LEDs
+fn all_brightnesses_cmd(serialdev: &str) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(Duration::from_millis(10))
+        .open()
+        .expect("Failed to open port");
+
+    for x in 0..WIDTH {
+        let mut vals: [u8; HEIGHT] = [0; HEIGHT];
+
+        for y in 0..HEIGHT {
+            let brightness = x + WIDTH * y;
+            vals[y] = if brightness > 255 {
+                 0
+            } else {
+                brightness
+            } as u8;
+        }
+
+        send_col(&mut port, x as u8, &vals);
+    }
+    commit_cols(&mut port);
 }
