@@ -17,3 +17,4 @@ pub mod graphics;
 pub mod lotus_lcd_hal;
 
 pub mod control;
+pub mod serialnum;
