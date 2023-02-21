@@ -16,14 +16,24 @@ import serial
 # import PySimpleGUI as sg
 
 FWK_MAGIC = [0x32, 0xAC]
-PATTERNS = ['full', 'lotus', 'gradient',
-            'double-gradient', 'zigzag', 'panic', 'lotus2']
+PATTERNS = [
+    'All LEDs on',
+    '"LOTUS" sideways',
+    'Gradient (0-13% Brightness)',
+    'Double Gradient (0-7-0% Brightness)',
+    'Zigzag',
+    '"PANIC"',
+    '"LOTUS" Top Down',
+    'All brightness levels (1 LED each)',
+]
 DRAW_PATTERNS = ['off', 'on', 'foo']
 GREYSCALE_DEPTH = 32
 WIDTH = 9
 HEIGHT = 34
 
 SERIAL_DEV = None
+
+STOP_THREAD = False
 
 
 def main():
@@ -252,7 +262,11 @@ def countdown(seconds):
     Until the timer runs out and every LED is lit"""
     start = datetime.now()
     target = seconds * 1_000_000
+    global STOP_THREAD
     while True:
+        if STOP_THREAD:
+            STOP_THREAD = False
+            return
         now = datetime.now()
         passed_time = (now - start) / timedelta(microseconds=1)
 
@@ -450,7 +464,11 @@ def wpm_demo():
 def random_eq():
     """Display an equlizer looking animation with random values.
     """
+    global STOP_THREAD
     while True:
+        if STOP_THREAD:
+            STOP_THREAD = False
+            return
         # Lower values more likely, makes it look nicer
         weights = [i*i for i in range(33, 0, -1)]
         population = list(range(1, 34))
@@ -504,27 +522,29 @@ def light_leds(leds):
 
 def pattern(p):
     """Display a pattern that's already programmed into the firmware"""
-    if p == 'full':
+    if p == 'All LEDs on':
         command = FWK_MAGIC + [0x01, 5]
         send_command(command)
-    elif p == 'gradient':
+    elif p == 'Gradient (0-13% Brightness)':
         command = FWK_MAGIC + [0x01, 1]
         send_command(command)
-    elif p == 'double-gradient':
+    elif p == 'Double Gradient (0-7-0% Brightness)':
         command = FWK_MAGIC + [0x01, 2]
         send_command(command)
-    elif p == 'lotus':
+    elif p == '"LOTUS" sideways':
         command = FWK_MAGIC + [0x01, 3]
         send_command(command)
-    elif p == 'zigzag':
+    elif p == 'Zigzag':
         command = FWK_MAGIC + [0x01, 4]
         send_command(command)
-    elif p == 'panic':
+    elif p == '"PANIC"':
         command = FWK_MAGIC + [0x01, 6]
         send_command(command)
-    elif p == 'lotus2':
+    elif p == '"LOTUS" Top Down':
         command = FWK_MAGIC + [0x01, 7]
         send_command(command)
+    elif p == 'All brightness levels (1 LED each)':
+        all_brightnesses()
     else:
         print("Invalid pattern")
 
@@ -567,7 +587,11 @@ def show_symbols(symbols):
 def clock():
     """Render the current time and display.
     Loops forever, updating every second"""
+    global STOP_THREAD
     while True:
+        if STOP_THREAD:
+            STOP_THREAD = False
+            return
         now = datetime.now()
         current_time = now.strftime("%H:%M")
         print("Current Time =", current_time)
@@ -599,25 +623,52 @@ def gui():
         [sg.Button("Bootloader")],
 
         [sg.Text("Brightness")],
-        [sg.Slider((0, 255), orientation='h',
+        # TODO: Get default from device
+        [sg.Slider((0, 255), orientation='h', default_value=120,
                    k='-BRIGHTNESS-', enable_events=True)],
 
         [sg.Text("Animation")],
         [sg.Button("Start Animation"), sg.Button("Stop Animation")],
 
         [sg.Text("Pattern")],
-        [sg.Combo(PATTERNS, k='-COMBO-', enable_events=True)],
+        [sg.Combo(PATTERNS, k='-PATTERN-', enable_events=True)],
 
-        [sg.Text("Display Percentage")],
+        [sg.Text("Fill screen X% (could be volume indicator)")],
         [sg.Slider((0, 100), orientation='h',
                    k='-PERCENTAGE-', enable_events=True)],
 
-        [sg.Text("Countdown")],
+        [sg.Text("Countdown Timer")],
         [
             sg.Spin([i for i in range(1, 60)],
                     initial_value=10, k='-COUNTDOWN-'),
             sg.Text("Seconds"),
-            sg.Button("Start", k='-START-COUNTDOWN-')
+            sg.Button("Start", k='-START-COUNTDOWN-'),
+            sg.Button("Stop", k='-STOP-COUNTDOWN-'),
+        ],
+
+        [sg.Text("Black&White Image")],
+        [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')],
+
+        [sg.Text("Greyscale Image")],
+        [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')],
+
+        [sg.Text("Display Current Time")],
+        [
+            sg.Button("Start", k='-START-TIME-'),
+            sg.Button("Stop", k='-STOP-TIME-')
+        ],
+
+        [sg.Text("Display Text with Symbols")],
+        [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
+
+        # TODO
+        #[sg.Text("Play Snake")],
+        #[sg.Button("Start Game", k='-PLAY-SNAKE-')],
+
+        [sg.Text("Equalizer")],
+        [
+            sg.Button("Start random equalizer", k='-RANDOM-EQ-'),
+            sg.Button("Stop", k='-STOP-EQ-')
         ],
 
         [sg.Text("Sleep")],
@@ -627,6 +678,7 @@ def gui():
         [sg.Button("Quit")]
     ]
     window = sg.Window("Lotus LED Matrix Control", layout)
+    global STOP_THREAD
     while True:
         event, values = window.read()
         # print('Event', event)
@@ -638,8 +690,8 @@ def gui():
         if event == "Bootloader":
             bootloader()
 
-        if event == '-COMBO-':
-            pattern(values['-COMBO-'])
+        if event == '-PATTERN-':
+            pattern(values['-PATTERN-'])
 
         if event == 'Start Animation':
             animate(True)
@@ -657,6 +709,32 @@ def gui():
             thread = threading.Thread(target=countdown, args=(
                 int(values['-COUNTDOWN-']),), daemon=True)
             thread.start()
+        if event == '-STOP-COUNTDOWN-':
+            STOP_THREAD = True
+
+        if event == '-SEND-BL-IMAGE-':
+            image_bl('stripe.gif')
+
+        if event == '-SEND-GREY-IMAGE-':
+            image_greyscale('greyscale.gif')
+
+        if event == '-START-TIME-':
+            thread = threading.Thread(target=clock, args=(), daemon=True)
+            thread.start()
+        if event == '-STOP-TIME-':
+            STOP_THREAD = True
+
+        if event == '-SEND-TEXT-':
+            show_symbols(['2', '5', 'degC', ' ', 'thunder'])
+
+        if event == '-PLAY-SNAKE-':
+            snake()
+
+        if event == '-RANDOM-EQ-':
+            thread = threading.Thread(target=random_eq, args=(), daemon=True)
+            thread.start()
+        if event == '-STOP-EQ-':
+            STOP_THREAD = True
 
         if event == 'Sleep':
             command = FWK_MAGIC + [0x03, True]
