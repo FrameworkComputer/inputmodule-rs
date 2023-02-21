@@ -265,8 +265,8 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
-                    if let Some(command) = parse_command(count, &buf) {
-                        if let Command::Sleep(go_sleeping) = command {
+                    match (parse_command(count, &buf), &state.sleeping) {
+                        (Some(Command::Sleep(go_sleeping)), _) => {
                             handle_sleep(
                                 go_sleeping,
                                 &mut state,
@@ -274,12 +274,23 @@ fn main() -> ! {
                                 &mut delay,
                                 &mut led_enable,
                             );
-                        } else if let SleepState::Awake = state.sleeping {
-                            // While sleeping no command is handled, except waking up
-                            handle_command(&command, &mut state, &mut matrix);
                         }
-
-                        fill_grid_pixels(&state.grid, &mut matrix);
+                        (Some(c @ Command::BootloaderReset), _)
+                        | (Some(c @ Command::IsSleeping), _) => {
+                            if let Some(response) = handle_command(&c, &mut state, &mut matrix) {
+                                let _ = serial.write(&response);
+                            };
+                        }
+                        (Some(command), SleepState::Awake) => {
+                            // While sleeping no command is handled, except waking up
+                            if let Some(response) =
+                                handle_command(&command, &mut state, &mut matrix)
+                            {
+                                let _ = serial.write(&response);
+                            };
+                            fill_grid_pixels(&state.grid, &mut matrix);
+                        }
+                        _ => {}
                     }
                 }
             }

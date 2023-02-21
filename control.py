@@ -28,6 +28,7 @@ PATTERNS = [
 ]
 DRAW_PATTERNS = ['off', 'on', 'foo']
 GREYSCALE_DEPTH = 32
+RESPONSE_SIZE = 32
 WIDTH = 9
 HEIGHT = 34
 
@@ -42,10 +43,16 @@ def main():
                         action="store_true")
     parser.add_argument('--sleep', help='Simulate the host going to sleep or waking up',
                         action=argparse.BooleanOptionalAction)
+    parser.add_argument('--is-sleeping', help='Check current sleep state',
+                        action='store_true')
     parser.add_argument("--brightness", help="Adjust the brightness. Value 0-255",
                         type=int)
+    parser.add_argument("--get-brightness", help="Get current brightness",
+                        action="store_true")
     parser.add_argument('--animate', action=argparse.BooleanOptionalAction,
                         help='Start/stop vertical scrolling')
+    parser.add_argument('--get-animate', action='store_true',
+                        help='Check if currently animating')
     parser.add_argument("--pattern", help='Display a pattern',
                         type=str, choices=PATTERNS)
     parser.add_argument("--image", help="Display a PNG or GIF image in black and white only)",
@@ -88,11 +95,19 @@ def main():
     elif args.sleep is not None:
         command = FWK_MAGIC + [0x03, args.sleep]
         send_command(command)
+    elif args.is_sleeping:
+        command = FWK_MAGIC + [0x03]
+        res = send_command(command, with_response=True)
+        sleeping = bool(res[0])
+        print(f"Currently sleeping: {sleeping}")
     elif args.brightness is not None:
         if args.brightness > 255 or args.brightness < 0:
             print("Brightness must be 0-255")
             sys.exit(1)
         brightness(args.brightness)
+    elif args.get_brightness:
+        br = get_brightness()
+        print(f"Current brightness: {br}")
     elif args.percentage is not None:
         if args.percentage > 100 or args.percentage < 0:
             print("Percentage must be 0-100")
@@ -102,6 +117,9 @@ def main():
         pattern(args.pattern)
     elif args.animate is not None:
         animate(args.animate)
+    elif args.get_animate:
+        animating = get_animate()
+        print(f"Currently animating: {animating}")
     elif args.panic:
         command = FWK_MAGIC + [0x05, 0x00]
         send_command(command)
@@ -154,11 +172,27 @@ def brightness(b: int):
     send_command(command)
 
 
+def get_brightness():
+    """Adjust the brightness scaling of the entire screen.
+    """
+    command = FWK_MAGIC + [0x00]
+    res = send_command(command, with_response=True)
+    return int(res[0])
+
+
 def animate(b: bool):
     """Tell the firmware to start/stop animation.
     Scrolls the currently saved grid vertically down."""
     command = FWK_MAGIC + [0x04, b]
     send_command(command)
+
+
+def get_animate():
+    """Tell the firmware to start/stop animation.
+    Scrolls the currently saved grid vertically down."""
+    command = FWK_MAGIC + [0x04]
+    res = send_command(command, with_response=True)
+    return bool(res[0])
 
 
 def image_bl(image_file):
@@ -600,13 +634,18 @@ def clock():
         time.sleep(1)
 
 
-def send_command(command):
+def send_command(command, with_response=False):
     """Send a command to the device.
     Opens new serial connection every time"""
     # print(f"Sending command: {command}")
     global SERIAL_DEV
     with serial.Serial(SERIAL_DEV, 115200) as s:
         s.write(command)
+
+        if with_response:
+            res = s.read(RESPONSE_SIZE)
+            #print(f"Received: {res}")
+            return res
 
 
 def send_serial(s, command):
