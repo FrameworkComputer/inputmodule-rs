@@ -11,6 +11,9 @@ use crate::font::{convert_symbol, convert_font};
 
 const EXPECTED_SERIAL_DEVICES: &[&str] = &["/dev/ttyACM0", "/dev/ttyACM1", "COM0", "COM1"];
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
+const FRAMEWORK_VID: u16 = 0x32AC;
+const LED_MATRIX_PID: u16 = 0x0020;
+const B1_LCD_PID: u16 = 0x0021;
 
 const BRIGHTNESS: u8 = 0x00;
 const PERCENTAGE: u8 = 0x01;
@@ -133,8 +136,13 @@ fn find_serialdev(ports: &[SerialPortInfo], requested: &Option<String>) -> Optio
             }
         }
     } else {
-        // If nothing requested, fall back to a generic one
+        // If nothing requested, fall back to a generic one or the first supported Framework USB device
         for p in ports {
+            if let serialport::SerialPortType::UsbPort(usbinfo) = &p.port_type {
+                if usbinfo.vid == FRAMEWORK_VID && [LED_MATRIX_PID, B1_LCD_PID].contains(&usbinfo.pid) {
+                return Some(p.port_name.clone());
+                }
+            }
             if EXPECTED_SERIAL_DEVICES.contains(&p.port_name.as_str()) {
                 return Some(p.port_name.clone());
             }
@@ -148,7 +156,8 @@ pub fn serial_commands(args: &crate::ClapCli) {
     let ports = serialport::available_ports().expect("No ports found!");
     if args.list || args.verbose {
         for p in &ports {
-            println!("{}", p.port_name);
+            //println!("{}", p.port_name);
+            println!("{p:?}");
         }
     }
     let serialdev = match &args.command {
