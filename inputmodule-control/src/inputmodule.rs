@@ -7,7 +7,7 @@ use image::{io::Reader as ImageReader, Luma};
 use rand::prelude::*;
 use serialport::{SerialPort, SerialPortInfo};
 
-use crate::font::{convert_symbol, convert_font};
+use crate::font::{convert_font, convert_symbol};
 
 const EXPECTED_SERIAL_DEVICES: &[&str] = &["/dev/ttyACM0", "/dev/ttyACM1", "COM0", "COM1"];
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
@@ -139,8 +139,10 @@ fn find_serialdev(ports: &[SerialPortInfo], requested: &Option<String>) -> Optio
         // If nothing requested, fall back to a generic one or the first supported Framework USB device
         for p in ports {
             if let serialport::SerialPortType::UsbPort(usbinfo) = &p.port_type {
-                if usbinfo.vid == FRAMEWORK_VID && [LED_MATRIX_PID, B1_LCD_PID].contains(&usbinfo.pid) {
-                return Some(p.port_name.clone());
+                if usbinfo.vid == FRAMEWORK_VID
+                    && [LED_MATRIX_PID, B1_LCD_PID].contains(&usbinfo.pid)
+                {
+                    return Some(p.port_name.clone());
                 }
             }
             if EXPECTED_SERIAL_DEVICES.contains(&p.port_name.as_str()) {
@@ -324,8 +326,7 @@ fn animate_cmd(serialdev: &str, arg: Option<bool>) {
         simple_cmd_port(&mut port, ANIMATE, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
-        port.read(response.as_mut_slice())
-            .expect("Found no data!");
+        port.read(response.as_mut_slice()).expect("Found no data!");
 
         let animating = response[0] == 1;
         println!("Currently animating: {animating}");
@@ -563,10 +564,10 @@ fn show_font(serialdev: &str, font_items: &Vec<Vec<u8>>) {
         let offset = digit_i * 7;
         for pixel_x in 0..5 {
             for pixel_y in 0..6 {
-                let pixel_value = digit_pixels[pixel_x + pixel_y*5];
-                let i = (2+pixel_x) + (9*(pixel_y+offset));
+                let pixel_value = digit_pixels[pixel_x + pixel_y * 5];
+                let i = (2 + pixel_x) + (9 * (pixel_y + offset));
                 if pixel_value == 1 {
-                    vals[i/8] |=1 << (i % 8);
+                    vals[i / 8] |= 1 << (i % 8);
                 }
             }
         }
@@ -574,7 +575,6 @@ fn show_font(serialdev: &str, font_items: &Vec<Vec<u8>>) {
 
     simple_cmd(serialdev, DISPLAY_BW_IMAGE, &vals);
 }
-
 
 /// Render a list of up to five symbols
 /// Can use letters/numbers or symbol names, like 'sun', ':)'
