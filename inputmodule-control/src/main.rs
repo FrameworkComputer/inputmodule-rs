@@ -1,3 +1,4 @@
+mod font;
 mod inputmodule;
 
 use clap::{Parser, Subcommand};

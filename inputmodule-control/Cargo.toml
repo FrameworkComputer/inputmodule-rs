@@ -6,3 +6,8 @@ version = "0.1.2-pre"
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 serialport = "4.2.0"
+
+# For ledmatrix
+image = "0.24.5"
+rand = "0.8.5"
+chrono = "0.4.23"
