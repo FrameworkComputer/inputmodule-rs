@@ -9,7 +9,6 @@ use serialport::{SerialPort, SerialPortInfo};
 
 use crate::font::{convert_font, convert_symbol};
 
-const EXPECTED_SERIAL_DEVICES: &[&str] = &["/dev/ttyACM0", "/dev/ttyACM1", "COM0", "COM1"];
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 const FRAMEWORK_VID: u16 = 0x32AC;
 const LED_MATRIX_PID: u16 = 0x0020;
@@ -133,29 +132,28 @@ pub struct LedMatrixSubcommand {
 #[command(arg_required_else_help = true)]
 pub struct B1DisplaySubcommand {}
 
-fn find_serialdev(ports: &[SerialPortInfo], requested: &Option<String>) -> Option<String> {
+fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<String> {
     if let Some(requested) = requested {
         for p in ports {
             if requested == &p.port_name {
-                return Some(p.port_name.clone());
+                return vec![p.port_name.clone()];
             }
         }
+        vec![]
     } else {
+        let mut compatible_devs = vec![];
         // If nothing requested, fall back to a generic one or the first supported Framework USB device
         for p in ports {
             if let serialport::SerialPortType::UsbPort(usbinfo) = &p.port_type {
                 if usbinfo.vid == FRAMEWORK_VID
                     && [LED_MATRIX_PID, B1_LCD_PID].contains(&usbinfo.pid)
                 {
-                    return Some(p.port_name.clone());
+                    compatible_devs.push(p.port_name.clone());
                 }
             }
-            if EXPECTED_SERIAL_DEVICES.contains(&p.port_name.as_str()) {
-                return Some(p.port_name.clone());
-            }
         }
+        compatible_devs
     }
-    None
 }
 
 /// Commands that interact with serial devices
@@ -167,85 +165,87 @@ pub fn serial_commands(args: &crate::ClapCli) {
             println!("{p:?}");
         }
     }
-    let serialdev = match &args.command {
+    let serialdevs = match &args.command {
         Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
-            find_serialdev(&ports, &ledmatrix_args.serial_dev)
+            find_serialdevs(&ports, &ledmatrix_args.serial_dev)
         }
-        _ => None,
+        _ => vec![],
     };
-    let serialdev = if let Some(serialdev) = serialdev {
-        if args.verbose {
-            println!("Selected serialdev: {serialdev:?}");
-        }
-        serialdev
-    } else {
+    if serialdevs.is_empty() {
         println!("Failed to find serial devivce. Please manually specify with --serial-dev");
         return;
     };
 
     match &args.command {
         Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
-            if ledmatrix_args.bootloader {
-                bootloader_cmd(&serialdev);
+            for serialdev in &serialdevs {
+                if args.verbose {
+                    println!("Selected serialdev: {:?}", serialdev);
+                }
+
+                if ledmatrix_args.bootloader {
+                    bootloader_cmd(serialdev);
+                }
+                if let Some(sleeping_arg) = ledmatrix_args.sleeping {
+                    sleeping_cmd(serialdev, sleeping_arg);
+                }
+                if let Some(brightness_arg) = ledmatrix_args.brightness {
+                    brightness_cmd(serialdev, brightness_arg);
+                }
+                if let Some(percentage) = ledmatrix_args.percentage {
+                    assert!(percentage <= 100);
+                    percentage_cmd(serialdev, percentage);
+                }
+                if let Some(animate_arg) = ledmatrix_args.animate {
+                    animate_cmd(serialdev, animate_arg);
+                }
+                if let Some(pattern) = ledmatrix_args.pattern {
+                    pattern_cmd(serialdev, pattern);
+                }
+                if ledmatrix_args.all_brightnesses {
+                    all_brightnesses_cmd(serialdev);
+                }
+                if ledmatrix_args.panic {
+                    simple_cmd(serialdev, PANIC, &[0x00]);
+                }
+                if let Some(image_path) = &ledmatrix_args.image_bw {
+                    display_bw_image_cmd(serialdev, image_path);
+                }
+
+                if let Some(image_path) = &ledmatrix_args.image_gray {
+                    display_gray_image_cmd(serialdev, image_path);
+                }
+
+                if let Some(values) = &ledmatrix_args.eq {
+                    eq_cmd(serialdev, values);
+                }
+
+                if let Some(s) = &ledmatrix_args.string {
+                    show_string(serialdev, s);
+                }
+
+                if let Some(symbols) = &ledmatrix_args.symbols {
+                    show_symbols(serialdev, symbols);
+                }
+
+                if ledmatrix_args.version {
+                    get_device_version(serialdev);
+                }
             }
-            if let Some(sleeping_arg) = ledmatrix_args.sleeping {
-                sleeping_cmd(&serialdev, sleeping_arg);
-            }
-            if let Some(brightness_arg) = ledmatrix_args.brightness {
-                brightness_cmd(&serialdev, brightness_arg);
-            }
-            if let Some(percentage) = ledmatrix_args.percentage {
-                assert!(percentage <= 100);
-                percentage_cmd(&serialdev, percentage);
-            }
-            if let Some(animate_arg) = ledmatrix_args.animate {
-                animate_cmd(&serialdev, animate_arg);
-            }
-            if let Some(pattern) = ledmatrix_args.pattern {
-                pattern_cmd(&serialdev, pattern);
-            }
-            if ledmatrix_args.all_brightnesses {
-                all_brightnesses_cmd(&serialdev);
-            }
+            // Commands that block and need manual looping
             if ledmatrix_args.blinking {
-                blinking_cmd(&serialdev);
+                blinking_cmd(&serialdevs);
             }
             if ledmatrix_args.breathing {
-                breathing_cmd(&serialdev);
-            }
-            if ledmatrix_args.panic {
-                simple_cmd(&serialdev, PANIC, &[0x00]);
-            }
-            if let Some(image_path) = &ledmatrix_args.image_bw {
-                display_bw_image_cmd(&serialdev, image_path);
-            }
-
-            if let Some(image_path) = &ledmatrix_args.image_gray {
-                display_gray_image_cmd(&serialdev, image_path);
+                breathing_cmd(&serialdevs);
             }
 
             if ledmatrix_args.random_eq {
-                random_eq_cmd(&serialdev);
-            }
-
-            if let Some(values) = &ledmatrix_args.eq {
-                eq_cmd(&serialdev, values);
+                random_eq_cmd(&serialdevs);
             }
 
             if ledmatrix_args.clock {
-                clock_cmd(&serialdev);
-            }
-
-            if let Some(s) = &ledmatrix_args.string {
-                show_string(&serialdev, s);
-            }
-
-            if let Some(symbols) = &ledmatrix_args.symbols {
-                show_symbols(&serialdev, symbols);
-            }
-
-            if ledmatrix_args.version {
-                get_device_version(&serialdev);
+                clock_cmd(&serialdevs);
             }
         }
         Some(crate::Commands::B1Display(_b1display_args)) => {}
@@ -286,6 +286,12 @@ fn percentage_cmd(serialdev: &str, arg: u8) {
 
 fn pattern_cmd(serialdev: &str, arg: Pattern) {
     simple_cmd(serialdev, PATTERN, &[arg as u8]);
+}
+
+fn simple_cmd_multiple(serialdevs: &Vec<String>, command: u8, args: &[u8]) {
+    for serialdev in serialdevs {
+        simple_cmd(serialdev, command, args);
+    }
 }
 
 fn simple_cmd(serialdev: &str, command: u8, args: &[u8]) {
@@ -400,40 +406,40 @@ fn all_brightnesses_cmd(serialdev: &str) {
     commit_cols(&mut port);
 }
 
-fn blinking_cmd(serialdev: &str) {
+fn blinking_cmd(serialdevs: &Vec<String>) {
     let duration = Duration::from_millis(500);
     loop {
-        simple_cmd(serialdev, BRIGHTNESS, &[0]);
+        simple_cmd_multiple(serialdevs, BRIGHTNESS, &[0]);
         thread::sleep(duration);
-        simple_cmd(serialdev, BRIGHTNESS, &[200]);
+        simple_cmd_multiple(serialdevs, BRIGHTNESS, &[200]);
         thread::sleep(duration);
     }
 }
 
-fn breathing_cmd(serialdev: &str) {
+fn breathing_cmd(serialdevs: &Vec<String>) {
     loop {
         // Go quickly from 250 to 50
         for i in 0..10 {
             thread::sleep(Duration::from_millis(30));
-            simple_cmd(serialdev, BRIGHTNESS, &[250 - i * 20]);
+            simple_cmd_multiple(serialdevs, BRIGHTNESS, &[250 - i * 20]);
         }
 
         // Go slowly from 50 to 0
         for i in 0..10 {
             thread::sleep(Duration::from_millis(60));
-            simple_cmd(serialdev, BRIGHTNESS, &[50 - i * 5]);
+            simple_cmd_multiple(serialdevs, BRIGHTNESS, &[50 - i * 5]);
         }
 
         // Go slowly from 0 to 50
         for i in 0..10 {
             thread::sleep(Duration::from_millis(60));
-            simple_cmd(serialdev, BRIGHTNESS, &[i * 5]);
+            simple_cmd_multiple(serialdevs, BRIGHTNESS, &[i * 5]);
         }
 
         // Go quickly from 50 to 250
         for i in 0..10 {
             thread::sleep(Duration::from_millis(30));
-            simple_cmd(serialdev, BRIGHTNESS, &[50 + i * 20]);
+            simple_cmd_multiple(serialdevs, BRIGHTNESS, &[50 + i * 20]);
         }
     }
 }
@@ -514,7 +520,7 @@ fn display_gray_image_cmd(serialdev: &str, image_path: &str) {
 }
 
 /// Display an equlizer looking animation with random values.
-fn random_eq_cmd(serialdev: &str) {
+fn random_eq_cmd(serialdevs: &Vec<String>) {
     loop {
         // Lower values more likely, makes it look nicer
         //weights = [i*i for i in range(33, 0, -1)]
@@ -525,7 +531,9 @@ fn random_eq_cmd(serialdev: &str) {
             .unwrap()
             .copied()
             .collect::<Vec<_>>();
-        eq_cmd(serialdev, vals.as_slice());
+        for serialdev in serialdevs {
+            eq_cmd(serialdev, vals.as_slice());
+        }
         thread::sleep(Duration::from_millis(200));
     }
 }
@@ -571,13 +579,15 @@ fn render_matrix(serialdev: &str, matrix: &[[u8; 34]; 9]) {
 
 /// Render the current time and display.
 /// Loops forever, updating every second
-fn clock_cmd(serialdev: &str) {
+fn clock_cmd(serialdevs: &Vec<String>) {
     loop {
         let date = Local::now();
         let current_time = date.format("%H:%M").to_string();
         println!("Current Time = {current_time}");
 
-        show_string(serialdev, &current_time);
+        for serialdev in serialdevs {
+            show_string(serialdev, &current_time);
+        }
         thread::sleep(Duration::from_millis(1000));
     }
 }
