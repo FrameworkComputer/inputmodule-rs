@@ -26,6 +26,7 @@ const DISPLAY_BW_IMAGE: u8 = 0x06;
 const SEND_COL: u8 = 0x07;
 const COMMIT_COLS: u8 = 0x08;
 const _B1_RESERVED: u8 = 0x09;
+const VERSION: u8 = 0x20;
 
 const WIDTH: usize = 9;
 const HEIGHT: usize = 34;
@@ -121,6 +122,10 @@ pub struct LedMatrixSubcommand {
     /// Serial device, like /dev/ttyACM0 or COM0
     #[arg(long)]
     serial_dev: Option<String>,
+
+    /// Get the device version
+    #[arg(short, long)]
+    version: bool,
 }
 
 /// B1 Display
@@ -238,10 +243,37 @@ pub fn serial_commands(args: &crate::ClapCli) {
             if let Some(symbols) = &ledmatrix_args.symbols {
                 show_symbols(&serialdev, symbols);
             }
+
+            if ledmatrix_args.version {
+                get_device_version(&serialdev);
+            }
         }
         Some(crate::Commands::B1Display(_b1display_args)) => {}
         _ => {}
     }
+}
+
+fn get_device_version(serialdev: &str) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, VERSION, &[]);
+
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    let major = response[0];
+    let minor = (response[1] & 0xF0) >> 4;
+    let patch = response[1] & 0x0F;
+    let pre_release = response[2] == 1;
+    print!("Device Version: {major}.{minor}.{patch}");
+    if pre_release {
+        print!(" (Pre-Release)");
+    }
+    println!();
 }
 
 fn bootloader_cmd(serialdev: &str) {
