@@ -82,6 +82,8 @@ def main():
     parser.add_argument("--snake", help="Snake", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
+    parser.add_argument("-v", "--version",
+                        help="Get device version", action="store_true")
     parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
                         default='/dev/ttyACM0')
     args = parser.parse_args()
@@ -149,6 +151,9 @@ def main():
         show_string(args.string)
     elif args.symbols is not None:
         show_symbols(args.symbols)
+    elif args.version:
+        version = get_version()
+        print(f"Device version: {version}")
     else:
         print("Provide arg")
 
@@ -178,6 +183,21 @@ def get_brightness():
     command = FWK_MAGIC + [0x00]
     res = send_command(command, with_response=True)
     return int(res[0])
+
+
+def get_version():
+    """Get the device's firmware version"""
+    command = FWK_MAGIC + [0x20]
+    res = send_command(command, with_response=True)
+    major = res[0]
+    minor = (res[1] & 0xF0) >> 4
+    patch = res[1] & 0xF
+    pre_release = res[2]
+
+    version = f"{major}.{minor}.{patch}"
+    if pre_release:
+        version += " (Pre-release)"
+    return version
 
 
 def animate(b: bool):

@@ -14,3 +14,15 @@ pub fn get_serialnum() -> Option<&'static str> {
         core::str::from_utf8(slice).ok()
     }
 }
+
+/// Get the firmware version in a format for USB Device Release
+/// The value is in binary coded decimal with a format of 0xJJMN where JJ is the major version number, M is the minor version number and N is the sub minor version number. e.g. USB 2.0 is reported as 0x0200, USB 1.1 as 0x0110 and USB 1.0 as 0x0100.
+pub fn device_release() -> u16 {
+    (env!("CARGO_PKG_VERSION_MAJOR").parse::<u16>().unwrap() << 8)
+        + (env!("CARGO_PKG_VERSION_MINOR").parse::<u16>().unwrap() << 4)
+        + env!("CARGO_PKG_VERSION_PATCH").parse::<u16>().unwrap()
+}
+
+pub fn is_pre_release() -> bool {
+    !env!("CARGO_PKG_VERSION_PRE").is_empty()
+}

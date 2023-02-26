@@ -17,6 +17,7 @@ use heapless::String;
 use crate::matrix::*;
 #[cfg(feature = "ledmatrix")]
 use crate::patterns::*;
+use crate::serialnum::{device_release, is_pre_release};
 
 pub enum _CommandVals {
     _Brightness = 0x00,
@@ -29,6 +30,7 @@ pub enum _CommandVals {
     _StageGreyCol = 0x07,
     _DrawGreyColBuffer = 0x08,
     SetText = 0x09,
+    Version = 0x20,
 }
 
 pub enum PatternVals {
@@ -70,6 +72,7 @@ pub enum Command {
     DrawGreyColBuffer,
     #[cfg(feature = "b1display")]
     SetText(String<64>),
+    Version,
     _Unknown,
 }
 pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
@@ -94,6 +97,7 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
                 Command::IsSleeping
             }),
             0x05 => Some(Command::Panic),
+            0x20 => Some(Command::Version),
             _ => None, //Some(Command::Unknown),
         }
     } else {
@@ -196,17 +200,27 @@ pub fn parse_module_command(_count: usize, _buf: &[u8]) -> Option<Command> {
     None
 }
 
-pub fn handle_generic_command(command: &Command) {
+pub fn handle_generic_command(command: &Command) -> Option<[u8; 32]> {
     match command {
         Command::BootloaderReset => {
             //let _ = serial.write("Bootloader Reset".as_bytes());
             reset_to_usb_boot(0, 0);
+            None
         }
         Command::Sleep(_go_sleeping) => {
             // Handled elsewhere
+            None
         }
         Command::Panic => panic!("Ahhh"),
-        _ => {}
+        Command::Version => {
+            let mut response: [u8; 32] = [0; 32];
+            let bcd_device = device_release().to_be_bytes();
+            response[0] = bcd_device[0];
+            response[1] = bcd_device[1];
+            response[2] = is_pre_release() as u8;
+            return Some(response);
+        }
+        _ => None,
     }
 }
 
@@ -274,13 +288,13 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) ->
             return Some(response);
         }
         // TODO: Make it return something
-        _ => handle_generic_command(command),
+        _ => return handle_generic_command(command),
     }
     None
 }
 
 #[cfg(feature = "b1display")]
-pub fn handle_command<D>(command: &Command, disp: &mut D, logo_rect: Rectangle)
+pub fn handle_command<D>(command: &Command, disp: &mut D, logo_rect: Rectangle) -> Option<[u8; 32]>
 where
     D: DrawTarget<Color = Rgb565>,
     <D as DrawTarget>::Error: Debug,
@@ -289,9 +303,11 @@ where
         Command::BootloaderReset => {
             //let _ = serial.write("Bootloader Reset".as_bytes());
             reset_to_usb_boot(0, 0);
+            None
         }
         Command::Sleep(_go_sleeping) => {
             // Handled elsewhere
+            None
         }
         Command::Panic => panic!("Ahhh"),
         Command::SetText(text) => {
@@ -307,7 +323,8 @@ where
                 Point::new(0, LOGO_OFFSET + logo_rect.size.height as i32),
             )
             .unwrap();
+            None
         }
-        _ => handle_generic_command(command),
+        _ => return handle_generic_command(command),
     }
 }

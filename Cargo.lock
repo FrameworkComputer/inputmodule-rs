@@ -293,7 +293,7 @@ dependencies = [
 
 [[package]]
 name = "lotus_inputmodules"
-version = "0.1.1"
+version = "0.1.2-pre"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",

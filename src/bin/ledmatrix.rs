@@ -100,7 +100,7 @@ use lotus_input::control::*;
 use lotus_input::lotus::LotusLedMatrix;
 use lotus_input::matrix::*;
 use lotus_input::patterns::*;
-use lotus_input::serialnum::get_serialnum;
+use lotus_input::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
 //                               KDE             - Lotus C2 LED Matrix
@@ -160,7 +160,7 @@ fn main() -> ! {
         .product("Lotus LED Matrix")
         .serial_number(serialnum)
         .max_power(200) // Device uses roughly 164mW when all LEDs are at full brightness
-        .device_release(0x0011) // TODO: Assign dynamically based on crate version
+        .device_release(device_release())
         .device_class(USB_CLASS_CDC)
         .build();
 

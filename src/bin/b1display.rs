@@ -47,7 +47,7 @@ use heapless::String;
 
 use lotus_input::control::*;
 use lotus_input::graphics::*;
-use lotus_input::serialnum::get_serialnum;
+use lotus_input::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
 //                               KDE             - Lotus C2 LED Matrix
@@ -118,7 +118,7 @@ fn main() -> ! {
         .product("Lotus B1 Display")
         .serial_number(serialnum)
         .max_power(500) // TODO: Check how much
-        .device_release(0x0010) // TODO: Assign dynamically based on crate version
+        .device_release(device_release()) // TODO: Assign dynamically based on crate version
         .device_class(USB_CLASS_CDC)
         .build();
 
@@ -215,7 +215,10 @@ fn main() -> ! {
                             handle_sleep(go_sleeping, &mut state, &mut delay, &mut lcd_led);
                         } else if let SleepState::Awake = state.sleeping {
                             // While sleeping no command is handled, except waking up
-                            handle_command(&command, &mut disp, logo_rect);
+                            //handle_command(&command, &mut disp, logo_rect);
+                            if let Some(response) = handle_command(&command, &mut disp, logo_rect) {
+                                let _ = serial.write(&response);
+                            };
                         }
                     }
                 }

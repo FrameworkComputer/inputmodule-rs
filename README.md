@@ -121,6 +121,25 @@ cargo run
 Or by copying the above generated UF2 file to the partition mounted when the
 module is in the bootloder.
 
+### Check the firmware version of the device
+
+###### In-band using `control.py`
+
+```sh
+> ./control.py --version
+Device version: 0.1.2
+```
+
+###### By looking at the USB descriptor
+
+On Linux:
+
+```sh
+> lsusb -d 32ac: -v 2> /dev/null | grep -P 'ID 32ac|bcdDevice'
+Bus 003 Device 078: ID 32ac:0021 Framework Lotus B1 Display
+  bcdDevice            0.10
+```
+
 ## Panic
 
 On panic the RP2040 resets itself into bootloader mode.
