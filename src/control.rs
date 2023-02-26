@@ -14,6 +14,8 @@ use embedded_graphics::{
 use heapless::String;
 
 #[cfg(feature = "ledmatrix")]
+use crate::games::snake;
+#[cfg(feature = "ledmatrix")]
 use crate::matrix::*;
 #[cfg(feature = "ledmatrix")]
 use crate::patterns::*;
@@ -30,6 +32,9 @@ pub enum _CommandVals {
     _StageGreyCol = 0x07,
     _DrawGreyColBuffer = 0x08,
     SetText = 0x09,
+    StartGame = 0x10,
+    GameControl = 0x11,
+    GameStatus = 0x12,
     Version = 0x20,
 }
 
@@ -42,6 +47,19 @@ pub enum PatternVals {
     FullBrightness,
     DisplayPanic,
     DisplayLotus2,
+}
+
+pub enum Game {
+    Snake,
+}
+
+#[derive(Clone)]
+pub enum GameControlArg {
+    Up,
+    Down,
+    Left,
+    Right,
+    Exit,
 }
 
 // TODO: Reduce size for modules that don't require other commands
@@ -72,6 +90,9 @@ pub enum Command {
     DrawGreyColBuffer,
     #[cfg(feature = "b1display")]
     SetText(String<64>),
+    StartGame(Game),
+    GameControl(GameControlArg),
+    GameStatus,
     Version,
     _Unknown,
 }
@@ -159,6 +180,19 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                 }
             }
             0x08 => Some(Command::DrawGreyColBuffer),
+            0x10 => match arg {
+                Some(0) => Some(Command::StartGame(Game::Snake)),
+                _ => None,
+            },
+            0x11 => match arg {
+                Some(0) => Some(Command::GameControl(GameControlArg::Up)),
+                Some(1) => Some(Command::GameControl(GameControlArg::Down)),
+                Some(2) => Some(Command::GameControl(GameControlArg::Left)),
+                Some(3) => Some(Command::GameControl(GameControlArg::Right)),
+                Some(4) => Some(Command::GameControl(GameControlArg::Exit)),
+                _ => None,
+            },
+            0x12 => Some(Command::GameStatus),
             _ => None,
         }
     } else {
@@ -218,14 +252,19 @@ pub fn handle_generic_command(command: &Command) -> Option<[u8; 32]> {
             response[0] = bcd_device[0];
             response[1] = bcd_device[1];
             response[2] = is_pre_release() as u8;
-            return Some(response);
+            Some(response)
         }
         _ => None,
     }
 }
 
 #[cfg(feature = "ledmatrix")]
-pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) -> Option<[u8; 32]> {
+pub fn handle_command(
+    command: &Command,
+    state: &mut State,
+    matrix: &mut Foo,
+    random: u8,
+) -> Option<[u8; 32]> {
     match command {
         Command::GetBrightness => {
             let mut response: [u8; 32] = [0; 32];
@@ -238,10 +277,12 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) ->
             matrix
                 .set_scaling(state.brightness)
                 .expect("failed to set scaling");
+            None
         }
         Command::Percentage(p) => {
             //let p = if count >= 5 { buf[4] } else { 100 };
             state.grid = percentage(*p as u16);
+            None
         }
         Command::Pattern(pattern) => {
             //let _ = serial.write("Pattern".as_bytes());
@@ -261,22 +302,31 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) ->
                 PatternVals::DisplayLotus2 => state.grid = display_lotus2(),
                 _ => {}
             }
+            None
         }
-        Command::SetAnimate(a) => state.animate = *a,
+        Command::SetAnimate(a) => {
+            state.animate = *a;
+            None
+        }
         Command::GetAnimate => {
             let mut response: [u8; 32] = [0; 32];
             response[0] = state.animate as u8;
             return Some(response);
         }
-        Command::Draw(vals) => state.grid = draw(vals),
+        Command::Draw(vals) => {
+            state.grid = draw(vals);
+            None
+        }
         Command::StageGreyCol(col, vals) => {
             draw_grey_col(&mut state.col_buffer, *col, vals);
+            None
         }
         Command::DrawGreyColBuffer => {
             // Copy the staging buffer to the real grid and display it
             state.grid = state.col_buffer.clone();
             // Zero the old staging buffer, just for good measure.
             state.col_buffer = percentage(0);
+            None
         }
         // TODO: Move to handle_generic_command
         Command::IsSleeping => {
@@ -287,10 +337,23 @@ pub fn handle_command(command: &Command, state: &mut State, matrix: &mut Foo) ->
             };
             return Some(response);
         }
+        Command::StartGame(game) => {
+            match game {
+                Game::Snake => snake::start_game(state, random),
+            }
+            None
+        }
+        Command::GameControl(arg) => {
+            match state.game {
+                Some(GameState::Snake(_)) => snake::handle_control(state, arg),
+                _ => {}
+            }
+            None
+        }
+        Command::GameStatus => None,
         // TODO: Make it return something
         _ => return handle_generic_command(command),
     }
-    None
 }
 
 #[cfg(feature = "b1display")]

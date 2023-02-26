@@ -1,6 +1,8 @@
 #![no_std]
 
 #[cfg(feature = "ledmatrix")]
+pub mod games;
+#[cfg(feature = "ledmatrix")]
 pub mod lotus;
 #[cfg(feature = "ledmatrix")]
 pub mod lotus_led_hal;

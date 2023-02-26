@@ -8,7 +8,10 @@ use cortex_m::delay::Delay;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 
-use rp2040_hal::gpio::bank0::Gpio29;
+use rp2040_hal::{
+    gpio::bank0::Gpio29,
+    rosc::{Enabled, RingOscillator},
+};
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
@@ -97,6 +100,7 @@ use core::fmt::Write;
 use heapless::String;
 
 use lotus_input::control::*;
+use lotus_input::games::snake;
 use lotus_input::lotus::LotusLedMatrix;
 use lotus_input::matrix::*;
 use lotus_input::patterns::*;
@@ -127,6 +131,9 @@ fn main() -> ! {
     )
     .ok()
     .unwrap();
+    //rp2040_pac::rosc::RANDOMBIT::read(&self)
+    let rosc = rp2040_hal::rosc::RingOscillator::new(pac.ROSC);
+    let rosc = rosc.initialize();
 
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
@@ -188,6 +195,7 @@ fn main() -> ! {
         animate: false,
         brightness: 120,
         sleeping: SleepState::Awake,
+        game: None,
     };
 
     let mut matrix = LotusLedMatrix::configure(i2c);
@@ -205,6 +213,7 @@ fn main() -> ! {
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
+    let mut game_timer = timer.get_counter().ticks();
 
     loop {
         // TODO: Current hardware revision does not have the sleep pin wired up :(
@@ -250,6 +259,7 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
+                    let random = get_random_byte(&rosc);
                     match (parse_command(count, &buf), &state.sleeping) {
                         (Some(Command::Sleep(go_sleeping)), _) => {
                             handle_sleep(
@@ -262,14 +272,25 @@ fn main() -> ! {
                         }
                         (Some(c @ Command::BootloaderReset), _)
                         | (Some(c @ Command::IsSleeping), _) => {
-                            if let Some(response) = handle_command(&c, &mut state, &mut matrix) {
+                            if let Some(response) =
+                                handle_command(&c, &mut state, &mut matrix, random)
+                            {
                                 let _ = serial.write(&response);
                             };
                         }
                         (Some(command), SleepState::Awake) => {
+                            let mut text: String<64> = String::new();
+                            write!(
+                                &mut text,
+                                "Handling command {}:{}:{}:{}\r\n",
+                                buf[0], buf[1], buf[2], buf[3]
+                            )
+                            .unwrap();
+                            let _ = serial.write(text.as_bytes());
+
                             // While sleeping no command is handled, except waking up
                             if let Some(response) =
-                                handle_command(&command, &mut state, &mut matrix)
+                                handle_command(&command, &mut state, &mut matrix, random)
                             {
                                 let _ = serial.write(&response);
                             };
@@ -280,7 +301,37 @@ fn main() -> ! {
                 }
             }
         }
+
+        // Handle game state
+        if timer.get_counter().ticks() > game_timer + 500_000 {
+            let _ = serial.write(b"Game step\r\n");
+            if let Some(GameState::Snake(_)) = state.game {
+                let random = get_random_byte(&rosc);
+                let (direction, game_over, points, (x, y)) = snake::game_step(&mut state, random);
+
+                if game_over {
+                } else {
+                    let mut text: String<64> = String::new();
+                    write!(
+                        &mut text,
+                        "Dir: {:?} Status: {}, Points: {}, Head: ({},{})\r\n",
+                        direction, game_over, points, x, y
+                    )
+                    .unwrap();
+                    let _ = serial.write(text.as_bytes());
+                }
+            }
+            game_timer = timer.get_counter().ticks();
+        }
     }
+}
+
+fn get_random_byte(rosc: &RingOscillator<Enabled>) -> u8 {
+    let mut byte = 0;
+    for i in 0..8 {
+        byte += (rosc.get_random_bit() as u8) << i;
+    }
+    byte
 }
 
 fn handle_sleep(

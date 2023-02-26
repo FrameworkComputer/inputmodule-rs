@@ -80,6 +80,8 @@ def main():
         "--random-eq", help="Random Equalizer", action="store_true")
     parser.add_argument("--wpm", help="WPM Demo", action="store_true")
     parser.add_argument("--snake", help="Snake", action="store_true")
+    parser.add_argument("--snake-embedded",
+                        help="Snake on the module", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
     parser.add_argument("-v", "--version",
@@ -141,6 +143,8 @@ def main():
         wpm_demo()
     elif args.snake:
         snake()
+    elif args.snake_embedded:
+        snake_embedded()
     elif args.eq is not None:
         eq(args.eq)
     elif args.random_eq:
@@ -391,7 +395,7 @@ def opposite_direction(direction):
     return direction
 
 
-def keyscan():
+def snake_keyscan():
     from getkey import getkey, keys
     global direction
     global body
@@ -406,6 +410,28 @@ def keyscan():
             direction = key
 
 
+def snake_embedded_keyscan():
+    from getkey import getkey, keys
+
+    while True:
+        key_arg = None
+        key = getkey()
+        if key == keys.UP:
+            key_arg = 0
+        elif key == keys.DOWN:
+            key_arg = 1
+        elif key == keys.LEFT:
+            key_arg = 2
+        elif key == keys.RIGHT:
+            key_arg = 3
+        elif key == 'q':
+            # Quit
+            key_arg = 4
+        if key_arg is not None:
+            command = FWK_MAGIC + [0x11, key_arg]
+            send_command(command)
+
+
 def game_over():
     global body
     while True:
@@ -416,6 +442,14 @@ def game_over():
         score = len(body)
         show_string(f'{score:>3} P')
         time.sleep(0.75)
+
+
+def snake_embedded():
+    # Start game
+    command = FWK_MAGIC + [0x10, 0x00]
+    send_command(command)
+
+    snake_embedded_keyscan()
 
 
 def snake():
@@ -432,7 +466,7 @@ def snake():
     # Setting
     WRAP = False
 
-    thread = threading.Thread(target=keyscan, args=(), daemon=True)
+    thread = threading.Thread(target=snake_keyscan, args=(), daemon=True)
     thread.start()
 
     prev = datetime.now()
@@ -664,7 +698,7 @@ def send_command(command, with_response=False):
 
         if with_response:
             res = s.read(RESPONSE_SIZE)
-            #print(f"Received: {res}")
+            # print(f"Received: {res}")
             return res
 
 
@@ -721,8 +755,8 @@ def gui():
         [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
 
         # TODO
-        #[sg.Text("Play Snake")],
-        #[sg.Button("Start Game", k='-PLAY-SNAKE-')],
+        # [sg.Text("Play Snake")],
+        # [sg.Button("Start Game", k='-PLAY-SNAKE-')],
 
         [sg.Text("Equalizer")],
         [
