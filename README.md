@@ -61,6 +61,7 @@ options:
   --wpm                 WPM Demo
   --snake               Snake
   --all-brightnesses    Show every pixel in a different brightness
+  -v, --version         Get device version
   --serial-dev SERIAL_DEV
                         Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
 ```
