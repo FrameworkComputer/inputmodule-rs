@@ -1,3 +1,4 @@
+use crate::games::pong::PongState;
 use crate::games::snake::SnakeState;
 
 pub const WIDTH: usize = 9;
@@ -31,4 +32,5 @@ pub enum SleepState {
 #[derive(Clone)]
 pub enum GameState {
     Snake(SnakeState),
+    Pong(PongState),
 }

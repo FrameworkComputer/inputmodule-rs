@@ -14,6 +14,8 @@ use embedded_graphics::{
 use heapless::String;
 
 #[cfg(feature = "ledmatrix")]
+use crate::games::pong;
+#[cfg(feature = "ledmatrix")]
 use crate::games::snake;
 #[cfg(feature = "ledmatrix")]
 use crate::matrix::*;
@@ -51,6 +53,7 @@ pub enum PatternVals {
 
 pub enum Game {
     Snake,
+    Pong,
 }
 
 #[derive(Clone)]
@@ -60,6 +63,8 @@ pub enum GameControlArg {
     Left,
     Right,
     Exit,
+    SecondLeft,
+    SecondRight,
 }
 
 // TODO: Reduce size for modules that don't require other commands
@@ -182,6 +187,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             0x08 => Some(Command::DrawGreyColBuffer),
             0x10 => match arg {
                 Some(0) => Some(Command::StartGame(Game::Snake)),
+                Some(1) => Some(Command::StartGame(Game::Pong)),
                 _ => None,
             },
             0x11 => match arg {
@@ -190,6 +196,8 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                 Some(2) => Some(Command::GameControl(GameControlArg::Left)),
                 Some(3) => Some(Command::GameControl(GameControlArg::Right)),
                 Some(4) => Some(Command::GameControl(GameControlArg::Exit)),
+                Some(5) => Some(Command::GameControl(GameControlArg::SecondLeft)),
+                Some(6) => Some(Command::GameControl(GameControlArg::SecondRight)),
                 _ => None,
             },
             0x12 => Some(Command::GameStatus),
@@ -340,12 +348,14 @@ pub fn handle_command(
         Command::StartGame(game) => {
             match game {
                 Game::Snake => snake::start_game(state, random),
+                Game::Pong => pong::start_game(state, random),
             }
             None
         }
         Command::GameControl(arg) => {
             match state.game {
                 Some(GameState::Snake(_)) => snake::handle_control(state, arg),
+                Some(GameState::Pong(_)) => pong::handle_control(state, arg),
                 _ => {}
             }
             None

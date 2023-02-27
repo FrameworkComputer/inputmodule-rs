@@ -32,6 +32,14 @@ RESPONSE_SIZE = 32
 WIDTH = 9
 HEIGHT = 34
 
+ARG_UP = 0
+ARG_DOWN = 1
+ARG_LEFT = 2
+ARG_RIGHT = 3
+ARG_QUIT = 4
+ARG_2LEFT = 5
+ARG_2RIGHT = 6
+
 SERIAL_DEV = None
 
 STOP_THREAD = False
@@ -82,6 +90,8 @@ def main():
     parser.add_argument("--snake", help="Snake", action="store_true")
     parser.add_argument("--snake-embedded",
                         help="Snake on the module", action="store_true")
+    parser.add_argument("--pong-embedded",
+                        help="Pong on the module", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
     parser.add_argument("-v", "--version",
@@ -145,6 +155,8 @@ def main():
         snake()
     elif args.snake_embedded:
         snake_embedded()
+    elif args.pong_embedded:
+        pong_embedded()
     elif args.eq is not None:
         eq(args.eq)
     elif args.random_eq:
@@ -442,6 +454,32 @@ def game_over():
         score = len(body)
         show_string(f'{score:>3} P')
         time.sleep(0.75)
+
+
+def pong_embedded():
+    # Start game
+    command = FWK_MAGIC + [0x10, 0x01]
+    send_command(command)
+
+    from getkey import getkey, keys
+
+    while True:
+        key_arg = None
+        key = getkey()
+        if key == keys.LEFT:
+            key_arg = ARG_LEFT
+        elif key == keys.RIGHT:
+            key_arg = ARG_RIGHT
+        elif key == 'a':
+            key_arg = ARG_2LEFT
+        elif key == 'd':
+            key_arg = ARG_2RIGHT
+        elif key == 'q':
+            # Quit
+            key_arg = ARG_QUIT
+        if key_arg is not None:
+            command = FWK_MAGIC + [0x11, key_arg]
+            send_command(command)
 
 
 def snake_embedded():

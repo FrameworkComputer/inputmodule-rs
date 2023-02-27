@@ -100,7 +100,7 @@ use core::fmt::Write;
 use heapless::String;
 
 use lotus_input::control::*;
-use lotus_input::games::snake;
+use lotus_input::games::{pong, snake};
 use lotus_input::lotus::LotusLedMatrix;
 use lotus_input::matrix::*;
 use lotus_input::patterns::*;
@@ -303,23 +303,36 @@ fn main() -> ! {
         }
 
         // Handle game state
-        if timer.get_counter().ticks() > game_timer + 500_000 {
+        let game_step_diff = match state.game {
+            Some(GameState::Pong(ref pong_state)) => 100_000 - 5_000 * pong_state.speed,
+            Some(GameState::Snake(_)) => 500_000,
+            _ => 500_000,
+        };
+        if timer.get_counter().ticks() > game_timer + game_step_diff {
             let _ = serial.write(b"Game step\r\n");
-            if let Some(GameState::Snake(_)) = state.game {
-                let random = get_random_byte(&rosc);
-                let (direction, game_over, points, (x, y)) = snake::game_step(&mut state, random);
-
-                if game_over {
-                } else {
-                    let mut text: String<64> = String::new();
-                    write!(
-                        &mut text,
-                        "Dir: {:?} Status: {}, Points: {}, Head: ({},{})\r\n",
-                        direction, game_over, points, x, y
-                    )
-                    .unwrap();
-                    let _ = serial.write(text.as_bytes());
+            let random = get_random_byte(&rosc);
+            match state.game {
+                Some(GameState::Pong(_)) => {
+                    pong::game_step(&mut state, random);
                 }
+                Some(GameState::Snake(_)) => {
+                    let (direction, game_over, points, (x, y)) =
+                        snake::game_step(&mut state, random);
+
+                    if game_over {
+                        // TODO: Show score
+                    } else {
+                        let mut text: String<64> = String::new();
+                        write!(
+                            &mut text,
+                            "Dir: {:?} Status: {}, Points: {}, Head: ({},{})\r\n",
+                            direction, game_over, points, x, y
+                        )
+                        .unwrap();
+                        let _ = serial.write(text.as_bytes());
+                    }
+                }
+                None => {}
             }
             game_timer = timer.get_counter().ticks();
         }
