@@ -1,7 +1,5 @@
 use crate::control::GameControlArg;
-use crate::matrix::{GameState, Grid, State, HEIGHT, LEDS, WIDTH};
-
-use heapless::Vec;
+use crate::matrix::{GameState, Grid, State, HEIGHT, WIDTH};
 
 const PADDLE_WIDTH: usize = 5;
 
@@ -23,13 +21,14 @@ struct Ball {
 
 #[derive(Clone)]
 pub struct PongState {
+    // TODO: Properly calculate score and display it
     score: Score,
     ball: Ball,
     paddles: (usize, usize),
     pub speed: u64,
 }
 
-pub fn start_game(state: &mut State, random: u8) {
+pub fn start_game(state: &mut State, _random: u8) {
     state.game = Some(GameState::Pong(PongState {
         score: Score { upper: 0, lower: 0 },
         ball: Ball {
@@ -95,31 +94,18 @@ fn hit_paddle(ball: Position, paddles: (usize, usize)) -> Option<usize> {
     }
 }
 
-pub fn game_step(state: &mut State, random: u8) {
+pub fn game_step(state: &mut State, _random: u8) {
     if let Some(GameState::Pong(ref mut pong_state)) = state.game {
         pong_state.ball.pos = {
             let (vx, vy) = pong_state.ball.direction;
-            let (x, y) = pong_state.ball.pos;
             let (x, y) = add_velocity(pong_state.ball.pos, pong_state.ball.direction);
-            let x = if x < 0 {
-                0
-            } else if x > WIDTH - 1 {
-                WIDTH - 1
-            } else {
-                x
-            };
+            let x = if x > WIDTH - 1 { WIDTH - 1 } else { x };
             if x == 0 || x == WIDTH - 1 {
                 // Hit wall, bounce back
                 pong_state.ball.direction = (-vx, vy);
             }
 
-            let y = if y < 0 {
-                0
-            } else if y > HEIGHT - 1 {
-                HEIGHT - 1
-            } else {
-                y
-            };
+            let y = if y > HEIGHT - 1 { HEIGHT - 1 } else { y };
             let (x, y) = if let Some(paddle_hit) = hit_paddle((x, y), pong_state.paddles) {
                 // Hit paddle, bounce back
                 // TODO: Change vy direction slightly depending on where the paddle was hit
