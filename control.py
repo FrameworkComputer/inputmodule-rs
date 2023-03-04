@@ -40,6 +40,9 @@ ARG_QUIT = 4
 ARG_2LEFT = 5
 ARG_2RIGHT = 6
 
+RGB_COLORS = ['white', 'black', 'red', 'green',
+              'blue', 'cyan', 'yellow', 'purple']
+
 SERIAL_DEV = None
 
 STOP_THREAD = False
@@ -94,6 +97,10 @@ def main():
                         help="Pong on the module", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
+    parser.add_argument(
+        "--set-color", help="Set RGB color (C1 Minimal Input Module)", choices=RGB_COLORS)
+    parser.add_argument(
+        "--get-color", help="Get RGB color (C1 Minimal Input Module)", action="store_true")
     parser.add_argument("-v", "--version",
                         help="Get device version", action="store_true")
     parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
@@ -143,6 +150,11 @@ def main():
         image_greyscale(args.image_grey)
     elif args.all_brightnesses:
         all_brightnesses()
+    elif args.set_color:
+        set_color(args.set_color)
+    elif args.get_color:
+        (red, green, blue) = get_color()
+        print(f"Current color: RGB:({red}, {green}, {blue})")
     elif args.gui:
         gui()
     elif args.blink:
@@ -307,6 +319,39 @@ def commit_cols(s):
     This makes sure that the matrix isn't partially updated."""
     command = FWK_MAGIC + [0x08, 0x00]
     send_serial(s, command)
+
+
+def get_color():
+    command = FWK_MAGIC + [0x13]
+    res = send_command(command, with_response=True)
+    return (int(res[0]), int(res[1]), int(res[2]))
+
+
+def set_color(color):
+    rgb = None
+    if color == 'white':
+        rgb = [0xFF, 0xFF, 0xFF]
+    elif color == 'black':
+        rgb = [0x00, 0x00, 0x00]
+    elif color == 'red':
+        rgb = [0xFF, 0x00, 0x00]
+    elif color == 'green':
+        rgb = [0x00, 0xFF, 0x00]
+    elif color == 'blue':
+        rgb = [0x00, 0x00, 0xFF]
+    elif color == 'yellow':
+        rgb = [0xFF, 0xFF, 0x00]
+    elif color == 'cyan':
+        rgb = [0x00, 0xFF, 0xFF]
+    elif color == 'purple':
+        rgb = [0xFF, 0x00, 0xFF]
+    else:
+        print(f"Unknown color: {color}")
+        return
+
+    if rgb:
+        command = FWK_MAGIC + [0x13] + rgb
+        send_command(command)
 
 
 def all_brightnesses():

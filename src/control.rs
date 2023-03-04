@@ -23,6 +23,9 @@ use crate::matrix::*;
 use crate::patterns::*;
 use crate::serialnum::{device_release, is_pre_release};
 
+#[cfg(feature = "c1minimal")]
+use smart_leds::{SmartLedsWrite, RGB8};
+
 pub enum _CommandVals {
     _Brightness = 0x00,
     _Pattern = 0x01,
@@ -37,6 +40,7 @@ pub enum _CommandVals {
     StartGame = 0x10,
     GameControl = 0x11,
     GameStatus = 0x12,
+    SetColor = 0x13,
     Version = 0x20,
 }
 
@@ -99,8 +103,26 @@ pub enum Command {
     GameControl(GameControlArg),
     GameStatus,
     Version,
+    GetColor,
+    #[cfg(feature = "c1minimal")]
+    SetColor(RGB8),
     _Unknown,
 }
+
+#[cfg(feature = "c1minimal")]
+#[derive(Clone)]
+pub enum SimpleSleepState {
+    Awake,
+    Sleeping,
+}
+
+#[cfg(feature = "c1minimal")]
+pub struct C1MinimalState {
+    pub sleeping: SimpleSleepState,
+    pub color: RGB8,
+    pub brightness: u8,
+}
+
 pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
     if let Some(command) = parse_module_command(count, buf) {
         return Some(command);
@@ -237,7 +259,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
     }
 }
 
-#[cfg(not(any(feature = "ledmatrix", feature = "b1display")))]
+#[cfg(not(any(feature = "ledmatrix", feature = "b1display", feature = "c1minimal")))]
 pub fn parse_module_command(_count: usize, _buf: &[u8]) -> Option<Command> {
     None
 }
@@ -399,5 +421,79 @@ where
             None
         }
         _ => return handle_generic_command(command),
+    }
+}
+
+#[cfg(feature = "c1minimal")]
+pub fn handle_command(
+    command: &Command,
+    state: &mut C1MinimalState,
+    ws2812: &mut impl SmartLedsWrite<Color = RGB8, Error = ()>,
+) -> Option<[u8; 32]> {
+    match command {
+        Command::GetBrightness => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.brightness;
+            Some(response)
+        }
+        Command::SetBrightness(br) => {
+            //let _ = serial.write("Brightness".as_bytes());
+            state.brightness = *br;
+            ws2812
+                .write(smart_leds::brightness(
+                    [state.color].iter().cloned(),
+                    state.brightness,
+                ))
+                .unwrap();
+            None
+        }
+        Command::GetColor => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.color.r;
+            response[1] = state.color.g;
+            response[2] = state.color.b;
+            Some(response)
+        }
+        Command::SetColor(color) => {
+            state.color = *color;
+            ws2812
+                .write(smart_leds::brightness(
+                    [*color].iter().cloned(),
+                    state.brightness,
+                ))
+                .unwrap();
+            None
+        }
+        // TODO: Make it return something
+        _ => handle_generic_command(command),
+    }
+}
+
+#[cfg(feature = "c1minimal")]
+pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
+    if count >= 3 && buf[0] == 0x32 && buf[1] == 0xAC {
+        let command = buf[2];
+        let arg = if count <= 3 { None } else { Some(buf[3]) };
+
+        match command {
+            0x00 => Some(if let Some(brightness) = arg {
+                Command::SetBrightness(brightness)
+            } else {
+                Command::GetBrightness
+            }),
+            0x13 => {
+                if count >= 6 {
+                    let (red, green, blue) = (buf[3], buf[4], buf[5]);
+                    Some(Command::SetColor(RGB8::new(red, green, blue)))
+                } else if arg.is_none() {
+                    Some(Command::GetColor)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    } else {
+        None
     }
 }

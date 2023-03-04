@@ -18,5 +18,8 @@ pub mod graphics;
 #[cfg(feature = "b1display")]
 pub mod lotus_lcd_hal;
 
+#[cfg(feature = "c1minimal")]
+pub mod lotus_minimal_hal;
+
 pub mod control;
 pub mod serialnum;
