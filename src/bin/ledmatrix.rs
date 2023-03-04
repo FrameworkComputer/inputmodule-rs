@@ -100,7 +100,7 @@ use core::fmt::Write;
 use heapless::String;
 
 use lotus_input::control::*;
-use lotus_input::games::{pong, snake};
+use lotus_input::games::{pong, snake, tetris};
 use lotus_input::lotus::LotusLedMatrix;
 use lotus_input::matrix::*;
 use lotus_input::patterns::*;
@@ -306,6 +306,7 @@ fn main() -> ! {
         let game_step_diff = match state.game {
             Some(GameState::Pong(ref pong_state)) => 100_000 - 5_000 * pong_state.speed,
             Some(GameState::Snake(_)) => 500_000,
+            Some(GameState::Tetris(_)) => 500_000,
             _ => 500_000,
         };
         if timer.get_counter().ticks() > game_timer + game_step_diff {
@@ -314,6 +315,9 @@ fn main() -> ! {
             match state.game {
                 Some(GameState::Pong(_)) => {
                     pong::game_step(&mut state, random);
+                }
+                Some(GameState::Tetris(_)) => {
+                    tetris::game_step(&mut state, random);
                 }
                 Some(GameState::Snake(_)) => {
                     let (direction, game_over, points, (x, y)) =

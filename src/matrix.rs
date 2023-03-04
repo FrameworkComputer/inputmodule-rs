@@ -1,5 +1,6 @@
 use crate::games::pong::PongState;
 use crate::games::snake::SnakeState;
+use crate::games::tetris::TetrisState;
 
 pub const WIDTH: usize = 9;
 pub const HEIGHT: usize = 34;
@@ -33,4 +34,5 @@ pub enum SleepState {
 pub enum GameState {
     Snake(SnakeState),
     Pong(PongState),
+    Tetris(TetrisState),
 }

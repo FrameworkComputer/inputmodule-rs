@@ -92,6 +92,8 @@ def main():
                         help="Snake on the module", action="store_true")
     parser.add_argument("--pong-embedded",
                         help="Pong on the module", action="store_true")
+    parser.add_argument("--tetris-embedded",
+                        help="Tetris on the module", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
     parser.add_argument("-v", "--version",
@@ -157,6 +159,8 @@ def main():
         snake_embedded()
     elif args.pong_embedded:
         pong_embedded()
+    elif args.tetris_embedded:
+        tetris_embedded()
     elif args.eq is not None:
         eq(args.eq)
     elif args.random_eq:
@@ -454,6 +458,32 @@ def game_over():
         score = len(body)
         show_string(f'{score:>3} P')
         time.sleep(0.75)
+
+
+def tetris_embedded():
+    # Start game
+    command = FWK_MAGIC + [0x10, 0x02]
+    send_command(command)
+
+    from getkey import getkey, keys
+
+    while True:
+        key_arg = None
+        key = getkey()
+        if key == keys.LEFT:
+            key_arg = ARG_LEFT
+        elif key == keys.RIGHT:
+            key_arg = ARG_RIGHT
+        elif key == keys.UP:
+            key_arg = ARG_UP
+        elif key == keys.DOWN:
+            key_arg = ARG_DOWN
+        elif key == 'q':
+            # Quit
+            key_arg = ARG_QUIT
+        if key_arg is not None:
+            command = FWK_MAGIC + [0x11, key_arg]
+            send_command(command)
 
 
 def pong_embedded():

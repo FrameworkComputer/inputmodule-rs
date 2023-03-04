@@ -18,6 +18,8 @@ use crate::games::pong;
 #[cfg(feature = "ledmatrix")]
 use crate::games::snake;
 #[cfg(feature = "ledmatrix")]
+use crate::games::tetris;
+#[cfg(feature = "ledmatrix")]
 use crate::matrix::*;
 #[cfg(feature = "ledmatrix")]
 use crate::patterns::*;
@@ -54,9 +56,10 @@ pub enum PatternVals {
 pub enum Game {
     Snake,
     Pong,
+    Tetris,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum GameControlArg {
     Up,
     Down,
@@ -188,6 +191,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             0x10 => match arg {
                 Some(0) => Some(Command::StartGame(Game::Snake)),
                 Some(1) => Some(Command::StartGame(Game::Pong)),
+                Some(2) => Some(Command::StartGame(Game::Tetris)),
                 _ => None,
             },
             0x11 => match arg {
@@ -349,6 +353,7 @@ pub fn handle_command(
             match game {
                 Game::Snake => snake::start_game(state, random),
                 Game::Pong => pong::start_game(state, random),
+                Game::Tetris => tetris::start_game(state, random),
             }
             None
         }
@@ -356,6 +361,7 @@ pub fn handle_command(
             match state.game {
                 Some(GameState::Snake(_)) => snake::handle_control(state, arg),
                 Some(GameState::Pong(_)) => pong::handle_control(state, arg),
+                Some(GameState::Tetris(_)) => tetris::handle_control(state, arg),
                 _ => {}
             }
             None
