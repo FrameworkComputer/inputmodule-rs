@@ -1,8 +1,6 @@
-# Lotus LED Matrix Module
+# Lotus Input Module Firmware
 
-It's a 9x34 (306) LED matrix, controlled by RP2040 MCU and IS31FL3741A LED controller.
-
-Connection to the host system is via USB 2.0 and currently there is a USB Serial API to control it without reflashing.
+See below sections for LED Matrix and LCD Display module details.
 
 Rust project setup based off of: https://github.com/rp-rs/rp2040-project-template
 
@@ -63,6 +61,7 @@ options:
   --wpm                 WPM Demo
   --snake               Snake
   --all-brightnesses    Show every pixel in a different brightness
+  -v, --version         Get device version
   --serial-dev SERIAL_DEV
                         Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
 ```
@@ -99,13 +98,15 @@ cargo install elf2uf2-rs --locked
 Build:
 
 ```sh
-cargo build
+cargo build --bin ledmatrix --features=ledmatrix
+cargo build --bin b1display --features=b1display
 ```
 
 Generate UF2 file:
 
 ```sh
-elf2uf2-rs target/thumbv6m-none-eabi/debug/led_matrix_fw led_matrix.uf2
+elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
+elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1dipslay.uf2
 ```
 
 ## Flashing
@@ -121,6 +122,25 @@ cargo run
 Or by copying the above generated UF2 file to the partition mounted when the
 module is in the bootloder.
 
+### Check the firmware version of the device
+
+###### In-band using `control.py`
+
+```sh
+> ./control.py --version
+Device version: 0.1.2
+```
+
+###### By looking at the USB descriptor
+
+On Linux:
+
+```sh
+> lsusb -d 32ac: -v 2> /dev/null | grep -P 'ID 32ac|bcdDevice'
+Bus 003 Device 078: ID 32ac:0021 Framework Lotus B1 Display
+  bcdDevice            0.10
+```
+
 ## Panic
 
 On panic the RP2040 resets itself into bootloader mode.
@@ -132,3 +152,11 @@ Additionally the panic message is written to flash, which can be read as follows
 sudo picotool save -r 0x15000000 0x15004000 message.bin
 strings message.bin | head
 ```
+
+## LED Matrix
+
+It's a 9x34 (306) LED matrix, controlled by RP2040 MCU and IS31FL3741A LED controller.
+
+Connection to the host system is via USB 2.0 and currently there is a USB Serial API to control it without reflashing.
+
+## B1 Display

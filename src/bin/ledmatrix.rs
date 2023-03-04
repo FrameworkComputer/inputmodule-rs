@@ -3,13 +3,15 @@
 #![no_main]
 #![allow(clippy::needless_range_loop)]
 
-use bsp::entry;
 use cortex_m::delay::Delay;
 //use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 
-use rp2040_hal::gpio::bank0::Gpio29;
+use rp2040_hal::{
+    gpio::bank0::Gpio29,
+    rosc::{Enabled, RingOscillator},
+};
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
@@ -72,8 +74,8 @@ use rp2040_panic_usb_boot as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-mod lotus_led_hal;
-use lotus_led_hal as bsp;
+use bsp::entry;
+use lotus_input::lotus_led_hal as bsp;
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -97,16 +99,12 @@ use usbd_serial::{SerialPort, USB_CLASS_CDC};
 use core::fmt::Write;
 use heapless::String;
 
-pub mod lotus;
-use lotus::LotusLedMatrix;
-
-pub mod mapping;
-
-pub mod patterns;
-use patterns::*;
-
-mod control;
-use control::*;
+use lotus_input::control::*;
+use lotus_input::games::{pong, snake};
+use lotus_input::lotus::LotusLedMatrix;
+use lotus_input::matrix::*;
+use lotus_input::patterns::*;
+use lotus_input::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
 //                               KDE             - Lotus C2 LED Matrix
@@ -114,45 +112,6 @@ use control::*;
 //                                    00         - Default Configuration
 //                                      00000000 - Device Identifier
 const DEFAULT_SERIAL: &str = "FRAKDEAM0000000000";
-// Get serial number from last 4K block of the first 1M
-const FLASH_OFFSET: usize = 0x10000000;
-const LAST_4K_BLOCK: usize = 0xff000;
-const SERIALNUM_LEN: usize = 18;
-
-fn get_serialnum() -> Option<&'static str> {
-    // Flash is mapped into memory, just read it from there
-    let ptr: *const u8 = (FLASH_OFFSET + LAST_4K_BLOCK) as *const u8;
-    unsafe {
-        let slice: &[u8] = core::slice::from_raw_parts(ptr, SERIALNUM_LEN);
-        if slice[0] == 0xFF || slice[0] == 0x00 {
-            return None;
-        }
-        core::str::from_utf8(slice).ok()
-    }
-}
-
-#[derive(Clone)]
-pub struct Grid([[u8; HEIGHT]; WIDTH]);
-impl Default for Grid {
-    fn default() -> Self {
-        Grid([[0; HEIGHT]; WIDTH])
-    }
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(Clone)]
-enum SleepState {
-    Awake,
-    Sleeping(Grid),
-}
-
-pub struct State {
-    grid: Grid,
-    col_buffer: Grid,
-    animate: bool,
-    brightness: u8,
-    sleeping: SleepState,
-}
 
 #[entry]
 fn main() -> ! {
@@ -172,6 +131,9 @@ fn main() -> ! {
     )
     .ok()
     .unwrap();
+    //rp2040_pac::rosc::RANDOMBIT::read(&self)
+    let rosc = rp2040_hal::rosc::RingOscillator::new(pac.ROSC);
+    let rosc = rosc.initialize();
 
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
@@ -205,7 +167,7 @@ fn main() -> ! {
         .product("Lotus LED Matrix")
         .serial_number(serialnum)
         .max_power(200) // Device uses roughly 164mW when all LEDs are at full brightness
-        .device_release(0x0011) // TODO: Assign dynamically based on crate version
+        .device_release(device_release())
         .device_class(USB_CLASS_CDC)
         .build();
 
@@ -233,6 +195,7 @@ fn main() -> ! {
         animate: false,
         brightness: 120,
         sleeping: SleepState::Awake,
+        game: None,
     };
 
     let mut matrix = LotusLedMatrix::configure(i2c);
@@ -250,6 +213,7 @@ fn main() -> ! {
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
+    let mut game_timer = timer.get_counter().ticks();
 
     loop {
         // TODO: Current hardware revision does not have the sleep pin wired up :(
@@ -295,8 +259,9 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
-                    if let Some(command) = parse_command(count, &buf) {
-                        if let Command::Sleep(go_sleeping) = command {
+                    let random = get_random_byte(&rosc);
+                    match (parse_command(count, &buf), &state.sleeping) {
+                        (Some(Command::Sleep(go_sleeping)), _) => {
                             handle_sleep(
                                 go_sleeping,
                                 &mut state,
@@ -304,17 +269,82 @@ fn main() -> ! {
                                 &mut delay,
                                 &mut led_enable,
                             );
-                        } else if let SleepState::Awake = state.sleeping {
-                            // While sleeping no command is handled, except waking up
-                            handle_command(&command, &mut state, &mut matrix);
                         }
+                        (Some(c @ Command::BootloaderReset), _)
+                        | (Some(c @ Command::IsSleeping), _) => {
+                            if let Some(response) =
+                                handle_command(&c, &mut state, &mut matrix, random)
+                            {
+                                let _ = serial.write(&response);
+                            };
+                        }
+                        (Some(command), SleepState::Awake) => {
+                            let mut text: String<64> = String::new();
+                            write!(
+                                &mut text,
+                                "Handling command {}:{}:{}:{}\r\n",
+                                buf[0], buf[1], buf[2], buf[3]
+                            )
+                            .unwrap();
+                            let _ = serial.write(text.as_bytes());
 
-                        fill_grid_pixels(&state.grid, &mut matrix);
+                            // While sleeping no command is handled, except waking up
+                            if let Some(response) =
+                                handle_command(&command, &mut state, &mut matrix, random)
+                            {
+                                let _ = serial.write(&response);
+                            };
+                            fill_grid_pixels(&state.grid, &mut matrix);
+                        }
+                        _ => {}
                     }
                 }
             }
         }
+
+        // Handle game state
+        let game_step_diff = match state.game {
+            Some(GameState::Pong(ref pong_state)) => 100_000 - 5_000 * pong_state.speed,
+            Some(GameState::Snake(_)) => 500_000,
+            _ => 500_000,
+        };
+        if timer.get_counter().ticks() > game_timer + game_step_diff {
+            let _ = serial.write(b"Game step\r\n");
+            let random = get_random_byte(&rosc);
+            match state.game {
+                Some(GameState::Pong(_)) => {
+                    pong::game_step(&mut state, random);
+                }
+                Some(GameState::Snake(_)) => {
+                    let (direction, game_over, points, (x, y)) =
+                        snake::game_step(&mut state, random);
+
+                    if game_over {
+                        // TODO: Show score
+                    } else {
+                        let mut text: String<64> = String::new();
+                        write!(
+                            &mut text,
+                            "Dir: {:?} Status: {}, Points: {}, Head: ({},{})\r\n",
+                            direction, game_over, points, x, y
+                        )
+                        .unwrap();
+                        let _ = serial.write(text.as_bytes());
+                    }
+                }
+                None => {}
+            }
+            game_timer = timer.get_counter().ticks();
+        }
     }
+}
+
+fn get_random_byte(rosc: &RingOscillator<Enabled>) -> u8 {
+    let mut byte = 0;
+    for i in 0..8 {
+        byte += (rosc.get_random_bit() as u8) << i;
+    }
+    byte
 }
 
 fn handle_sleep(

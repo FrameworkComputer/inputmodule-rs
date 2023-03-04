@@ -16,14 +16,33 @@ import serial
 # import PySimpleGUI as sg
 
 FWK_MAGIC = [0x32, 0xAC]
-PATTERNS = ['full', 'lotus', 'gradient',
-            'double-gradient', 'zigzag', 'panic', 'lotus2']
+PATTERNS = [
+    'All LEDs on',
+    '"LOTUS" sideways',
+    'Gradient (0-13% Brightness)',
+    'Double Gradient (0-7-0% Brightness)',
+    'Zigzag',
+    '"PANIC"',
+    '"LOTUS" Top Down',
+    'All brightness levels (1 LED each)',
+]
 DRAW_PATTERNS = ['off', 'on', 'foo']
 GREYSCALE_DEPTH = 32
+RESPONSE_SIZE = 32
 WIDTH = 9
 HEIGHT = 34
 
+ARG_UP = 0
+ARG_DOWN = 1
+ARG_LEFT = 2
+ARG_RIGHT = 3
+ARG_QUIT = 4
+ARG_2LEFT = 5
+ARG_2RIGHT = 6
+
 SERIAL_DEV = None
+
+STOP_THREAD = False
 
 
 def main():
@@ -32,10 +51,16 @@ def main():
                         action="store_true")
     parser.add_argument('--sleep', help='Simulate the host going to sleep or waking up',
                         action=argparse.BooleanOptionalAction)
+    parser.add_argument('--is-sleeping', help='Check current sleep state',
+                        action='store_true')
     parser.add_argument("--brightness", help="Adjust the brightness. Value 0-255",
                         type=int)
+    parser.add_argument("--get-brightness", help="Get current brightness",
+                        action="store_true")
     parser.add_argument('--animate', action=argparse.BooleanOptionalAction,
                         help='Start/stop vertical scrolling')
+    parser.add_argument('--get-animate', action='store_true',
+                        help='Check if currently animating')
     parser.add_argument("--pattern", help='Display a pattern',
                         type=str, choices=PATTERNS)
     parser.add_argument("--image", help="Display a PNG or GIF image in black and white only)",
@@ -63,8 +88,14 @@ def main():
         "--random-eq", help="Random Equalizer", action="store_true")
     parser.add_argument("--wpm", help="WPM Demo", action="store_true")
     parser.add_argument("--snake", help="Snake", action="store_true")
+    parser.add_argument("--snake-embedded",
+                        help="Snake on the module", action="store_true")
+    parser.add_argument("--pong-embedded",
+                        help="Pong on the module", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
+    parser.add_argument("-v", "--version",
+                        help="Get device version", action="store_true")
     parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
                         default='/dev/ttyACM0')
     args = parser.parse_args()
@@ -78,11 +109,19 @@ def main():
     elif args.sleep is not None:
         command = FWK_MAGIC + [0x03, args.sleep]
         send_command(command)
+    elif args.is_sleeping:
+        command = FWK_MAGIC + [0x03]
+        res = send_command(command, with_response=True)
+        sleeping = bool(res[0])
+        print(f"Currently sleeping: {sleeping}")
     elif args.brightness is not None:
         if args.brightness > 255 or args.brightness < 0:
             print("Brightness must be 0-255")
             sys.exit(1)
         brightness(args.brightness)
+    elif args.get_brightness:
+        br = get_brightness()
+        print(f"Current brightness: {br}")
     elif args.percentage is not None:
         if args.percentage > 100 or args.percentage < 0:
             print("Percentage must be 0-100")
@@ -92,6 +131,9 @@ def main():
         pattern(args.pattern)
     elif args.animate is not None:
         animate(args.animate)
+    elif args.get_animate:
+        animating = get_animate()
+        print(f"Currently animating: {animating}")
     elif args.panic:
         command = FWK_MAGIC + [0x05, 0x00]
         send_command(command)
@@ -111,6 +153,10 @@ def main():
         wpm_demo()
     elif args.snake:
         snake()
+    elif args.snake_embedded:
+        snake_embedded()
+    elif args.pong_embedded:
+        pong_embedded()
     elif args.eq is not None:
         eq(args.eq)
     elif args.random_eq:
@@ -121,6 +167,9 @@ def main():
         show_string(args.string)
     elif args.symbols is not None:
         show_symbols(args.symbols)
+    elif args.version:
+        version = get_version()
+        print(f"Device version: {version}")
     else:
         print("Provide arg")
 
@@ -144,11 +193,42 @@ def brightness(b: int):
     send_command(command)
 
 
+def get_brightness():
+    """Adjust the brightness scaling of the entire screen.
+    """
+    command = FWK_MAGIC + [0x00]
+    res = send_command(command, with_response=True)
+    return int(res[0])
+
+
+def get_version():
+    """Get the device's firmware version"""
+    command = FWK_MAGIC + [0x20]
+    res = send_command(command, with_response=True)
+    major = res[0]
+    minor = (res[1] & 0xF0) >> 4
+    patch = res[1] & 0xF
+    pre_release = res[2]
+
+    version = f"{major}.{minor}.{patch}"
+    if pre_release:
+        version += " (Pre-release)"
+    return version
+
+
 def animate(b: bool):
     """Tell the firmware to start/stop animation.
     Scrolls the currently saved grid vertically down."""
     command = FWK_MAGIC + [0x04, b]
     send_command(command)
+
+
+def get_animate():
+    """Tell the firmware to start/stop animation.
+    Scrolls the currently saved grid vertically down."""
+    command = FWK_MAGIC + [0x04]
+    res = send_command(command, with_response=True)
+    return bool(res[0])
 
 
 def image_bl(image_file):
@@ -252,7 +332,11 @@ def countdown(seconds):
     Until the timer runs out and every LED is lit"""
     start = datetime.now()
     target = seconds * 1_000_000
+    global STOP_THREAD
     while True:
+        if STOP_THREAD:
+            STOP_THREAD = False
+            return
         now = datetime.now()
         passed_time = (now - start) / timedelta(microseconds=1)
 
@@ -323,7 +407,7 @@ def opposite_direction(direction):
     return direction
 
 
-def keyscan():
+def snake_keyscan():
     from getkey import getkey, keys
     global direction
     global body
@@ -338,6 +422,28 @@ def keyscan():
             direction = key
 
 
+def snake_embedded_keyscan():
+    from getkey import getkey, keys
+
+    while True:
+        key_arg = None
+        key = getkey()
+        if key == keys.UP:
+            key_arg = 0
+        elif key == keys.DOWN:
+            key_arg = 1
+        elif key == keys.LEFT:
+            key_arg = 2
+        elif key == keys.RIGHT:
+            key_arg = 3
+        elif key == 'q':
+            # Quit
+            key_arg = 4
+        if key_arg is not None:
+            command = FWK_MAGIC + [0x11, key_arg]
+            send_command(command)
+
+
 def game_over():
     global body
     while True:
@@ -348,6 +454,40 @@ def game_over():
         score = len(body)
         show_string(f'{score:>3} P')
         time.sleep(0.75)
+
+
+def pong_embedded():
+    # Start game
+    command = FWK_MAGIC + [0x10, 0x01]
+    send_command(command)
+
+    from getkey import getkey, keys
+
+    while True:
+        key_arg = None
+        key = getkey()
+        if key == keys.LEFT:
+            key_arg = ARG_LEFT
+        elif key == keys.RIGHT:
+            key_arg = ARG_RIGHT
+        elif key == 'a':
+            key_arg = ARG_2LEFT
+        elif key == 'd':
+            key_arg = ARG_2RIGHT
+        elif key == 'q':
+            # Quit
+            key_arg = ARG_QUIT
+        if key_arg is not None:
+            command = FWK_MAGIC + [0x11, key_arg]
+            send_command(command)
+
+
+def snake_embedded():
+    # Start game
+    command = FWK_MAGIC + [0x10, 0x00]
+    send_command(command)
+
+    snake_embedded_keyscan()
 
 
 def snake():
@@ -364,7 +504,7 @@ def snake():
     # Setting
     WRAP = False
 
-    thread = threading.Thread(target=keyscan, args=(), daemon=True)
+    thread = threading.Thread(target=snake_keyscan, args=(), daemon=True)
     thread.start()
 
     prev = datetime.now()
@@ -450,7 +590,11 @@ def wpm_demo():
 def random_eq():
     """Display an equlizer looking animation with random values.
     """
+    global STOP_THREAD
     while True:
+        if STOP_THREAD:
+            STOP_THREAD = False
+            return
         # Lower values more likely, makes it look nicer
         weights = [i*i for i in range(33, 0, -1)]
         population = list(range(1, 34))
@@ -504,27 +648,29 @@ def light_leds(leds):
 
 def pattern(p):
     """Display a pattern that's already programmed into the firmware"""
-    if p == 'full':
+    if p == 'All LEDs on':
         command = FWK_MAGIC + [0x01, 5]
         send_command(command)
-    elif p == 'gradient':
+    elif p == 'Gradient (0-13% Brightness)':
         command = FWK_MAGIC + [0x01, 1]
         send_command(command)
-    elif p == 'double-gradient':
+    elif p == 'Double Gradient (0-7-0% Brightness)':
         command = FWK_MAGIC + [0x01, 2]
         send_command(command)
-    elif p == 'lotus':
+    elif p == '"LOTUS" sideways':
         command = FWK_MAGIC + [0x01, 3]
         send_command(command)
-    elif p == 'zigzag':
+    elif p == 'Zigzag':
         command = FWK_MAGIC + [0x01, 4]
         send_command(command)
-    elif p == 'panic':
+    elif p == '"PANIC"':
         command = FWK_MAGIC + [0x01, 6]
         send_command(command)
-    elif p == 'lotus2':
+    elif p == '"LOTUS" Top Down':
         command = FWK_MAGIC + [0x01, 7]
         send_command(command)
+    elif p == 'All brightness levels (1 LED each)':
+        all_brightnesses()
     else:
         print("Invalid pattern")
 
@@ -567,7 +713,11 @@ def show_symbols(symbols):
 def clock():
     """Render the current time and display.
     Loops forever, updating every second"""
+    global STOP_THREAD
     while True:
+        if STOP_THREAD:
+            STOP_THREAD = False
+            return
         now = datetime.now()
         current_time = now.strftime("%H:%M")
         print("Current Time =", current_time)
@@ -576,13 +726,18 @@ def clock():
         time.sleep(1)
 
 
-def send_command(command):
+def send_command(command, with_response=False):
     """Send a command to the device.
     Opens new serial connection every time"""
     # print(f"Sending command: {command}")
     global SERIAL_DEV
     with serial.Serial(SERIAL_DEV, 115200) as s:
         s.write(command)
+
+        if with_response:
+            res = s.read(RESPONSE_SIZE)
+            # print(f"Received: {res}")
+            return res
 
 
 def send_serial(s, command):
@@ -599,25 +754,52 @@ def gui():
         [sg.Button("Bootloader")],
 
         [sg.Text("Brightness")],
-        [sg.Slider((0, 255), orientation='h',
+        # TODO: Get default from device
+        [sg.Slider((0, 255), orientation='h', default_value=120,
                    k='-BRIGHTNESS-', enable_events=True)],
 
         [sg.Text("Animation")],
         [sg.Button("Start Animation"), sg.Button("Stop Animation")],
 
         [sg.Text("Pattern")],
-        [sg.Combo(PATTERNS, k='-COMBO-', enable_events=True)],
+        [sg.Combo(PATTERNS, k='-PATTERN-', enable_events=True)],
 
-        [sg.Text("Display Percentage")],
+        [sg.Text("Fill screen X% (could be volume indicator)")],
         [sg.Slider((0, 100), orientation='h',
                    k='-PERCENTAGE-', enable_events=True)],
 
-        [sg.Text("Countdown")],
+        [sg.Text("Countdown Timer")],
         [
             sg.Spin([i for i in range(1, 60)],
                     initial_value=10, k='-COUNTDOWN-'),
             sg.Text("Seconds"),
-            sg.Button("Start", k='-START-COUNTDOWN-')
+            sg.Button("Start", k='-START-COUNTDOWN-'),
+            sg.Button("Stop", k='-STOP-COUNTDOWN-'),
+        ],
+
+        [sg.Text("Black&White Image")],
+        [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')],
+
+        [sg.Text("Greyscale Image")],
+        [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')],
+
+        [sg.Text("Display Current Time")],
+        [
+            sg.Button("Start", k='-START-TIME-'),
+            sg.Button("Stop", k='-STOP-TIME-')
+        ],
+
+        [sg.Text("Display Text with Symbols")],
+        [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
+
+        # TODO
+        # [sg.Text("Play Snake")],
+        # [sg.Button("Start Game", k='-PLAY-SNAKE-')],
+
+        [sg.Text("Equalizer")],
+        [
+            sg.Button("Start random equalizer", k='-RANDOM-EQ-'),
+            sg.Button("Stop", k='-STOP-EQ-')
         ],
 
         [sg.Text("Sleep")],
@@ -627,6 +809,7 @@ def gui():
         [sg.Button("Quit")]
     ]
     window = sg.Window("Lotus LED Matrix Control", layout)
+    global STOP_THREAD
     while True:
         event, values = window.read()
         # print('Event', event)
@@ -638,8 +821,8 @@ def gui():
         if event == "Bootloader":
             bootloader()
 
-        if event == '-COMBO-':
-            pattern(values['-COMBO-'])
+        if event == '-PATTERN-':
+            pattern(values['-PATTERN-'])
 
         if event == 'Start Animation':
             animate(True)
@@ -657,6 +840,32 @@ def gui():
             thread = threading.Thread(target=countdown, args=(
                 int(values['-COUNTDOWN-']),), daemon=True)
             thread.start()
+        if event == '-STOP-COUNTDOWN-':
+            STOP_THREAD = True
+
+        if event == '-SEND-BL-IMAGE-':
+            image_bl('stripe.gif')
+
+        if event == '-SEND-GREY-IMAGE-':
+            image_greyscale('greyscale.gif')
+
+        if event == '-START-TIME-':
+            thread = threading.Thread(target=clock, args=(), daemon=True)
+            thread.start()
+        if event == '-STOP-TIME-':
+            STOP_THREAD = True
+
+        if event == '-SEND-TEXT-':
+            show_symbols(['2', '5', 'degC', ' ', 'thunder'])
+
+        if event == '-PLAY-SNAKE-':
+            snake()
+
+        if event == '-RANDOM-EQ-':
+            thread = threading.Thread(target=random_eq, args=(), daemon=True)
+            thread.start()
+        if event == '-STOP-EQ-':
+            STOP_THREAD = True
 
         if event == 'Sleep':
             command = FWK_MAGIC + [0x03, True]
