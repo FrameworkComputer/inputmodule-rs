@@ -1,6 +1,6 @@
 # Lotus Input Module Firmware
 
-See below sections for LED Matrix and LCD Display module details.
+See below sections for LED Matrix, LCD Display and C1 Minimal module details.
 
 Rust project setup based off of: https://github.com/rp-rs/rp2040-project-template
 
@@ -61,6 +61,9 @@ options:
   --wpm                 WPM Demo
   --snake               Snake
   --all-brightnesses    Show every pixel in a different brightness
+  --set-color {white,black,red,green,blue,cyan,yellow,purple}
+                        Set RGB color (C1 Minimal Input Module)
+  --get-color           Get RGB color (C1 Minimal Input Module)
   -v, --version         Get device version
   --serial-dev SERIAL_DEV
                         Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
@@ -100,6 +103,7 @@ Build:
 ```sh
 cargo build --bin ledmatrix --features=ledmatrix
 cargo build --bin b1display --features=b1display
+cargo build --bin c1minimal --features=c1minimal
 ```
 
 Generate UF2 file:
@@ -107,6 +111,7 @@ Generate UF2 file:
 ```sh
 elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
 elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1dipslay.uf2
+elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display c1minimal.uf2
 ```
 
 ## Flashing
@@ -160,3 +165,22 @@ It's a 9x34 (306) LED matrix, controlled by RP2040 MCU and IS31FL3741A LED contr
 Connection to the host system is via USB 2.0 and currently there is a USB Serial API to control it without reflashing.
 
 ## B1 Display
+
+## C1 Minimal Input Module
+
+It's a very minimal input module. Many GPIO pins are exposed so that headers
+can be soldered onto them. Additionally there are pads for a WS2812/Neopixel
+compatible RGB LED.
+
+When booting up this LED is lit in green color.
+Its color and brightness can be controlled via the commands:
+
+```sh
+> ./control.py --brightness 255
+> ./control.py --get-brightness
+Current brightness: 255
+
+> ./control.py --set-color yellow
+> ./control.py --get-color
+Current color: RGB:(255, 255, 0)
+```
