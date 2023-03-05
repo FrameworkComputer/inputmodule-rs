@@ -1,29 +1,28 @@
-//! Lotus LED Matrix Module
+//! Lotus C1 Minimal Input Module
+//!
+//! Neopixel/WS2812 compatible RGB LED is connected to GPIO16.
+//! This pin doesn't support SPI TX.
+//! It does support UART TX, but that output would have to be inverted.
+//! So instead we use PIO to drive the LED.
 #![no_std]
 #![no_main]
 #![allow(clippy::needless_range_loop)]
 
 use bsp::entry;
 use cortex_m::delay::Delay;
-//use defmt::*;
 use defmt_rtt as _;
-use embedded_hal::digital::v2::{InputPin, OutputPin};
+use embedded_hal::digital::v2::InputPin;
 
-use mipidsi::Orientation;
-use rp2040_hal::gpio::bank0::Gpio18;
-use rp2040_hal::gpio::{Output, Pin, PushPull};
+use rp2040_hal::gpio::bank0::Gpio16;
+use rp2040_hal::pio::PIOExt;
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
 
-use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::*;
-
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-use lotus_input::lotus_lcd_hal as bsp;
+use lotus_inputmodules::lotus_minimal_hal as bsp;
 //use rp_pico as bsp;
-// use sparkfun_pro_micro_rp2040 as bsp;
 
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
@@ -33,7 +32,6 @@ use bsp::hal::{
     watchdog::Watchdog,
     Timer,
 };
-use fugit::RateExtU32;
 
 // USB Device support
 use usb_device::{class_prelude::*, prelude::*};
@@ -45,27 +43,24 @@ use usbd_serial::{SerialPort, USB_CLASS_CDC};
 use core::fmt::Write;
 use heapless::String;
 
-use lotus_input::control::*;
-use lotus_input::graphics::*;
-use lotus_input::serialnum::{device_release, get_serialnum};
+// RGB LED
+use smart_leds::{colors, SmartLedsWrite, RGB8};
+pub type Ws2812<'a> = ws2812_pio::Ws2812<
+    crate::pac::PIO0,
+    rp2040_hal::pio::SM0,
+    rp2040_hal::timer::CountDown<'a>,
+    Gpio16,
+>;
+
+use lotus_inputmodules::control::*;
+use lotus_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
-//                               KDE             - Lotus C2 LED Matrix
+//                               000             - Lotus C1 Minimal Input Module (No assigned  value)
 //                                  AM           - Atemitech
 //                                    00         - Default Configuration
 //                                      00000000 - Device Identifier
-const DEFAULT_SERIAL: &str = "FRAKDEAM0000000000";
-
-#[allow(clippy::large_enum_variant)]
-#[derive(Clone)]
-enum SleepState {
-    Awake,
-    Sleeping,
-}
-
-pub struct State {
-    sleeping: SleepState,
-}
+const DEFAULT_SERIAL: &str = "FRA000AM0000000000";
 
 #[entry]
 fn main() -> ! {
@@ -113,57 +108,21 @@ fn main() -> ! {
         DEFAULT_SERIAL
     };
 
-    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0021))
+    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0022))
         .manufacturer("Framework")
-        .product("Lotus B1 Display")
+        .product("Lotus C1 Minimal Input Module")
         .serial_number(serialnum)
         .max_power(500) // TODO: Check how much
-        .device_release(device_release()) // TODO: Assign dynamically based on crate version
+        .device_release(device_release())
         .device_class(USB_CLASS_CDC)
         .build();
 
-    // Display SPI pins
-    let _spi_sclk = pins.scl.into_mode::<bsp::hal::gpio::FunctionSpi>();
-    let _spi_mosi = pins.sda.into_mode::<bsp::hal::gpio::FunctionSpi>();
-    let _spi_miso = pins.miso.into_mode::<bsp::hal::gpio::FunctionSpi>();
-    let spi = bsp::hal::Spi::<_, _, 8>::new(pac.SPI1);
-    // Display control pins
-    let dc = pins.dc.into_push_pull_output();
-    let mut lcd_led = pins.backlight.into_push_pull_output();
-    let rst = pins.rstb.into_push_pull_output();
-
-    let spi = spi.init(
-        &mut pac.RESETS,
-        clocks.peripheral_clock.freq(),
-        16_000_000u32.Hz(),
-        &embedded_hal::spi::MODE_0,
-    );
-
-    // Create a DisplayInterface from SPI and DC pin, with no manual CS control
-    let di = display_interface_spi::SPIInterfaceNoCS::new(spi, dc);
-    let mut disp = mipidsi::Builder::st7735s(di)
-        .with_invert_colors(true) // Looks cooler. TODO: Should invert image not entire screen
-        .with_orientation(Orientation::PortraitInverted(false))
-        .init(&mut delay, Some(rst))
-        .unwrap();
-    disp.clear(Rgb565::WHITE).unwrap();
-
-    let logo_rect = draw_logo(&mut disp).unwrap();
-    draw_text(
-        &mut disp,
-        "Framework",
-        Point::new(0, LOGO_OFFSET + logo_rect.size.height as i32),
-    )
-    .unwrap();
-
-    // Wait until the background and image have been rendered otherwise
-    // the screen will show random pixels for a brief moment
-    lcd_led.set_high().unwrap();
-
     let sleep = pins.sleep.into_pull_down_input();
 
-    let mut state = State {
-        sleeping: SleepState::Awake,
+    let mut state = C1MinimalState {
+        sleeping: SimpleSleepState::Awake,
+        color: colors::GREEN,
+        brightness: 10,
     };
 
     let mut said_hello = false;
@@ -171,15 +130,30 @@ fn main() -> ! {
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
 
-    loop {
-        // TODO: Current hardware revision does not have the sleep pin wired up :(
-        // Go to sleep if the host is sleeping
-        let _host_sleeping = sleep.is_low().unwrap();
-        //handle_sleep(host_sleeping, &mut state, &mut matrix, &mut delay);
+    let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
+    let mut ws2812: Ws2812 = ws2812_pio::Ws2812::new(
+        pins.rgb_led.into_mode(),
+        &mut pio,
+        sm0,
+        clocks.peripheral_clock.freq(),
+        timer.count_down(),
+    );
 
-        // Handle period display updates. Don't do it too often
+    ws2812
+        .write(smart_leds::brightness(
+            [state.color].iter().cloned(),
+            state.brightness,
+        ))
+        .unwrap();
+
+    loop {
+        // Go to sleep if the host is sleeping
+        let host_sleeping = sleep.is_low().unwrap();
+        handle_sleep(host_sleeping, &mut state, &mut delay, &mut ws2812);
+
+        // Handle period LED updates. Don't do it too often or USB will get stuck
         if timer.get_counter().ticks() > prev_timer + 20_000 {
-            // TODO: Update display
+            // TODO: Can do animations here
             prev_timer = timer.get_counter().ticks();
         }
 
@@ -212,11 +186,12 @@ fn main() -> ! {
                 Ok(count) => {
                     if let Some(command) = parse_command(count, &buf) {
                         if let Command::Sleep(go_sleeping) = command {
-                            handle_sleep(go_sleeping, &mut state, &mut delay, &mut lcd_led);
-                        } else if let SleepState::Awake = state.sleeping {
+                            handle_sleep(go_sleeping, &mut state, &mut delay, &mut ws2812);
+                        } else if let SimpleSleepState::Awake = state.sleeping {
                             // While sleeping no command is handled, except waking up
-                            //handle_command(&command, &mut disp, logo_rect);
-                            if let Some(response) = handle_command(&command, &mut disp, logo_rect) {
+                            if let Some(response) =
+                                handle_command(&command, &mut state, &mut ws2812)
+                            {
                                 let _ = serial.write(&response);
                             };
                         }
@@ -229,33 +204,32 @@ fn main() -> ! {
 
 fn handle_sleep(
     go_sleeping: bool,
-    state: &mut State,
+    state: &mut C1MinimalState,
     _delay: &mut Delay,
-    lcd_led: &mut Pin<Gpio18, Output<PushPull>>,
+    ws2812: &mut impl SmartLedsWrite<Color = RGB8, Error = ()>,
 ) {
     match (state.sleeping.clone(), go_sleeping) {
-        (SleepState::Awake, false) => (),
-        (SleepState::Awake, true) => {
-            state.sleeping = SleepState::Sleeping;
-            //state.grid = display_sleep();
+        (SimpleSleepState::Awake, false) => (),
+        (SimpleSleepState::Awake, true) => {
+            state.sleeping = SimpleSleepState::Sleeping;
 
-            // Turn off backlight
-            lcd_led.set_low().unwrap();
-
-            // TODO: Power Display controller down
+            // Turn off LED
+            ws2812.write([colors::BLACK].iter().cloned()).unwrap();
 
             // TODO: Set up SLEEP# pin as interrupt and wfi
             //cortex_m::asm::wfi();
         }
-        (SleepState::Sleeping, true) => (),
-        (SleepState::Sleeping, false) => {
-            // Restore back grid before sleeping
-            state.sleeping = SleepState::Awake;
+        (SimpleSleepState::Sleeping, true) => (),
+        (SimpleSleepState::Sleeping, false) => {
+            state.sleeping = SimpleSleepState::Awake;
 
-            // TODO: Power display controller back on
-
-            // Turn backlight back on
-            lcd_led.set_high().unwrap();
+            // Turn LED back on
+            ws2812
+                .write(smart_leds::brightness(
+                    [state.color].iter().cloned(),
+                    state.brightness,
+                ))
+                .unwrap();
         }
     }
 }

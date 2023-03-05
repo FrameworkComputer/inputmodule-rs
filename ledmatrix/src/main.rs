@@ -75,7 +75,7 @@ use rp2040_panic_usb_boot as _;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
-use lotus_input::lotus_led_hal as bsp;
+use lotus_inputmodules::lotus_led_hal as bsp;
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -99,12 +99,12 @@ use usbd_serial::{SerialPort, USB_CLASS_CDC};
 use core::fmt::Write;
 use heapless::String;
 
-use lotus_input::control::*;
-use lotus_input::games::{pong, snake};
-use lotus_input::lotus::LotusLedMatrix;
-use lotus_input::matrix::*;
-use lotus_input::patterns::*;
-use lotus_input::serialnum::{device_release, get_serialnum};
+use lotus_inputmodules::control::*;
+use lotus_inputmodules::games::{pong, snake};
+use lotus_inputmodules::lotus::LotusLedMatrix;
+use lotus_inputmodules::matrix::*;
+use lotus_inputmodules::patterns::*;
+use lotus_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
 //                               KDE             - Lotus C2 LED Matrix
