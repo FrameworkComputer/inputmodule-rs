@@ -32,9 +32,9 @@ where
     D: DrawTarget<Color = Rgb565>,
 {
     let text = Text::new(
-        &target_text,
+        target_text,
         Point::new(30, 30) + offset,
-        MonoTextStyle::new(&FONT_9X15, Rgb565::WHITE),
+        MonoTextStyle::new(&FONT_9X15, Rgb565::BLACK),
     );
 
     text.draw(target)?;

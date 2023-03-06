@@ -105,6 +105,14 @@ def main():
                         help="Get device version", action="store_true")
     parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
                         default='/dev/ttyACM0')
+
+    parser.add_argument(
+        "--disp-str", help="Display a string on the LCD Display", type=str)
+    parser.add_argument("--display-on", help="Control display power",
+                        action=argparse.BooleanOptionalAction)
+    parser.add_argument("--invert-screen", help="Invert display",
+                        action=argparse.BooleanOptionalAction)
+
     args = parser.parse_args()
 
     if args.serial_dev is not None:
@@ -179,6 +187,12 @@ def main():
         show_string(args.string)
     elif args.symbols is not None:
         show_symbols(args.symbols)
+    elif args.disp_str is not None:
+        display_string(args.disp_str)
+    elif args.display_on is not None:
+        display_on_cmd(args.display_on)
+    elif args.invert_screen is not None:
+        invert_screen_cmd(args.invert_screen)
     elif args.version:
         version = get_version()
         print(f"Device version: {version}")
@@ -921,6 +935,23 @@ def gui():
             send_command(command)
 
     window.close()
+
+
+def display_string(disp_str):
+    b = [ord(x) for x in disp_str]
+    command = FWK_MAGIC + [0x09, len(disp_str)] + b
+    send_command(command)
+
+
+def display_on_cmd(on):
+    command = FWK_MAGIC + [0x014, int(on)]
+    send_command(command)
+
+
+def invert_screen_cmd(invert):
+    command = FWK_MAGIC + [0x015, int(invert)]
+    send_command(command)
+
 
 # 5x6 symbol font. Leaves 2 pixels on each side empty
 # We can leave one row empty below and then the display fits 5 of these digits.

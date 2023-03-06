@@ -9,7 +9,6 @@ use cortex_m::delay::Delay;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 
-use rp2040_hal::gpio::bank0::Gpio18;
 use rp2040_hal::gpio::{Output, Pin, PushPull};
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
@@ -19,7 +18,7 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::*;
 use embedded_hal::blocking::spi;
-use st7306_lcd::{Orientation, ST7306};
+use st7306_lcd::ST7306;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
@@ -29,9 +28,8 @@ use lotus_inputmodules::lotus_lcd_hal as bsp;
 
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
-    pac,
+    gpio, pac,
     sio::Sio,
-    gpio,
     usb,
     watchdog::Watchdog,
     Timer,
@@ -151,30 +149,35 @@ fn main() -> ! {
         Pin<gpio::bank0::Gpio21, Output<PushPull>>,
         25,
         200,
-    > = ST7306::new(spi, dc, cs, rst, false, 300, 460);
+    > = ST7306::new(spi, dc, cs, rst, false, 300, 400);
     disp.init(&mut delay).unwrap();
 
-    disp.clear(Rgb565::BLACK).unwrap();
+    // TODO: Seems broken
+    //disp.clear(Rgb565::WHITE).unwrap();
+    Rectangle::new(Point::new(0, 0), Size::new(300, 400))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+        .draw(&mut disp)
+        .unwrap();
 
     let logo_rect = draw_logo(&mut disp).unwrap();
     Rectangle::new(Point::new(10, 10), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
         .draw(&mut disp)
         .unwrap();
     Rectangle::new(Point::new(20, 20), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
         .draw(&mut disp)
         .unwrap();
     Rectangle::new(Point::new(30, 30), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
         .draw(&mut disp)
         .unwrap();
     Rectangle::new(Point::new(40, 40), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
         .draw(&mut disp)
         .unwrap();
     Rectangle::new(Point::new(50, 50), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
         .draw(&mut disp)
         .unwrap();
     draw_text(
@@ -235,11 +238,11 @@ fn main() -> ! {
                 Ok(count) => {
                     if let Some(command) = parse_command(count, &buf) {
                         if let Command::Sleep(go_sleeping) = command {
-                            handle_sleep(host_sleeping, &mut state, &mut delay, &mut disp);
+                            handle_sleep(go_sleeping, &mut state, &mut delay, &mut disp);
                         } else if let SleepState::Awake = state.sleeping {
                             // While sleeping no command is handled, except waking up
                             //handle_command(&command, &mut disp, logo_rect);
-                            if let Some(response) = handle_command(&command, &mut disp, logo_rect) {
+                            if let Some(response) = handle_command(&command, logo_rect, &mut disp) {
                                 let _ = serial.write(&response);
                             };
                         }
@@ -266,10 +269,9 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
         (SleepState::Awake, false) => (),
         (SleepState::Awake, true) => {
             state.sleeping = SleepState::Sleeping;
-            //state.grid = display_sleep();
 
-            // Turn off backlight
-            disp.on_off(false);
+            // Turn off display
+            disp.on_off(false).unwrap();
 
             // TODO: Power Display controller down
 
@@ -281,8 +283,10 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
             // Restore back grid before sleeping
             state.sleeping = SleepState::Awake;
 
+            // Turn display back on
+            disp.on_off(true).unwrap();
+
             // TODO: Power display controller back on
-            disp.on_off(true);
         }
     }
 }
