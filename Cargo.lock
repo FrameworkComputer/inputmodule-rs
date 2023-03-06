@@ -37,16 +37,15 @@ dependencies = [
  "cortex-m-rt",
  "defmt",
  "defmt-rtt",
- "display-interface-spi",
  "embedded-graphics",
  "embedded-hal",
  "fugit",
  "heapless",
  "lotus-inputmodules",
- "mipidsi",
  "rp2040-boot2",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
+ "st7306-lcd",
  "tinybmp",
  "usb-device",
  "usbd-hid",
@@ -73,12 +72,6 @@ name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
-
-[[package]]
-name = "byte-slice-cast"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0a5e3906bcbf133e33c1d4d95afc664ad37fbdb9f6568d8043e7ea8c27d93d3"
 
 [[package]]
 name = "bytemuck"
@@ -204,23 +197,6 @@ checksum = "609923761264dd99ed9c7d209718cda4631c5fe84668e0f0960124cbb844c49f"
 dependencies = [
  "critical-section",
  "defmt",
-]
-
-[[package]]
-name = "display-interface"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7517c040926d7b02b111884aa089177db80878533127f7c1b480d852c5fb4112"
-
-[[package]]
-name = "display-interface-spi"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "489378ad054862146fbd1f09f51d585ccbe4bd1e2feadcda2a13ac33f840e1a5"
-dependencies = [
- "byte-slice-cast",
- "display-interface",
- "embedded-hal",
 ]
 
 [[package]]
@@ -371,17 +347,16 @@ dependencies = [
  "cortex-m-rt",
  "defmt",
  "defmt-rtt",
- "display-interface-spi",
  "embedded-graphics",
  "embedded-hal",
  "fugit",
  "heapless",
  "is31fl3741",
- "mipidsi",
  "rp2040-boot2",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
+ "st7306-lcd",
  "tinybmp",
  "usb-device",
  "usbd-hid",
@@ -394,19 +369,6 @@ name = "micromath"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc4010833aea396656c2f91ee704d51a6f1329ec2ab56ffd00bfd56f7481ea94"
-
-[[package]]
-name = "mipidsi"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "187aa4e418283ff1186bc471cb3a20bab339ee8f25882bdb7465ae44bd971c95"
-dependencies = [
- "display-interface",
- "embedded-graphics-core",
- "embedded-hal",
- "heapless",
- "nb 1.0.0",
-]
 
 [[package]]
 name = "nb"
@@ -675,6 +637,16 @@ checksum = "f3e6ad23b128192ed337dfa4f1b8099ced0c2bf30d61e551b65fda5916dbb850"
 dependencies = [
  "encode_unicode",
  "serde",
+]
+
+[[package]]
+name = "st7306-lcd"
+version = "0.8.2"
+source = "git+ssh://git@github.com/FrameworkComputer/st7306.git#25a171f078ccbc8916fd8812a81126c07d0a4f17"
+dependencies = [
+ "embedded-graphics",
+ "embedded-hal",
+ "nb 1.0.0",
 ]
 
 [[package]]

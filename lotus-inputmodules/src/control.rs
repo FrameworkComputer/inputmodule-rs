@@ -7,11 +7,21 @@ use core::fmt::{Debug, Write};
 #[cfg(feature = "b1display")]
 use embedded_graphics::{
     pixelcolor::Rgb565,
-    prelude::{DrawTarget, Point},
+    prelude::{DrawTarget, Point, RgbColor},
     primitives::Rectangle,
 };
 #[cfg(feature = "b1display")]
 use heapless::String;
+use rp2040_hal::{
+    gpio::{bank0::*, Output, Pin, PushPull},
+    pac::SPI0,
+    spi::Enabled,
+    usb::UsbBus,
+    Spi,
+};
+use st7306_lcd::{instruction::Instruction, ST7306};
+use tinybmp::Bmp;
+use usbd_serial::SerialPort;
 
 #[cfg(feature = "ledmatrix")]
 use crate::games::pong;
@@ -25,6 +35,9 @@ use crate::serialnum::{device_release, is_pre_release};
 
 #[cfg(feature = "c1minimal")]
 use smart_leds::{SmartLedsWrite, RGB8};
+
+const WIDTH: usize = 300;
+const HEIGHT: usize = 400;
 
 pub enum _CommandVals {
     _Brightness = 0x00,
@@ -41,6 +54,8 @@ pub enum _CommandVals {
     GameControl = 0x11,
     GameStatus = 0x12,
     SetColor = 0x13,
+    DisplayOn = 0x14,
+    InvertScreen = 0x15,
     Version = 0x20,
 }
 
@@ -106,6 +121,8 @@ pub enum Command {
     GetColor,
     #[cfg(feature = "c1minimal")]
     SetColor(RGB8),
+    DisplayOn(bool),
+    InvertScreen(bool),
     _Unknown,
 }
 
@@ -252,6 +269,8 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
 
                 Some(Command::SetText(text))
             }
+            0x14 => Some(Command::DisplayOn(arg == 1)),
+            0x15 => Some(Command::InvertScreen(arg == 1)),
             _ => None,
         }
     } else {
@@ -408,18 +427,37 @@ where
         Command::SetText(text) => {
             clear_text(
                 disp,
-                Point::new(0, LOGO_OFFSET + logo_rect.size.height as i32),
+                Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
+                Rgb565::WHITE
             )
             .unwrap();
 
             draw_text(
                 disp,
                 text,
-                Point::new(0, LOGO_OFFSET + logo_rect.size.height as i32),
+                Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
             )
             .unwrap();
             None
         }
+        //Command::DisplayOn(on) => {
+        //    disp.on_off(*on);
+        //    None
+        //    //if *on {
+        //    //    disp.write_command(Instruction::DISPON, &[]).unwrap();
+        //    //} else {
+        //    //    disp.write_command(Instruction::DISPOFF, &[]).unwrap();
+        //    //}
+        //}
+        //Command::InvertScreen(invert) => {
+        //    if *invert {
+        //        //let _ = serial.write("INVON\n\r".as_bytes());
+        //        disp.write_command(Instruction::INVON, &[]).unwrap();
+        //    } else {
+        //        //let _ = serial.write("INVOFF\n\r".as_bytes());
+        //        disp.write_command(Instruction::INVOFF, &[]).unwrap();
+        //    }
+        //}
         _ => return handle_generic_command(command),
     }
 }
