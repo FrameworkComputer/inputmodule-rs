@@ -1,14 +1,21 @@
+mod b1display;
+mod c1minimal;
 mod font;
 mod inputmodule;
+mod ledmatrix;
 
 use clap::{Parser, Subcommand};
 
-use crate::inputmodule::{serial_commands, B1DisplaySubcommand, LedMatrixSubcommand};
+use crate::b1display::B1DisplaySubcommand;
+use crate::c1minimal::C1MinimalSubcommand;
+use crate::inputmodule::serial_commands;
+use crate::ledmatrix::LedMatrixSubcommand;
 
 #[derive(Subcommand, Debug)]
 enum Commands {
     LedMatrix(LedMatrixSubcommand),
     B1Display(B1DisplaySubcommand),
+    C1Minimal(C1MinimalSubcommand),
 }
 
 /// RAW HID and VIA commandline for QMK devices
@@ -42,6 +49,7 @@ fn main() {
     match args.command {
         Some(Commands::B1Display(_)) => serial_commands(&args),
         Some(Commands::LedMatrix(_)) => serial_commands(&args),
+        Some(Commands::C1Minimal(_)) => serial_commands(&args),
         None => panic!("Not allowed"),
     }
 }

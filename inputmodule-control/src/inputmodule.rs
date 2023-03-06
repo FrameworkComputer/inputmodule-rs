@@ -2,18 +2,20 @@ use std::thread;
 use std::time::Duration;
 
 use chrono::Local;
-use clap::Parser;
 use image::{io::Reader as ImageReader, Luma};
 use rand::prelude::*;
 use serialport::{SerialPort, SerialPortInfo};
 
+use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
+use crate::ledmatrix::Pattern;
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 const FRAMEWORK_VID: u16 = 0x32AC;
 const LED_MATRIX_PID: u16 = 0x0020;
 const B1_LCD_PID: u16 = 0x0021;
 
+// Commands
 const BRIGHTNESS: u8 = 0x00;
 const PERCENTAGE: u8 = 0x01;
 const PATTERN: u8 = 0x01;
@@ -25,112 +27,18 @@ const DISPLAY_BW_IMAGE: u8 = 0x06;
 const SEND_COL: u8 = 0x07;
 const COMMIT_COLS: u8 = 0x08;
 const _B1_RESERVED: u8 = 0x09;
+const _START_GAME: u8 = 0x10;
+const _GAME_CONTROL: u8 = 0x11;
+const _GAME_STATUS: u8 = 0x12;
+const SET_COLOR: u8 = 0x13;
+const DISPLAY_ON: u8 = 0x14;
+const INVERT_SCREEN: u8 = 0x15;
 const VERSION: u8 = 0x20;
 
 const WIDTH: usize = 9;
 const HEIGHT: usize = 34;
 
 const SERIAL_TIMEOUT: Duration = Duration::from_millis(20);
-
-#[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
-enum Pattern {
-    // Percentage = 0
-    Gradient = 1,
-    DoubleGradient = 2,
-    LotusSideways = 3,
-    Zigzag = 4,
-    AllOn = 5,
-    Panic = 6,
-    LotusTopDown = 7,
-    //AllBrightnesses
-}
-
-/// LED Matrix
-#[derive(Parser, Debug)]
-#[command(arg_required_else_help = true)]
-pub struct LedMatrixSubcommand {
-    /// Set LED max brightness percentage or get, if no value provided
-    #[arg(long)]
-    brightness: Option<Option<u8>>,
-
-    /// Set sleep status or get, if no value provided
-    #[arg(long)]
-    sleeping: Option<Option<bool>>,
-
-    /// Jump to the bootloader
-    #[arg(long)]
-    bootloader: bool,
-
-    /// Display a percentage (0-100)
-    #[arg(long)]
-    percentage: Option<u8>,
-
-    /// Start/stop animation
-    #[arg(long)]
-    animate: Option<Option<bool>>,
-
-    /// Display a pattern
-    #[arg(long)]
-    #[clap(value_enum)]
-    pattern: Option<Pattern>,
-
-    /// Show every brightness, one per pixel
-    #[arg(long)]
-    all_brightnesses: bool,
-
-    /// Blink the current pattern once a second
-    #[arg(long)]
-    blinking: bool,
-
-    /// Breathing brightness of the current pattern
-    #[arg(long)]
-    breathing: bool,
-
-    /// Display black&white image
-    #[arg(long)]
-    image_bw: Option<String>,
-
-    /// Display grayscale image
-    #[arg(long)]
-    image_gray: Option<String>,
-
-    /// Random EQ
-    #[arg(long)]
-    random_eq: bool,
-
-    /// EQ with custom values
-    #[arg(long, num_args(9))]
-    eq: Option<Vec<u8>>,
-
-    /// Clock
-    #[arg(long)]
-    clock: bool,
-
-    /// Display a string (max 5 chars)
-    #[arg(long)]
-    string: Option<String>,
-
-    /// Display a string (max 5 symbols)
-    #[arg(long, num_args(0..6))]
-    symbols: Option<Vec<String>>,
-
-    /// Crash the firmware (TESTING ONLY!)
-    #[arg(long)]
-    panic: bool,
-
-    /// Serial device, like /dev/ttyACM0 or COM0
-    #[arg(long)]
-    serial_dev: Option<String>,
-
-    /// Get the device version
-    #[arg(short, long)]
-    version: bool,
-}
-
-/// B1 Display
-#[derive(Parser, Debug)]
-#[command(arg_required_else_help = true)]
-pub struct B1DisplaySubcommand {}
 
 fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<String> {
     if let Some(requested) = requested {
@@ -169,7 +77,13 @@ pub fn serial_commands(args: &crate::ClapCli) {
         Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
             find_serialdevs(&ports, &ledmatrix_args.serial_dev)
         }
-        _ => vec![],
+        Some(crate::Commands::B1Display(ledmatrix_args)) => {
+            find_serialdevs(&ports, &ledmatrix_args.serial_dev)
+        }
+        Some(crate::Commands::C1Minimal(c1minimal_args)) => {
+            find_serialdevs(&ports, &c1minimal_args.serial_dev)
+        }
+        None => vec![],
     };
     if serialdevs.is_empty() {
         println!("Failed to find serial devivce. Please manually specify with --serial-dev");
@@ -177,6 +91,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
     };
 
     match &args.command {
+        // TODO: Handle generic commands without code deduplication
         Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
             for serialdev in &serialdevs {
                 if args.verbose {
@@ -248,7 +163,55 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 clock_cmd(&serialdevs);
             }
         }
-        Some(crate::Commands::B1Display(_b1display_args)) => {}
+        Some(crate::Commands::B1Display(b1display_args)) => {
+            for serialdev in &serialdevs {
+                if args.verbose {
+                    println!("Selected serialdev: {:?}", serialdev);
+                }
+
+                if b1display_args.bootloader {
+                    bootloader_cmd(serialdev);
+                }
+                if let Some(sleeping_arg) = b1display_args.sleeping {
+                    sleeping_cmd(serialdev, sleeping_arg);
+                }
+                if b1display_args.panic {
+                    simple_cmd(serialdev, PANIC, &[0x00]);
+                }
+                if b1display_args.version {
+                    get_device_version(serialdev);
+                }
+                if let Some(display_on) = b1display_args.display_on {
+                    display_on_cmd(serialdev, display_on);
+                }
+                if let Some(invert_screen) = b1display_args.invert_screen {
+                    invert_screen_cmd(serialdev, invert_screen);
+                }
+            }
+        }
+        Some(crate::Commands::C1Minimal(c1minimal_args)) => {
+            for serialdev in &serialdevs {
+                if args.verbose {
+                    println!("Selected serialdev: {:?}", serialdev);
+                }
+
+                if c1minimal_args.bootloader {
+                    bootloader_cmd(serialdev);
+                }
+                if let Some(sleeping_arg) = c1minimal_args.sleeping {
+                    sleeping_cmd(serialdev, sleeping_arg);
+                }
+                if c1minimal_args.panic {
+                    simple_cmd(serialdev, PANIC, &[0x00]);
+                }
+                if c1minimal_args.version {
+                    get_device_version(serialdev);
+                }
+                if let Some(color) = c1minimal_args.set_color {
+                    set_color_cmd(serialdev, color);
+                }
+            }
+        }
         _ => {}
     }
 }
@@ -624,4 +587,26 @@ fn show_symbols(serialdev: &str, symbols: &Vec<String>) {
     println!("Symbols: {symbols:?}");
     let font_items: Vec<Vec<u8>> = symbols.iter().map(|x| convert_symbol(x)).collect();
     show_font(serialdev, &font_items);
+}
+
+fn display_on_cmd(serialdev: &str, display_on: bool) {
+    simple_cmd(serialdev, DISPLAY_ON, &[display_on as u8]);
+}
+
+fn invert_screen_cmd(serialdev: &str, invert_on: bool) {
+    simple_cmd(serialdev, INVERT_SCREEN, &[invert_on as u8]);
+}
+
+fn set_color_cmd(serialdev: &str, color: Color) {
+    let args = match color {
+        Color::White => &[0xFF, 0xFF, 0xFF],
+        Color::Black => &[0x00, 0x00, 0x00],
+        Color::Red => &[0xFF, 0x00, 0x00],
+        Color::Green => &[0x00, 0xFF, 0x00],
+        Color::Blue => &[0x00, 0x00, 0xFF],
+        Color::Yellow => &[0xFF, 0xFF, 0x00],
+        Color::Cyan => &[0x00, 0xFF, 0xFF],
+        Color::Purple => &[0xFF, 0x00, 0xFF],
+    };
+    simple_cmd(serialdev, SET_COLOR, args);
 }
