@@ -15,9 +15,10 @@ members = [
 # Because that'll lead to all features enabled in `lotus-inputmodules` and it
 # doesn't currently support building with all features enabled at the same
 # time.
+# Can't add `inputmodule-control` because it must be built with the host system
+# target. But we set the default target to thumbv6m-none-eabi
 default-members = [
     "lotus-inputmodules",
-    "inputmodule-control"
 ]
 
 #[patch.'https://github.com/rp-rs/rp-hal.git']
