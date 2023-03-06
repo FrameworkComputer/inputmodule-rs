@@ -1,3 +1,7 @@
+# Not stable yet :(
+# Trackign issue: https://github.com/rust-lang/cargo/issues/9406
+# cargo-features = ["per-package-target"]
+
 [workspace]
 resolver = "2"
 members = [
@@ -5,13 +9,16 @@ members = [
     "c1minimal",
     "ledmatrix",
     "lotus-inputmodules",
+    "inputmodule-control"
 ]
 # Don't build all of them by default.
 # Because that'll lead to all features enabled in `lotus-inputmodules` and it
 # doesn't currently support building with all features enabled at the same
 # time.
+# Can't add `inputmodule-control` because it must be built with the host system
+# target. But we set the default target to thumbv6m-none-eabi
 default-members = [
-    "lotus-inputmodules"
+    "lotus-inputmodules",
 ]
 
 #[patch.'https://github.com/rp-rs/rp-hal.git']

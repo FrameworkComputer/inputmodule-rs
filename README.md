@@ -86,6 +86,16 @@ Examples
 ./control.py --brightness 50
 ```
 
+## Control via Rust binary
+
+Currently have to specify the build target because it's not possible to specify a per package build target.
+Tracking issue: https://github.com/rust-lang/cargo/issues/9406
+
+```
+> cargo build --target x86_64-unknown-linux-gnu -p inputmodule-control
+> cargo run --target x86_64-unknown-linux-gnu -p inputmodule-control
+```
+
 ## Building
 
 Dependencies: Rust
