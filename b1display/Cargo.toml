@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "b1display"
-version = "0.1.2-pre"
+version = "0.1.3"
 
 [dependencies]
 cortex-m = "0.7"
