@@ -4,7 +4,7 @@ name = "lotus_inputmodules"
 version = "0.1.2-pre"
 
 [dependencies]
-cortex-m = { version = "0.7", features = ["critical-section-single-core"]}
+cortex-m = "0.7"
 cortex-m-rt = "0.7.3"
 embedded-hal = { version = "0.2.7", features = ["unproven"] }
 
@@ -14,8 +14,8 @@ defmt-rtt = "0.4"
 #panic-probe = { version = "0.3", features = ["print-defmt"] }
 rp2040-panic-usb-boot = { git = "https://github.com/rwalkr/rp2040-panic-usb-boot" }
 
-# Not using a BSP, we've got a LED Matrix BSP locally in this crate
-rp2040-hal = { version="0.7", features=["rt"] }
+# Not using a BSP, we've got a Lotus BSP's locally in this crate
+rp2040-hal = { version="0.7", features=["rt", "critical-section-impl"] }
 rp2040-boot2 = "0.2"
 
 # USB Serial
