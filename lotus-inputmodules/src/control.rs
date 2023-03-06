@@ -7,6 +7,8 @@ use crate::graphics::*;
 #[cfg(feature = "b1display")]
 use core::fmt::{Debug, Write};
 #[cfg(feature = "b1display")]
+use embedded_graphics::Pixel;
+#[cfg(feature = "b1display")]
 use embedded_graphics::{
     pixelcolor::Rgb565,
     prelude::{Point, RgbColor},
@@ -50,6 +52,8 @@ pub enum _CommandVals {
     SetColor = 0x13,
     DisplayOn = 0x14,
     InvertScreen = 0x15,
+    SetPixelColumn = 0x16,
+    FlushFramebuffer = 0x17,
     Version = 0x20,
 }
 
@@ -117,6 +121,8 @@ pub enum Command {
     SetColor(RGB8),
     DisplayOn(bool),
     InvertScreen(bool),
+    SetPixelColumn(usize, [u8; 50]),
+    FlushFramebuffer,
     _Unknown,
 }
 
@@ -243,29 +249,49 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
 
 #[cfg(feature = "b1display")]
 pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
-    if count >= 4 && buf[0] == 0x32 && buf[1] == 0xAC {
+    if count >= 3 && buf[0] == 0x32 && buf[1] == 0xAC {
         let command = buf[2];
-        let arg = buf[3];
+        let arg = if count <= 3 { None } else { Some(buf[3]) };
 
         match command {
             0x09 => {
-                let available_len = count - 4;
-                let str_len = arg as usize;
-                assert!(str_len <= available_len);
+                if let Some(arg) = arg {
+                    let available_len = count - 4;
+                    let str_len = arg as usize;
+                    assert!(str_len <= available_len);
 
-                assert!(str_len < 32);
-                let mut bytes = [0; 32];
-                bytes[..str_len].copy_from_slice(&buf[4..4 + str_len]);
+                    assert!(str_len < 32);
+                    let mut bytes = [0; 32];
+                    bytes[..str_len].copy_from_slice(&buf[4..4 + str_len]);
 
-                let text_str = core::str::from_utf8(&bytes[..str_len]).unwrap();
-                let mut text: String<64> = String::new();
-                writeln!(&mut text, "{}", text_str).unwrap();
+                    let text_str = core::str::from_utf8(&bytes[..str_len]).unwrap();
+                    let mut text: String<64> = String::new();
+                    writeln!(&mut text, "{}", text_str).unwrap();
 
-                Some(Command::SetText(text))
+                    Some(Command::SetText(text))
+                } else {
+                    None
+                }
             }
-            0x14 => Some(Command::DisplayOn(arg == 1)),
-            0x15 => Some(Command::InvertScreen(arg == 1)),
-            _ => None,
+            0x14 => Some(Command::DisplayOn(arg == Some(1))),
+            0x15 => Some(Command::InvertScreen(arg == Some(1))),
+            0x16 => {
+                //  3B for magic and command
+                //  2B for column (u16)
+                // 50B for 400 pixels (400/8=50)
+                if count == 3 + 2 + 50 {
+                    let column = u16::from_le_bytes([buf[3], buf[4]]);
+                    //panic!("SetPixelColumn. Col: {}", column);
+                    let mut pixels: [u8; 50] = [0; 50];
+                    pixels.clone_from_slice(&buf[5..55]);
+                    Some(Command::SetPixelColumn(column as usize, pixels))
+                } else {
+                    panic!("Failed to parse SetPixelColumn. count: {}", count);
+                    None
+                }
+            }
+            0x17 => Some(Command::FlushFramebuffer),
+            _ => panic!("Invalid command: {command}"),
         }
     } else {
         None
@@ -451,6 +477,34 @@ where
             } else {
                 disp.write_command(Instruction::INVOFF, &[]).unwrap();
             }
+            None
+        }
+        Command::SetPixelColumn(column, pixel_bytes) => {
+            let mut pixels: [bool; 400] = [false; 400];
+            for (i, byte) in pixel_bytes.iter().enumerate() {
+                pixels[8 * i + 0] = byte & 0b00000001 != 0;
+                pixels[8 * i + 1] = byte & 0b00000010 != 0;
+                pixels[8 * i + 2] = byte & 0b00000100 != 0;
+                pixels[8 * i + 3] = byte & 0b00001000 != 0;
+                pixels[8 * i + 4] = byte & 0b00010000 != 0;
+                pixels[8 * i + 5] = byte & 0b00100000 != 0;
+                pixels[8 * i + 6] = byte & 0b01000000 != 0;
+                pixels[8 * i + 7] = byte & 0b10000000 != 0;
+            }
+            disp.draw_pixels(
+                pixels.iter().enumerate().map(|(y, black)| {
+                    Pixel(
+                        Point::new(*column as i32, y as i32),
+                        if *black { Rgb565::BLACK } else { Rgb565::WHITE },
+                    )
+                }),
+                false,
+            )
+            .unwrap();
+            None
+        }
+        Command::FlushFramebuffer => {
+            disp.flush();
             None
         }
         _ => handle_generic_command(command),
