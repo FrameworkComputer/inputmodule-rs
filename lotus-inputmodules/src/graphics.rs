@@ -9,9 +9,10 @@ use embedded_graphics::{
 
 use tinybmp::Bmp;
 
-pub const LOGO_OFFSET: i32 = 5;
+pub const LOGO_OFFSET_X: i32 = 100;
+pub const LOGO_OFFSET_Y: i32 = 100;
 
-pub fn clear_text<D>(target: &mut D, offset: Point) -> Result<(), D::Error>
+pub fn clear_text<D>(target: &mut D, offset: Point, color: Rgb565) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565>,
 {
@@ -20,7 +21,7 @@ where
         Point::new(0, 30) + offset - Point::new(0, 15),
         Size::new(130, TEXT_H as u32),
     )
-    .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+    .into_styled(PrimitiveStyle::with_fill(color))
     .draw(target)?;
 
     Ok(())
@@ -46,7 +47,7 @@ where
     D: DrawTarget<Color = Rgb565>,
 {
     let bmp: Bmp<Rgb565> = Bmp::from_slice(include_bytes!("../assets/logo.bmp")).unwrap();
-    let image = Image::new(&bmp, Point::new(5, LOGO_OFFSET));
+    let image = Image::new(&bmp, Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y));
     image.draw(target)?;
 
     Ok(image.bounding_box())
