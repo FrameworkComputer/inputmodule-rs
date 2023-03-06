@@ -101,9 +101,9 @@ cargo install elf2uf2-rs --locked
 Build:
 
 ```sh
-cargo build --bin ledmatrix --features=ledmatrix
-cargo build --bin b1display --features=b1display
-cargo build --bin c1minimal --features=c1minimal
+cargo build -p ledmatrix
+cargo build -p b1display
+cargo build -p c1minimal
 ```
 
 Generate UF2 file:
@@ -121,7 +121,9 @@ First, put the module into bootloader mode, which will expose a filesystem
 This can be done by pressing the bootsel button while plugging it in.
 
 ```sh
-cargo run
+cargo run -p ledmatrix
+cargo run -p b1display
+cargo run -p c1minimal
 ```
 
 Or by copying the above generated UF2 file to the partition mounted when the

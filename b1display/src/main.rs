@@ -9,8 +9,6 @@ use cortex_m::delay::Delay;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 
-use mipidsi::Orientation;
-use rp2040_hal::gpio::bank0::Gpio18;
 use rp2040_hal::gpio::{Output, Pin, PushPull};
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
@@ -18,16 +16,19 @@ use rp2040_panic_usb_boot as _;
 
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
+use embedded_graphics::primitives::*;
+use embedded_hal::blocking::spi;
+use st7306_lcd::ST7306;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-use lotus_input::lotus_lcd_hal as bsp;
+use lotus_inputmodules::lotus_lcd_hal as bsp;
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
-    pac,
+    gpio, pac,
     sio::Sio,
     usb,
     watchdog::Watchdog,
@@ -42,12 +43,12 @@ use usb_device::{class_prelude::*, prelude::*};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // Used to demonstrate writing formatted strings
-use core::fmt::Write;
+use core::fmt::{Debug, Write};
 use heapless::String;
 
-use lotus_input::control::*;
-use lotus_input::graphics::*;
-use lotus_input::serialnum::{device_release, get_serialnum};
+use lotus_inputmodules::control::*;
+use lotus_inputmodules::graphics::*;
+use lotus_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
 //                               KDE             - Lotus C2 LED Matrix
@@ -126,10 +127,12 @@ fn main() -> ! {
     let _spi_sclk = pins.scl.into_mode::<bsp::hal::gpio::FunctionSpi>();
     let _spi_mosi = pins.sda.into_mode::<bsp::hal::gpio::FunctionSpi>();
     let _spi_miso = pins.miso.into_mode::<bsp::hal::gpio::FunctionSpi>();
-    let spi = bsp::hal::Spi::<_, _, 8>::new(pac.SPI1);
+    let spi = bsp::hal::Spi::<_, _, 8>::new(pac.SPI0);
     // Display control pins
     let dc = pins.dc.into_push_pull_output();
-    let mut lcd_led = pins.backlight.into_push_pull_output();
+    //let mut lcd_led = pins.backlight.into_push_pull_output();
+    let mut cs = pins.cs.into_push_pull_output();
+    cs.set_low().unwrap();
     let rst = pins.rstb.into_push_pull_output();
 
     let spi = spi.init(
@@ -139,26 +142,50 @@ fn main() -> ! {
         &embedded_hal::spi::MODE_0,
     );
 
-    // Create a DisplayInterface from SPI and DC pin, with no manual CS control
-    let di = display_interface_spi::SPIInterfaceNoCS::new(spi, dc);
-    let mut disp = mipidsi::Builder::st7735s(di)
-        .with_invert_colors(true) // Looks cooler. TODO: Should invert image not entire screen
-        .with_orientation(Orientation::PortraitInverted(false))
-        .init(&mut delay, Some(rst))
+    let mut disp: ST7306<
+        rp2040_hal::Spi<rp2040_hal::spi::Enabled, pac::SPI0, 8>,
+        Pin<gpio::bank0::Gpio20, Output<PushPull>>,
+        Pin<gpio::bank0::Gpio17, Output<PushPull>>,
+        Pin<gpio::bank0::Gpio21, Output<PushPull>>,
+        25,
+        200,
+    > = ST7306::new(spi, dc, cs, rst, false, 300, 400);
+    disp.init(&mut delay).unwrap();
+
+    // TODO: Seems broken
+    //disp.clear(Rgb565::WHITE).unwrap();
+    Rectangle::new(Point::new(0, 0), Size::new(300, 400))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+        .draw(&mut disp)
         .unwrap();
-    disp.clear(Rgb565::WHITE).unwrap();
 
     let logo_rect = draw_logo(&mut disp).unwrap();
+    Rectangle::new(Point::new(10, 10), Size::new(10, 10))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+        .draw(&mut disp)
+        .unwrap();
+    Rectangle::new(Point::new(20, 20), Size::new(10, 10))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+        .draw(&mut disp)
+        .unwrap();
+    Rectangle::new(Point::new(30, 30), Size::new(10, 10))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+        .draw(&mut disp)
+        .unwrap();
+    Rectangle::new(Point::new(40, 40), Size::new(10, 10))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+        .draw(&mut disp)
+        .unwrap();
+    Rectangle::new(Point::new(50, 50), Size::new(10, 10))
+        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+        .draw(&mut disp)
+        .unwrap();
     draw_text(
         &mut disp,
         "Framework",
-        Point::new(0, LOGO_OFFSET + logo_rect.size.height as i32),
+        Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
     )
     .unwrap();
-
-    // Wait until the background and image have been rendered otherwise
-    // the screen will show random pixels for a brief moment
-    lcd_led.set_high().unwrap();
 
     let sleep = pins.sleep.into_pull_down_input();
 
@@ -172,10 +199,9 @@ fn main() -> ! {
     let mut prev_timer = timer.get_counter().ticks();
 
     loop {
-        // TODO: Current hardware revision does not have the sleep pin wired up :(
         // Go to sleep if the host is sleeping
-        let _host_sleeping = sleep.is_low().unwrap();
-        //handle_sleep(host_sleeping, &mut state, &mut matrix, &mut delay);
+        let host_sleeping = sleep.is_low().unwrap();
+        handle_sleep(host_sleeping, &mut state, &mut delay, &mut disp);
 
         // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + 20_000 {
@@ -212,11 +238,11 @@ fn main() -> ! {
                 Ok(count) => {
                     if let Some(command) = parse_command(count, &buf) {
                         if let Command::Sleep(go_sleeping) = command {
-                            handle_sleep(go_sleeping, &mut state, &mut delay, &mut lcd_led);
+                            handle_sleep(go_sleeping, &mut state, &mut delay, &mut disp);
                         } else if let SleepState::Awake = state.sleeping {
                             // While sleeping no command is handled, except waking up
                             //handle_command(&command, &mut disp, logo_rect);
-                            if let Some(response) = handle_command(&command, &mut disp, logo_rect) {
+                            if let Some(response) = handle_command(&command, logo_rect, &mut disp) {
                                 let _ = serial.write(&response);
                             };
                         }
@@ -227,20 +253,25 @@ fn main() -> ! {
     }
 }
 
-fn handle_sleep(
+fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
     go_sleeping: bool,
     state: &mut State,
     _delay: &mut Delay,
-    lcd_led: &mut Pin<Gpio18, Output<PushPull>>,
-) {
+    disp: &mut ST7306<SPI, DC, CS, RST, COLS, ROWS>,
+) where
+    SPI: spi::Write<u8>,
+    DC: OutputPin,
+    CS: OutputPin,
+    RST: OutputPin,
+    <SPI as spi::Write<u8>>::Error: Debug,
+{
     match (state.sleeping.clone(), go_sleeping) {
         (SleepState::Awake, false) => (),
         (SleepState::Awake, true) => {
             state.sleeping = SleepState::Sleeping;
-            //state.grid = display_sleep();
 
-            // Turn off backlight
-            lcd_led.set_low().unwrap();
+            // Turn off display
+            disp.on_off(false).unwrap();
 
             // TODO: Power Display controller down
 
@@ -252,10 +283,10 @@ fn handle_sleep(
             // Restore back grid before sleeping
             state.sleeping = SleepState::Awake;
 
-            // TODO: Power display controller back on
+            // Turn display back on
+            disp.on_off(true).unwrap();
 
-            // Turn backlight back on
-            lcd_led.set_high().unwrap();
+            // TODO: Power display controller back on
         }
     }
 }

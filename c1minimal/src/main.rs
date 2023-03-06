@@ -21,7 +21,7 @@ use rp2040_panic_usb_boot as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-use lotus_input::lotus_minimal_hal as bsp;
+use lotus_inputmodules::lotus_minimal_hal as bsp;
 //use rp_pico as bsp;
 
 use bsp::hal::{
@@ -52,8 +52,8 @@ pub type Ws2812<'a> = ws2812_pio::Ws2812<
     Gpio16,
 >;
 
-use lotus_input::control::*;
-use lotus_input::serialnum::{device_release, get_serialnum};
+use lotus_inputmodules::control::*;
+use lotus_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
 //                               000             - Lotus C1 Minimal Input Module (No assigned  value)

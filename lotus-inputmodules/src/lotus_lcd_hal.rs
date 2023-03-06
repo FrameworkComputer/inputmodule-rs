@@ -18,38 +18,39 @@ pub use hal::pac;
 // Lotus LCD Module will have different pin mapping
 // |  FN  | Pico | Lotus |
 // |  SCL | GP14 | GP18  |
-// |  SDA | GP15 | GP16  |
-// |   RX | GP12 | GP19  |
+// |  SDA | GP15 | GP19  |
+// |   RX | GP12 | GP16  |
 // | DC/A0| GP13 | GP20  |
 // |   BL | GP18 | GP??  |
 // | RSTB | GP16 | GP21  |
 hal::bsp_pins!(
     /// GPIO 0 is connected to the SLEEP# pin of the EC
     Gpio0 { name: sleep },
-    Gpio14 {
+    Gpio18 {
         name: scl,
         aliases: {
             /// SPI Function alias for pin [crate::Pins::gpio14].
-            FunctionSpi: Gp14Spi1Sck
+            FunctionSpi: Gp18Spi1Sck
         }
     },
-    Gpio15 {
+    Gpio19 {
         name: sda,
         aliases: {
             /// SPI Function alias for pin [crate::Pins::gpio15].
-            FunctionSpi: Gp15Spi1Tx
+            FunctionSpi: Gp19Spi1Tx
         }
     },
-    Gpio12 {
+    Gpio16 {
         name: miso,
         aliases: {
             /// SPI Function alias for pin [crate::Pins::gpio12].
-            FunctionSpi: Gp12Spi1Rx
+            FunctionSpi: Gp16Spi1Rx
         }
     },
-    Gpio13 { name: dc },
-    Gpio18 { name: backlight },
-    Gpio16 { name: rstb },
+    Gpio20 { name: dc },
+    //Gpio18 { name: backlight },
+    Gpio21 { name: rstb },
+    Gpio17 { name: cs },
 );
 
 // External crystal frequency, same as Raspberry Pi Pico

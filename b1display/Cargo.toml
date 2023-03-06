@@ -1,0 +1,35 @@
+[package]
+edition = "2021"
+name = "b1display"
+version = "0.1.2-pre"
+
+[dependencies]
+cortex-m = "0.7"
+cortex-m-rt = "0.7.3"
+embedded-hal = { version = "0.2.7", features = ["unproven"] }
+
+defmt = "0.3"
+defmt-rtt = "0.4"
+
+#panic-probe = { version = "0.3", features = ["print-defmt"] }
+rp2040-panic-usb-boot = { git = "https://github.com/rwalkr/rp2040-panic-usb-boot" }
+
+# Not using a BSP, we've got a Lotus BSP's locally in this crate
+rp2040-hal = { version="0.7", features=["rt", "critical-section-impl"] }
+rp2040-boot2 = "0.2"
+
+# USB Serial
+usb-device= "0.2.9"
+
+heapless = "0.7.9"
+usbd-serial = "0.1.1"
+usbd-hid = "0.5.1"
+fugit = "0.3.6"
+
+st7306-lcd = { git = "ssh://git@github.com/FrameworkComputer/st7306.git" }
+embedded-graphics = "0.7"
+tinybmp = "0.4.0"
+
+[dependencies.lotus-inputmodules]
+path = "../lotus-inputmodules"
+features = [ "b1display" ]

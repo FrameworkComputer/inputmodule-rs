@@ -1,5 +1,7 @@
 use rp2040_hal::rom_data::reset_to_usb_boot;
 
+use crate::serialnum::{device_release, is_pre_release};
+
 #[cfg(feature = "b1display")]
 use crate::graphics::*;
 #[cfg(feature = "b1display")]
@@ -7,11 +9,17 @@ use core::fmt::{Debug, Write};
 #[cfg(feature = "b1display")]
 use embedded_graphics::{
     pixelcolor::Rgb565,
-    prelude::{DrawTarget, Point},
+    prelude::{Point, RgbColor},
     primitives::Rectangle,
 };
 #[cfg(feature = "b1display")]
+use embedded_hal::blocking::spi;
+#[cfg(feature = "b1display")]
+use embedded_hal::digital::v2::OutputPin;
+#[cfg(feature = "b1display")]
 use heapless::String;
+#[cfg(feature = "b1display")]
+use st7306_lcd::{instruction::Instruction, ST7306};
 
 #[cfg(feature = "ledmatrix")]
 use crate::games::pong;
@@ -21,7 +29,6 @@ use crate::games::snake;
 use crate::matrix::*;
 #[cfg(feature = "ledmatrix")]
 use crate::patterns::*;
-use crate::serialnum::{device_release, is_pre_release};
 
 #[cfg(feature = "c1minimal")]
 use smart_leds::{SmartLedsWrite, RGB8};
@@ -41,6 +48,8 @@ pub enum _CommandVals {
     GameControl = 0x11,
     GameStatus = 0x12,
     SetColor = 0x13,
+    DisplayOn = 0x14,
+    InvertScreen = 0x15,
     Version = 0x20,
 }
 
@@ -106,6 +115,8 @@ pub enum Command {
     GetColor,
     #[cfg(feature = "c1minimal")]
     SetColor(RGB8),
+    DisplayOn(bool),
+    InvertScreen(bool),
     _Unknown,
 }
 
@@ -252,6 +263,8 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
 
                 Some(Command::SetText(text))
             }
+            0x14 => Some(Command::DisplayOn(arg == 1)),
+            0x15 => Some(Command::InvertScreen(arg == 1)),
             _ => None,
         }
     } else {
@@ -389,10 +402,17 @@ pub fn handle_command(
 }
 
 #[cfg(feature = "b1display")]
-pub fn handle_command<D>(command: &Command, disp: &mut D, logo_rect: Rectangle) -> Option<[u8; 32]>
+pub fn handle_command<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
+    command: &Command,
+    logo_rect: Rectangle,
+    disp: &mut ST7306<SPI, DC, CS, RST, COLS, ROWS>,
+) -> Option<[u8; 32]>
 where
-    D: DrawTarget<Color = Rgb565>,
-    <D as DrawTarget>::Error: Debug,
+    SPI: spi::Write<u8>,
+    DC: OutputPin,
+    CS: OutputPin,
+    RST: OutputPin,
+    <SPI as spi::Write<u8>>::Error: Debug,
 {
     match command {
         Command::BootloaderReset => {
@@ -408,19 +428,32 @@ where
         Command::SetText(text) => {
             clear_text(
                 disp,
-                Point::new(0, LOGO_OFFSET + logo_rect.size.height as i32),
+                Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
+                Rgb565::WHITE,
             )
             .unwrap();
 
             draw_text(
                 disp,
                 text,
-                Point::new(0, LOGO_OFFSET + logo_rect.size.height as i32),
+                Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
             )
             .unwrap();
             None
         }
-        _ => return handle_generic_command(command),
+        Command::DisplayOn(on) => {
+            disp.on_off(*on).unwrap();
+            None
+        }
+        Command::InvertScreen(invert) => {
+            if *invert {
+                disp.write_command(Instruction::INVON, &[]).unwrap();
+            } else {
+                disp.write_command(Instruction::INVOFF, &[]).unwrap();
+            }
+            None
+        }
+        _ => handle_generic_command(command),
     }
 }
 
