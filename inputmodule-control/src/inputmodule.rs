@@ -33,6 +33,8 @@ const _GAME_STATUS: u8 = 0x12;
 const SET_COLOR: u8 = 0x13;
 const DISPLAY_ON: u8 = 0x14;
 const INVERT_SCREEN: u8 = 0x15;
+const SET_PIXEL_COLUMN: u8 = 0x16;
+const FLUSH_FRAMEBUFFER: u8 = 0x17;
 const VERSION: u8 = 0x20;
 
 const WIDTH: usize = 9;
@@ -186,6 +188,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if let Some(invert_screen) = b1display_args.invert_screen {
                     invert_screen_cmd(serialdev, invert_screen);
+                }
+                if let Some(image_path) = &b1display_args.image_bw {
+                    b1display_bw_image_cmd(serialdev, image_path);
                 }
             }
         }
@@ -610,4 +615,49 @@ fn set_color_cmd(serialdev: &str, color: Color) {
         Color::Purple => &[0xFF, 0x00, 0xFF],
     };
     simple_cmd(serialdev, SET_COLOR, args);
+}
+
+/// Display an image in black and white
+/// Confirmed working with PNG and GIF.
+/// Must be 300x400 in size.
+/// Sends one 400px column in a single commands and a flush at the end
+fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
+    let img = ImageReader::open(image_path)
+        .unwrap()
+        .decode()
+        .unwrap()
+        .to_luma8();
+    let width = img.width();
+    let height = img.height();
+    assert!(width == 300);
+    assert!(height == 400);
+
+    for x in 0..300 {
+        let mut vals: [u8; 2 + 50] = [0; 2 + 50];
+        let column = (x as u16).to_le_bytes();
+        vals[0] = column[0];
+        vals[1] = column[1];
+
+        let mut byte: u8 = 0;
+        for y in 0..400usize {
+            let pixel = img.get_pixel(x, y as u32);
+            let brightness = pixel.0[0];
+            let black = brightness < 0xFF / 2;
+
+            let bit = y % 8;
+            if bit == 0 {
+                byte = 0;
+            }
+            if black {
+                byte |= 1 << bit;
+            }
+            if bit == 7 {
+                vals[2 + y / 8] = byte;
+            }
+        }
+
+        simple_cmd(serialdev, SET_PIXEL_COLUMN, &vals);
+    }
+
+    simple_cmd(serialdev, FLUSH_FRAMEBUFFER, &[]);
 }

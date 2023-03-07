@@ -31,6 +31,8 @@ GREYSCALE_DEPTH = 32
 RESPONSE_SIZE = 32
 WIDTH = 9
 HEIGHT = 34
+B1_WIDTH = 300
+B1_HEIGHT = 400
 
 ARG_UP = 0
 ARG_DOWN = 1
@@ -112,6 +114,8 @@ def main():
                         action=argparse.BooleanOptionalAction)
     parser.add_argument("--invert-screen", help="Invert display",
                         action=argparse.BooleanOptionalAction)
+    parser.add_argument("--b1image", help="On the B1 display, show a PNG or GIF image in black and white only)",
+                        type=argparse.FileType('rb'))
 
     args = parser.parse_args()
 
@@ -193,6 +197,8 @@ def main():
         display_on_cmd(args.display_on)
     elif args.invert_screen is not None:
         invert_screen_cmd(args.invert_screen)
+    elif args.b1image is not None:
+        b1image_bl(args.b1image)
     elif args.version:
         version = get_version()
         print(f"Device version: {version}")
@@ -255,6 +261,48 @@ def get_animate():
     command = FWK_MAGIC + [0x04]
     res = send_command(command, with_response=True)
     return bool(res[0])
+
+
+def b1image_bl(image_file):
+    """ Display an image in black and white
+    Confirmed working with PNG and GIF.
+    Must be 300x400 in size.
+    Sends one 400px column in a single commands and a flush at the end
+    """
+
+    from PIL import Image
+    im = Image.open(image_file).convert("RGB")
+    width, height = im.size
+    assert (width == B1_WIDTH)
+    assert (height == B1_HEIGHT)
+    pixel_values = list(im.getdata())
+
+    for x in range(B1_WIDTH):
+        vals = [0 for _ in range(50)]
+
+        byte = None
+        for y in range(B1_HEIGHT):
+            pixel = pixel_values[y*B1_WIDTH + x]
+            brightness = sum(pixel) / 3
+            black = brightness < 0xFF/2
+
+            bit = y % 8
+
+            if bit == 0:
+                byte = 0
+            if black:
+                byte |= 1 << bit
+
+            if bit == 7:
+                vals[int(y/8)] = byte
+
+        column_le = list((x).to_bytes(2, 'little'))
+        command = FWK_MAGIC + [0x16] + column_le + vals
+        send_command(command)
+
+    # Flush
+    command = FWK_MAGIC + [0x17]
+    send_command(command)
 
 
 def image_bl(image_file):

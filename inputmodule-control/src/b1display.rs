@@ -33,4 +33,8 @@ pub struct B1DisplaySubcommand {
     // TODO: Allow getting current state
     #[arg(long)]
     pub invert_screen: Option<bool>,
+
+    /// Display black&white image (300x400px)
+    #[arg(long)]
+    pub image_bw: Option<String>,
 }
