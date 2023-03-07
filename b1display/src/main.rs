@@ -66,17 +66,6 @@ type B1ST7306 = ST7306<
     200,
 >;
 
-#[allow(clippy::large_enum_variant)]
-#[derive(Clone)]
-enum SleepState {
-    Awake,
-    Sleeping,
-}
-
-pub struct State {
-    sleeping: SleepState,
-}
-
 #[entry]
 fn main() -> ! {
     let mut pac = pac::Peripherals::take().unwrap();
@@ -191,8 +180,8 @@ fn main() -> ! {
 
     let sleep = pins.sleep.into_pull_down_input();
 
-    let mut state = State {
-        sleeping: SleepState::Awake,
+    let mut state = B1DIsplayState {
+        sleeping: SimpleSleepState::Awake,
     };
 
     let mut said_hello = false;
@@ -238,16 +227,36 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
-                    if let Some(command) = parse_command(count, &buf) {
-                        if let Command::Sleep(go_sleeping) = command {
+                    match (parse_command(count, &buf), &state.sleeping) {
+                        (Some(Command::Sleep(go_sleeping)), _) => {
                             handle_sleep(go_sleeping, &mut state, &mut delay, &mut disp);
-                        } else if let SleepState::Awake = state.sleeping {
-                            // While sleeping no command is handled, except waking up
-                            //handle_command(&command, &mut disp, logo_rect);
-                            if let Some(response) = handle_command(&command, logo_rect, &mut disp) {
+                        }
+                        (Some(c @ Command::BootloaderReset), _)
+                        | (Some(c @ Command::IsSleeping), _) => {
+                            if let Some(response) =
+                                handle_command(&c, &mut state, logo_rect, &mut disp)
+                            {
                                 let _ = serial.write(&response);
                             };
                         }
+                        (Some(command), SimpleSleepState::Awake) => {
+                            let mut text: String<64> = String::new();
+                            write!(
+                                &mut text,
+                                "Handling command {}:{}:{}:{}\r\n",
+                                buf[0], buf[1], buf[2], buf[3]
+                            )
+                            .unwrap();
+                            let _ = serial.write(text.as_bytes());
+
+                            // While sleeping no command is handled, except waking up
+                            if let Some(response) =
+                                handle_command(&command, &mut state, logo_rect, &mut disp)
+                            {
+                                let _ = serial.write(&response);
+                            };
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -257,7 +266,7 @@ fn main() -> ! {
 
 fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
     go_sleeping: bool,
-    state: &mut State,
+    state: &mut B1DIsplayState,
     _delay: &mut Delay,
     disp: &mut ST7306<SPI, DC, CS, RST, COLS, ROWS>,
 ) where
@@ -268,9 +277,9 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
     <SPI as spi::Write<u8>>::Error: Debug,
 {
     match (state.sleeping.clone(), go_sleeping) {
-        (SleepState::Awake, false) => (),
-        (SleepState::Awake, true) => {
-            state.sleeping = SleepState::Sleeping;
+        (SimpleSleepState::Awake, false) => (),
+        (SimpleSleepState::Awake, true) => {
+            state.sleeping = SimpleSleepState::Sleeping;
 
             // Turn off display
             disp.on_off(false).unwrap();
@@ -280,10 +289,10 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
             // TODO: Set up SLEEP# pin as interrupt and wfi
             //cortex_m::asm::wfi();
         }
-        (SleepState::Sleeping, true) => (),
-        (SleepState::Sleeping, false) => {
+        (SimpleSleepState::Sleeping, true) => (),
+        (SimpleSleepState::Sleeping, false) => {
             // Restore back grid before sleeping
-            state.sleeping = SleepState::Awake;
+            state.sleeping = SimpleSleepState::Awake;
 
             // Turn display back on
             disp.on_off(true).unwrap();
