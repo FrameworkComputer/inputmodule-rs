@@ -29,6 +29,8 @@ Future features:
 
 ## Control from the host
 
+See: [API command documentation](commands.md)
+
 Requirements: Python, [PySimpleGUI](https://www.pysimplegui.org) and optionally [pillow](https://pillow.readthedocs.io/en/stable/index.html)
 
 Use `control.py`. Either the commandline, see `control.py --help` or the graphical version: `control.py --gui`
