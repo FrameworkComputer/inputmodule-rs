@@ -42,8 +42,17 @@ jobs:
       - run: cargo build -p ledmatrix
       - run: cargo build -p b1display
       - run: cargo build -p c1minimal
-     # TODO: Also build release versions
-     #- run: cargo build --all --release
+      # TODO: Also build release versions
+      #- run: cargo build --all --release
+
+      - name: Upload Linux tool
+        uses: actions/upload-artifact@v3
+        with:
+          name: lotus_inputmodule_fw
+          path: |
+            target/thumbv6m-none-eabi/debug/b1display
+            target/thumbv6m-none-eabi/debug/c1minimal
+            target/thumbv6m-none-eabi/debug/ledmatrix
 
   linting:
     name: Linting
