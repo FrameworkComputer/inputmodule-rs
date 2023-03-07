@@ -54,7 +54,7 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub breathing: bool,
 
-    /// Display black&white image
+    /// Display black&white image (9x34px)
     #[arg(long)]
     pub image_bw: Option<String>,
 
