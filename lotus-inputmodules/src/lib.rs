@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 #![no_std]
 
 #[cfg(feature = "ledmatrix")]

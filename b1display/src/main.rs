@@ -57,6 +57,15 @@ use lotus_inputmodules::serialnum::{device_release, get_serialnum};
 //                                      00000000 - Device Identifier
 const DEFAULT_SERIAL: &str = "FRAKDEAM0000000000";
 
+type B1ST7306 = ST7306<
+    rp2040_hal::Spi<rp2040_hal::spi::Enabled, pac::SPI0, 8>,
+    Pin<gpio::bank0::Gpio20, Output<PushPull>>,
+    Pin<gpio::bank0::Gpio17, Output<PushPull>>,
+    Pin<gpio::bank0::Gpio21, Output<PushPull>>,
+    25,
+    200,
+>;
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 enum SleepState {
@@ -142,14 +151,7 @@ fn main() -> ! {
         &embedded_hal::spi::MODE_0,
     );
 
-    let mut disp: ST7306<
-        rp2040_hal::Spi<rp2040_hal::spi::Enabled, pac::SPI0, 8>,
-        Pin<gpio::bank0::Gpio20, Output<PushPull>>,
-        Pin<gpio::bank0::Gpio17, Output<PushPull>>,
-        Pin<gpio::bank0::Gpio21, Output<PushPull>>,
-        25,
-        200,
-    > = ST7306::new(spi, dc, cs, rst, false, 300, 400);
+    let mut disp: B1ST7306 = ST7306::new(spi, dc, cs, rst, false, 300, 400);
     disp.init(&mut delay).unwrap();
 
     // TODO: Seems broken

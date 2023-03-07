@@ -69,7 +69,7 @@ pub fn game_step(state: &mut State, random: u8) -> (HeadDirection, bool, usize, 
         }
 
         let (x, y) = snake_state.head;
-        let oldhead = snake_state.head.clone();
+        let oldhead = snake_state.head;
         snake_state.head = match snake_state.direction {
             // (0, 0) is at the top right corner
             HeadDirection::Right => (x - 1, y),
@@ -112,7 +112,7 @@ pub fn game_step(state: &mut State, random: u8) -> (HeadDirection, bool, usize, 
         }
 
         if !snake_state.game_over {
-            state.grid = draw_matrix(&snake_state);
+            state.grid = draw_matrix(snake_state);
         }
         (
             snake_state.direction,

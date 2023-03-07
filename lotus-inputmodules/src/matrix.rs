@@ -29,6 +29,7 @@ pub enum SleepState {
     Sleeping(Grid),
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 pub enum GameState {
     Snake(SnakeState),

@@ -5,8 +5,8 @@ const PADDLE_WIDTH: usize = 5;
 
 #[derive(Clone)]
 struct Score {
-    upper: u8,
-    lower: u8,
+    _upper: u8,
+    _lower: u8,
 }
 
 type Position = (usize, usize);
@@ -22,7 +22,7 @@ struct Ball {
 #[derive(Clone)]
 pub struct PongState {
     // TODO: Properly calculate score and display it
-    score: Score,
+    _score: Score,
     ball: Ball,
     paddles: (usize, usize),
     pub speed: u64,
@@ -30,7 +30,10 @@ pub struct PongState {
 
 pub fn start_game(state: &mut State, _random: u8) {
     state.game = Some(GameState::Pong(PongState {
-        score: Score { upper: 0, lower: 0 },
+        _score: Score {
+            _upper: 0,
+            _lower: 0,
+        },
         ball: Ball {
             pos: (4, 20),
             direction: (0, 1),
@@ -70,7 +73,8 @@ pub fn handle_control(state: &mut State, arg: &GameControlArg) {
     }
 }
 
-fn random_v(random: u8) -> Velocity {
+// TODO: Randomize the velocity vector upon respawning
+fn _random_v(random: u8) -> Velocity {
     // TODO: while food == head:
     let x = ((random & 0xF0) >> 4) % WIDTH as u8;
     let y = (random & 0x0F) % HEIGHT as u8;
@@ -86,9 +90,9 @@ fn add_velocity(pos: Position, v: Velocity) -> Position {
 fn hit_paddle(ball: Position, paddles: (usize, usize)) -> Option<usize> {
     let (x, y) = ball;
     if y == 1 && paddles.0 <= x && x <= paddles.0 + PADDLE_WIDTH {
-        Some((((paddles.0) as i32) - (x as i32)).abs() as usize)
+        Some(((paddles.0 as i32) - (x as i32)).unsigned_abs() as usize)
     } else if y == HEIGHT - 2 && paddles.1 <= x && x <= paddles.1 + PADDLE_WIDTH {
-        Some((((paddles.1) as i32) - (x as i32)).abs() as usize)
+        Some(((paddles.1 as i32) - (x as i32)).unsigned_abs() as usize)
     } else {
         None
     }
@@ -131,7 +135,7 @@ pub fn game_step(state: &mut State, _random: u8) {
             };
             (x, y)
         };
-        state.grid = draw_matrix(&pong_state);
+        state.grid = draw_matrix(pong_state);
     }
 }
 
@@ -144,7 +148,7 @@ fn draw_matrix(state: &PongState) -> Grid {
     for x in state.paddles.1..state.paddles.1 + PADDLE_WIDTH {
         grid.0[x][HEIGHT - 1] = 0xFF;
     }
-    grid.0[state.ball.pos.0 as usize][state.ball.pos.1 as usize] = 0xFF;
+    grid.0[state.ball.pos.0][state.ball.pos.1] = 0xFF;
 
     grid
 }

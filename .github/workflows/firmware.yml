@@ -1,0 +1,95 @@
+name: Firmware CI Checks
+
+on:
+  push
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+jobs:
+  building:
+    name: Building
+    continue-on-error: ${{ matrix.experimental || false }}
+    strategy:
+      matrix:
+        # All generated code should be running on stable now
+        # TODO: Also test nightly
+        #rust: [nightly, stable]
+        rust: [stable]
+        #include:
+        #  # Nightly is only for reference and allowed to fail
+        #  - rust: nightly
+        #    experimental: true
+        #os:
+        #  # Check compilation works on common OSes
+        #  # (i.e. no path issues)
+        #  # - macOS-latest
+        #  - ubuntu-latest
+        #  - windows-latest
+    runs-on: [ubuntu-latest] #${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: |
+              ${{ secrets.PRIVKEY_ST7306 }}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: thumbv6m-none-eabi
+      - run: cargo install flip-link
+      - run: cargo build -p ledmatrix
+      - run: cargo build -p b1display
+      - run: cargo build -p c1minimal
+      # TODO: Also build release versions
+      #- run: cargo build --all --release
+
+      - run: |
+            sudo apt-get install -y libudev-dev
+            cargo install elf2uf2-rs
+            elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1display.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/debug/c1minimal c1minimal.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
+
+      - name: Upload Linux tool
+        uses: actions/upload-artifact@v3
+        with:
+          name: lotus_inputmodule_fw
+          path: |
+            b1display.uf2
+            c1minimal.uf2
+            ledmatrix.uf2
+
+  linting:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: |
+              ${{ secrets.PRIVKEY_ST7306 }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          target: thumbv6m-none-eabi
+      - run: |
+          cargo clippy -p b1display -- --deny=warnings
+          cargo clippy -p c1minimal -- --deny=warnings
+          cargo clippy -p ledmatrix -- --deny=warnings
+
+  formatting:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+          target: thumbv6m-none-eabi
+      - run: cargo fmt --all -- --check

@@ -1,0 +1,108 @@
+name: Software CI Checks
+on:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+jobs:
+  # Enable later
+  #freebsd-cross-build:
+  #  name: Cross-Build for FreeBSD
+  #  runs-on: 'ubuntu-22.04'
+  #  steps:
+  #  - uses: actions/checkout@v3
+
+  #  - name: Setup Rust toolchain
+  #    run: rustup show
+
+  #  - name: Install cross compilation tool
+  #    run: cargo install cross
+
+  #  - name: Build FreeBSD tool
+  #    run: cross build --target=x86_64-unknown-freebsd
+
+  #  - name: Upload FreeBSD App
+  #    uses: actions/upload-artifact@v3
+  #    with:
+  #      name: qmk_hid_freebsd
+  #      path: target/x86_64-unknown-freebsd/debug/qmk_hid
+
+  build:
+    name: Build Linux
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: |
+            ${{ secrets.PRIVKEY_ST7306 }}
+
+    - name: Install dependencies
+      run: sudo apt-get install -y libudev-dev
+
+    - name: Setup Rust toolchain
+      run: rustup show
+
+    - name: Build Linux tool
+      run: cargo build --target x86_64-unknown-linux-gnu -p inputmodule-control
+
+    - name: Check if Linux tool can start
+      run: cargo run --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help
+
+    - name: Upload Linux tool
+      uses: actions/upload-artifact@v3
+      with:
+        name: inputmodule-control
+        path: target/x86_64-unknown-linux-gnu/debug/inputmodule-control
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: |
+            ${{ secrets.PRIVKEY_ST7306 }}
+
+    - name: Setup Rust toolchain
+      run: rustup show
+
+    - name: Build Windows tool
+      run: cargo build --target x86_64-pc-windows-msvc -p inputmodule-control
+
+    - name: Check if Windows tool can start
+      run: cargo run --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
+
+    - name: Upload Windows App
+      uses: actions/upload-artifact@v3
+      with:
+        name: inputmodule-control.exe
+        path: target/x86_64-pc-windows-msvc/debug/inputmodule-control.exe
+
+  lints:
+    name: Lints
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: |
+            ${{ secrets.PRIVKEY_ST7306 }}
+
+    - name: Install dependencies
+      run: sudo apt-get install -y libudev-dev
+
+    - name: Setup Rust toolchain
+      run: rustup show
+
+    - name: Run cargo fmt
+      run: cargo fmt -p inputmodule-control -- --check
+
+    - name: Run cargo clippy
+      run: cargo clippy --target x86_64-unknown-linux-gnu -p inputmodule-control -- -D warnings
