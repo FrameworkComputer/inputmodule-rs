@@ -286,12 +286,11 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     pixels.clone_from_slice(&buf[5..55]);
                     Some(Command::SetPixelColumn(column as usize, pixels))
                 } else {
-                    panic!("Failed to parse SetPixelColumn. count: {}", count);
                     None
                 }
             }
             0x17 => Some(Command::FlushFramebuffer),
-            _ => panic!("Invalid command: {command}"),
+            _ => None,
         }
     } else {
         None
@@ -338,7 +337,7 @@ pub fn handle_command(
         Command::GetBrightness => {
             let mut response: [u8; 32] = [0; 32];
             response[0] = state.brightness;
-            return Some(response);
+            Some(response)
         }
         Command::SetBrightness(br) => {
             //let _ = serial.write("Brightness".as_bytes());
@@ -380,7 +379,7 @@ pub fn handle_command(
         Command::GetAnimate => {
             let mut response: [u8; 32] = [0; 32];
             response[0] = state.animate as u8;
-            return Some(response);
+            Some(response)
         }
         Command::Draw(vals) => {
             state.grid = draw(vals);
@@ -404,7 +403,7 @@ pub fn handle_command(
                 SleepState::Sleeping(_) => 1,
                 SleepState::Awake => 0,
             };
-            return Some(response);
+            Some(response)
         }
         Command::StartGame(game) => {
             match game {
@@ -422,8 +421,7 @@ pub fn handle_command(
             None
         }
         Command::GameStatus => None,
-        // TODO: Make it return something
-        _ => return handle_generic_command(command),
+        _ => handle_generic_command(command),
     }
 }
 
@@ -482,7 +480,7 @@ where
         Command::SetPixelColumn(column, pixel_bytes) => {
             let mut pixels: [bool; 400] = [false; 400];
             for (i, byte) in pixel_bytes.iter().enumerate() {
-                pixels[8 * i + 0] = byte & 0b00000001 != 0;
+                pixels[8 * i] = byte & 0b00000001 != 0;
                 pixels[8 * i + 1] = byte & 0b00000010 != 0;
                 pixels[8 * i + 2] = byte & 0b00000100 != 0;
                 pixels[8 * i + 3] = byte & 0b00001000 != 0;
@@ -504,7 +502,7 @@ where
             None
         }
         Command::FlushFramebuffer => {
-            disp.flush();
+            disp.flush().unwrap();
             None
         }
         _ => handle_generic_command(command),

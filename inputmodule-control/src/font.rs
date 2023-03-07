@@ -133,7 +133,7 @@ pub fn convert_symbol(symbol: &str) -> Vec<u8> {
         ],
         _ => {
             if symbol.len() == 1 {
-                convert_font(symbol.chars().nth(0).unwrap())
+                convert_font(symbol.chars().next().unwrap())
             } else {
                 convert_font('?')
             }

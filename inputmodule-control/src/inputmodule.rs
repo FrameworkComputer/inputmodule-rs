@@ -282,7 +282,7 @@ fn sleeping_cmd(serialdev: &str, arg: Option<bool>) {
         .expect("Failed to open port");
 
     if let Some(goto_sleep) = arg {
-        simple_cmd_port(&mut port, SLEEPING, &[if goto_sleep { 1 } else { 0 }]);
+        simple_cmd_port(&mut port, SLEEPING, &[u8::from(goto_sleep)]);
     } else {
         simple_cmd_port(&mut port, SLEEPING, &[]);
 
@@ -327,7 +327,8 @@ fn animate_cmd(serialdev: &str, arg: Option<bool>) {
         simple_cmd_port(&mut port, ANIMATE, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
-        port.read(response.as_mut_slice()).expect("Found no data!");
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
 
         let animating = response[0] == 1;
         println!("Currently animating: {animating}");
@@ -562,7 +563,7 @@ fn show_string(serialdev: &str, s: &str) {
 }
 
 /// Render up to five 5x6 pixel font items
-fn show_font(serialdev: &str, font_items: &Vec<Vec<u8>>) {
+fn show_font(serialdev: &str, font_items: &[Vec<u8>]) {
     let mut vals: [u8; 39] = [0x00; 39];
 
     for (digit_i, digit_pixels) in font_items.iter().enumerate() {

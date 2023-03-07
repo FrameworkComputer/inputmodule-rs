@@ -43,9 +43,8 @@ pub fn draw(bytes: &[u8; DRAW_BYTES]) -> Grid {
 }
 
 pub fn draw_grey_col(grid: &mut Grid, col: u8, levels: &[u8; HEIGHT]) {
-    for y in 0..HEIGHT {
-        grid.0[8 - col as usize][y as usize] = levels[y];
-    }
+    // TODO: I don't think I need the [..HEIGHT] slicing
+    grid.0[8 - col as usize][..HEIGHT].copy_from_slice(&levels[..HEIGHT]);
 }
 
 pub fn display_sleep() -> Grid {
