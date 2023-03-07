@@ -45,14 +45,21 @@ jobs:
       # TODO: Also build release versions
       #- run: cargo build --all --release
 
+      - run: |
+            sudo apt-get install -y libudev-dev
+            cargo install elf2uf2-rs
+            elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1display.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/debug/c1minimal c1minimal.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
+
       - name: Upload Linux tool
         uses: actions/upload-artifact@v3
         with:
           name: lotus_inputmodule_fw
           path: |
-            target/thumbv6m-none-eabi/debug/b1display
-            target/thumbv6m-none-eabi/debug/c1minimal
-            target/thumbv6m-none-eabi/debug/ledmatrix
+            b1display.uf2
+            c1minimal.uf2
+            ledmatrix.uf2
 
   linting:
     name: Linting
