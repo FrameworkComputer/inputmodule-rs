@@ -5,6 +5,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
 
 jobs:
   building:
@@ -29,6 +30,10 @@ jobs:
     runs-on: [ubuntu-latest] #${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: |
+              ${{ secrets.PRIVKEY_ST7306 }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -47,14 +52,18 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: |
+              ${{ secrets.PRIVKEY_ST7306 }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
           target: thumbv6m-none-eabi
       - run: |
-        cargo clippy -p b1display -- --deny=warnings
-        cargo clippy -p c1minimal -- --deny=warnings
-        cargo clippy -p ledmatrix -- --deny=warnings
+          cargo clippy -p b1display -- --deny=warnings
+          cargo clippy -p c1minimal -- --deny=warnings
+          cargo clippy -p ledmatrix -- --deny=warnings
 
   formatting:
     name: Formatting
