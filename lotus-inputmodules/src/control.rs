@@ -1,3 +1,4 @@
+use num::FromPrimitive;
 use rp2040_hal::rom_data::reset_to_usb_boot;
 
 use crate::serialnum::{device_release, is_pre_release};
@@ -35,16 +36,18 @@ use crate::patterns::*;
 #[cfg(feature = "c1minimal")]
 use smart_leds::{SmartLedsWrite, RGB8};
 
-pub enum _CommandVals {
-    _Brightness = 0x00,
-    _Pattern = 0x01,
-    _BootloaderReset = 0x02,
-    _Sleep = 0x03,
-    _Animate = 0x04,
-    _Panic = 0x05,
-    _Draw = 0x06,
-    _StageGreyCol = 0x07,
-    _DrawGreyColBuffer = 0x08,
+#[repr(u8)]
+#[derive(num_derive::FromPrimitive)]
+pub enum CommandVals {
+    Brightness = 0x00,
+    Pattern = 0x01,
+    BootloaderReset = 0x02,
+    Sleep = 0x03,
+    Animate = 0x04,
+    Panic = 0x05,
+    Draw = 0x06,
+    StageGreyCol = 0x07,
+    DrawGreyColBuffer = 0x08,
     SetText = 0x09,
     StartGame = 0x10,
     GameControl = 0x11,
@@ -57,32 +60,35 @@ pub enum _CommandVals {
     Version = 0x20,
 }
 
+#[derive(num_derive::FromPrimitive)]
 pub enum PatternVals {
-    _Percentage = 0x00,
-    Gradient,
-    DoubleGradient,
-    DisplayLotus,
-    ZigZag,
-    FullBrightness,
-    DisplayPanic,
-    DisplayLotus2,
+    Percentage = 0x00,
+    Gradient = 0x01,
+    DoubleGradient = 0x02,
+    DisplayLotus = 0x03,
+    ZigZag = 0x04,
+    FullBrightness = 0x05,
+    DisplayPanic = 0x06,
+    DisplayLotus2 = 0x07,
 }
 
+#[derive(num_derive::FromPrimitive)]
 pub enum Game {
-    Snake,
-    Pong,
-    GameOfLife,
+    Snake = 0,
+    Pong = 1,
+    Tetris = 2,
+    GameOfLife = 3,
 }
 
-#[derive(Clone)]
+#[derive(Clone, num_derive::FromPrimitive)]
 pub enum GameControlArg {
-    Up,
-    Down,
-    Left,
-    Right,
-    Exit,
-    SecondLeft,
-    SecondRight,
+    Up = 0,
+    Down = 1,
+    Left = 2,
+    Right = 3,
+    Exit = 4,
+    SecondLeft = 5,
+    SecondRight = 6,
 }
 
 // TODO: Reduce size for modules that don't require other commands
@@ -154,16 +160,15 @@ pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
         //let mut text: String<64> = String::new();
         //writeln!(&mut text, "Command: {command}, arg: {arg}").unwrap();
         //let _ = serial.write(text.as_bytes());
-
-        match command {
-            0x02 => Some(Command::BootloaderReset),
-            0x03 => Some(if let Some(go_to_sleep) = arg {
+        match FromPrimitive::from_u8(command) {
+            Some(CommandVals::Sleep) => Some(if let Some(go_to_sleep) = arg {
                 Command::Sleep(go_to_sleep == 1)
             } else {
                 Command::IsSleeping
             }),
-            0x05 => Some(Command::Panic),
-            0x20 => Some(Command::Version),
+            Some(CommandVals::BootloaderReset) => Some(Command::BootloaderReset),
+            Some(CommandVals::Panic) => Some(Command::Panic),
+            Some(CommandVals::Version) => Some(Command::Version),
             _ => None, //Some(Command::Unknown),
         }
     } else {
@@ -177,36 +182,47 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
         let command = buf[2];
         let arg = if count <= 3 { None } else { Some(buf[3]) };
 
-        match command {
-            0x00 => Some(if let Some(brightness) = arg {
+        match FromPrimitive::from_u8(command) {
+            Some(CommandVals::Brightness) => Some(if let Some(brightness) = arg {
                 Command::SetBrightness(brightness)
             } else {
                 Command::GetBrightness
             }),
-            0x01 => match arg {
-                Some(0x00) => {
+            Some(CommandVals::Pattern) => match arg.and_then(FromPrimitive::from_u8) {
+                // TODO: Convert arg to PatternVals
+                Some(PatternVals::Percentage) => {
                     if count >= 5 {
                         Some(Command::Percentage(buf[4]))
                     } else {
                         None
                     }
                 }
-                Some(0x01) => Some(Command::Pattern(PatternVals::Gradient)),
-                Some(0x02) => Some(Command::Pattern(PatternVals::DoubleGradient)),
-                Some(0x03) => Some(Command::Pattern(PatternVals::DisplayLotus)),
-                Some(0x04) => Some(Command::Pattern(PatternVals::ZigZag)),
-                Some(0x05) => Some(Command::Pattern(PatternVals::FullBrightness)),
-                Some(0x06) => Some(Command::Pattern(PatternVals::DisplayPanic)),
-                Some(0x07) => Some(Command::Pattern(PatternVals::DisplayLotus2)),
+                Some(PatternVals::Gradient) => Some(Command::Pattern(PatternVals::Gradient)),
+                Some(PatternVals::DoubleGradient) => {
+                    Some(Command::Pattern(PatternVals::DoubleGradient))
+                }
+                Some(PatternVals::DisplayLotus) => {
+                    Some(Command::Pattern(PatternVals::DisplayLotus))
+                }
+                Some(PatternVals::ZigZag) => Some(Command::Pattern(PatternVals::ZigZag)),
+                Some(PatternVals::FullBrightness) => {
+                    Some(Command::Pattern(PatternVals::FullBrightness))
+                }
+                Some(PatternVals::DisplayPanic) => {
+                    Some(Command::Pattern(PatternVals::DisplayPanic))
+                }
+                Some(PatternVals::DisplayLotus2) => {
+                    Some(Command::Pattern(PatternVals::DisplayLotus2))
+                }
                 Some(_) => None,
                 None => None,
             },
-            0x04 => Some(if let Some(run_animation) = arg {
+            Some(CommandVals::Animate) => Some(if let Some(run_animation) = arg {
                 Command::SetAnimate(run_animation == 1)
             } else {
                 Command::GetAnimate
             }),
-            0x06 => {
+            Some(CommandVals::Draw) => {
                 if count >= 3 + DRAW_BYTES {
                     let mut bytes = [0; DRAW_BYTES];
                     bytes.clone_from_slice(&buf[3..3 + DRAW_BYTES]);
@@ -215,7 +231,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     None
                 }
             }
-            0x07 => {
+            Some(CommandVals::StageGreyCol) => {
                 if count >= 3 + 1 + HEIGHT {
                     let mut bytes = [0; HEIGHT];
                     bytes.clone_from_slice(&buf[4..4 + HEIGHT]);
@@ -224,25 +240,29 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     None
                 }
             }
-            0x08 => Some(Command::DrawGreyColBuffer),
-            0x10 => match arg {
-                Some(0) => Some(Command::StartGame(Game::Snake)),
-                Some(1) => Some(Command::StartGame(Game::Pong)),
+            Some(CommandVals::DrawGreyColBuffer) => Some(Command::DrawGreyColBuffer),
+            Some(CommandVals::StartGame) => match arg.and_then(FromPrimitive::from_u8) {
+                Some(Game::Snake) => Some(Command::StartGame(Game::Snake)),
+                Some(Game::Pong) => Some(Command::StartGame(Game::Pong)),
                 // Some(2) Reserved for Tetris
-                Some(3) => Some(Command::StartGame(Game::GameOfLife)),
+                Some(Game::GameOfLife) => Some(Command::StartGame(Game::GameOfLife)),
                 _ => None,
             },
-            0x11 => match arg {
-                Some(0) => Some(Command::GameControl(GameControlArg::Up)),
-                Some(1) => Some(Command::GameControl(GameControlArg::Down)),
-                Some(2) => Some(Command::GameControl(GameControlArg::Left)),
-                Some(3) => Some(Command::GameControl(GameControlArg::Right)),
-                Some(4) => Some(Command::GameControl(GameControlArg::Exit)),
-                Some(5) => Some(Command::GameControl(GameControlArg::SecondLeft)),
-                Some(6) => Some(Command::GameControl(GameControlArg::SecondRight)),
+            Some(CommandVals::GameControl) => match arg.and_then(FromPrimitive::from_u8) {
+                Some(GameControlArg::Up) => Some(Command::GameControl(GameControlArg::Up)),
+                Some(GameControlArg::Down) => Some(Command::GameControl(GameControlArg::Down)),
+                Some(GameControlArg::Left) => Some(Command::GameControl(GameControlArg::Left)),
+                Some(GameControlArg::Right) => Some(Command::GameControl(GameControlArg::Right)),
+                Some(GameControlArg::Exit) => Some(Command::GameControl(GameControlArg::Exit)),
+                Some(GameControlArg::SecondLeft) => {
+                    Some(Command::GameControl(GameControlArg::SecondLeft))
+                }
+                Some(GameControlArg::SecondRight) => {
+                    Some(Command::GameControl(GameControlArg::SecondRight))
+                }
                 _ => None,
             },
-            0x12 => Some(Command::GameStatus),
+            Some(CommandVals::GameStatus) => Some(Command::GameStatus),
             _ => None,
         }
     } else {
@@ -256,8 +276,8 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
         let command = buf[2];
         let arg = if count <= 3 { None } else { Some(buf[3]) };
 
-        match command {
-            0x09 => {
+        match FromPrimitive::from_u8(command) {
+            Some(CommandVals::SetText) => {
                 if let Some(arg) = arg {
                     let available_len = count - 4;
                     let str_len = arg as usize;
@@ -276,9 +296,9 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     None
                 }
             }
-            0x14 => Some(Command::DisplayOn(arg == Some(1))),
-            0x15 => Some(Command::InvertScreen(arg == Some(1))),
-            0x16 => {
+            Some(CommandVals::DisplayOn) => Some(Command::DisplayOn(arg == Some(1))),
+            Some(CommandVals::InvertScreen) => Some(Command::InvertScreen(arg == Some(1))),
+            Some(CommandVals::SetPixelColumn) => {
                 //  3B for magic and command
                 //  2B for column (u16)
                 // 50B for 400 pixels (400/8=50)
@@ -292,7 +312,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     None
                 }
             }
-            0x17 => Some(Command::FlushFramebuffer),
+            Some(CommandVals::FlushFramebuffer) => Some(Command::FlushFramebuffer),
             _ => None,
         }
     } else {
@@ -414,6 +434,7 @@ pub fn handle_command(
             match game {
                 Game::Snake => snake::start_game(state, random),
                 Game::Pong => pong::start_game(state, random),
+                Game::Tetris => {}
                 Game::GameOfLife => game_of_life::start_game(state, random),
             }
             None
@@ -567,13 +588,13 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
         let command = buf[2];
         let arg = if count <= 3 { None } else { Some(buf[3]) };
 
-        match command {
-            0x00 => Some(if let Some(brightness) = arg {
+        match FromPrimitive::from_u8(command) {
+            Some(CommandVals::Brightness) => Some(if let Some(brightness) = arg {
                 Command::SetBrightness(brightness)
             } else {
                 Command::GetBrightness
             }),
-            0x13 => {
+            Some(CommandVals::SetColor) => {
                 if count >= 6 {
                     let (red, green, blue) = (buf[3], buf[4], buf[5]);
                     Some(Command::SetColor(RGB8::new(red, green, blue)))
