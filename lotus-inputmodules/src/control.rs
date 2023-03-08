@@ -214,7 +214,6 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                 Some(PatternVals::DisplayLotus2) => {
                     Some(Command::Pattern(PatternVals::DisplayLotus2))
                 }
-                Some(_) => None,
                 None => None,
             },
             Some(CommandVals::Animate) => Some(if let Some(run_animation) = arg {

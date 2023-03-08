@@ -279,21 +279,21 @@ fn main() -> ! {
                             };
                         }
                         (Some(command), SleepState::Awake) => {
-                            let mut text: String<64> = String::new();
-                            write!(
-                                &mut text,
-                                "Handling command {}:{}:{}:{}\r\n",
-                                buf[0], buf[1], buf[2], buf[3]
-                            )
-                            .unwrap();
-                            let _ = serial.write(text.as_bytes());
-
                             // While sleeping no command is handled, except waking up
                             if let Some(response) =
                                 handle_command(&command, &mut state, &mut matrix, random)
                             {
                                 let _ = serial.write(&response);
                             };
+                            // Must write AFTER writing response, otherwise the
+                            // client interprets this debug message as the response
+                            let mut text: String<64> = String::new();
+                            write!(
+                                &mut text,
+                                "Handled command {}:{}:{}:{}\r\n",
+                                buf[0], buf[1], buf[2], buf[3]
+                            )
+                            .unwrap();
                             fill_grid_pixels(&state.grid, &mut matrix);
                         }
                         _ => {}
@@ -310,17 +310,18 @@ fn main() -> ! {
             _ => 500_000,
         };
         if timer.get_counter().ticks() > game_timer + game_step_diff {
-            let _ = serial.write(b"Game step\r\n");
             let random = get_random_byte(&rosc);
             match state.game {
                 Some(GameState::GameOfLife(_)) => {
-                    let _ = serial.write(b"GOL\r\n");
+                    let _ = serial.write(b"GOL Game step\r\n");
                     game_of_life::game_step(&mut state, random);
                 }
                 Some(GameState::Pong(_)) => {
+                    let _ = serial.write(b"Pong Game step\r\n");
                     pong::game_step(&mut state, random);
                 }
                 Some(GameState::Snake(_)) => {
+                    let _ = serial.write(b"Snake Game step\r\n");
                     let (direction, game_over, points, (x, y)) =
                         snake::game_step(&mut state, random);
 
