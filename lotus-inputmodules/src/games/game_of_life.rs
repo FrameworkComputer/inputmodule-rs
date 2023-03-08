@@ -1,4 +1,4 @@
-use crate::control::{Game, GameControlArg};
+use crate::control::GameControlArg;
 use crate::matrix::{GameState, Grid, State, HEIGHT, WIDTH};
 
 #[derive(Clone, Copy)]
@@ -13,17 +13,14 @@ pub struct GameOfLifeState {
 }
 
 pub fn start_game(state: &mut State, _random: u8) {
-    let gol = GameOfLifeState::new();
+    let gol = GameOfLifeState::default();
     state.grid = gol.draw_matrix();
     state.game = Some(GameState::GameOfLife(gol));
 }
 pub fn handle_control(state: &mut State, arg: &GameControlArg) {
-    if let Some(GameState::GameOfLife(ref mut gol_state)) = state.game {
-        match arg {
-            //GameControlArg::Exit => {}
-            _ => {
-                // TODO
-            }
+    if let Some(GameState::GameOfLife(ref mut _gol_state)) = state.game {
+        if let GameControlArg::Exit = arg {
+            state.game = None
         }
     }
 }
@@ -37,7 +34,7 @@ pub fn game_step(state: &mut State, _random: u8) {
 }
 
 impl GameOfLifeState {
-    fn pattern1() -> Self {
+    fn _pattern1() -> Self {
         // Starts off with lots of alive cells, quickly reduced.
         // Eventually reaches a stable pattern without changes.
         let mut cells = [[Cell::Dead; WIDTH]; HEIGHT];
@@ -51,7 +48,7 @@ impl GameOfLifeState {
         }
         GameOfLifeState { cells }
     }
-    fn blinker() -> Self {
+    fn _blinker() -> Self {
         // Oscillates between:
         //     XXX
         // and
@@ -67,7 +64,7 @@ impl GameOfLifeState {
         cells[14][7] = Cell::Alive;
         GameOfLifeState { cells }
     }
-    fn toad() -> Self {
+    fn _toad() -> Self {
         // Oscillates between
         //  XXX
         // XXX
@@ -85,7 +82,7 @@ impl GameOfLifeState {
         cells[11][7] = Cell::Alive;
         GameOfLifeState { cells }
     }
-    fn beacon() -> Self {
+    fn _beacon() -> Self {
         // Oscillates between
         //   XX
         //   XX
@@ -109,12 +106,23 @@ impl GameOfLifeState {
         GameOfLifeState { cells }
     }
 
-    pub fn new() -> Self {
-        // TODO: Allow selection between patterns
-        Self::pattern1()
-        //Self::blinker()
-        //Self::toad()
-        //Self::beacon()
+    fn glider() -> Self {
+        //  X
+        //   X
+        // XXX
+        let mut cells = [[Cell::Dead; WIDTH]; HEIGHT];
+        cells[2][3] = Cell::Alive;
+        cells[3][4] = Cell::Alive;
+        cells[4][2] = Cell::Alive;
+        cells[4][3] = Cell::Alive;
+        cells[4][4] = Cell::Alive;
+
+        cells[20][5] = Cell::Alive;
+        cells[21][6] = Cell::Alive;
+        cells[22][4] = Cell::Alive;
+        cells[22][5] = Cell::Alive;
+        cells[22][6] = Cell::Alive;
+        GameOfLifeState { cells }
     }
 
     /// Count live neighbor cells
@@ -137,7 +145,7 @@ impl GameOfLifeState {
         count
     }
     pub fn tick(&mut self) {
-        let mut next_generation = self.cells.clone();
+        let mut next_generation = self.cells;
 
         for row in 0..HEIGHT {
             for col in 0..WIDTH {
@@ -174,5 +182,15 @@ impl GameOfLifeState {
         }
 
         grid
+    }
+}
+impl Default for GameOfLifeState {
+    fn default() -> Self {
+        // TODO: Allow selection between patterns
+        //Self::pattern1()
+        //Self::blinker()
+        //Self::toad()
+        //Self::beacon()
+        Self::glider()
     }
 }
