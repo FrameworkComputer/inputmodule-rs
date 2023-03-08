@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import random
 import math
 import sys
+from enum import IntEnum
+
 
 # Need to install
 import serial
@@ -16,6 +18,48 @@ import serial
 # import PySimpleGUI as sg
 
 FWK_MAGIC = [0x32, 0xAC]
+
+
+class CommandVals(IntEnum):
+    Brightness = 0x00
+    Pattern = 0x01
+    BootloaderReset = 0x02
+    Sleep = 0x03
+    Animate = 0x04
+    Panic = 0x05
+    Draw = 0x06
+    StageGreyCol = 0x07
+    DrawGreyColBuffer = 0x08
+    SetText = 0x09
+    StartGame = 0x10
+    GameControl = 0x11
+    GameStatus = 0x12
+    SetColor = 0x13
+    DisplayOn = 0x14
+    InvertScreen = 0x15
+    SetPixelColumn = 0x16
+    FlushFramebuffer = 0x17
+    Version = 0x20
+
+
+class Game(IntEnum):
+    Snake = 0x00
+    Pong = 0x01
+    Tetris = 0x02
+    GameOfLife = 0x03
+
+
+class PatternVals(IntEnum):
+    Percentage = 0x00
+    Gradient = 0x01
+    DoubleGradient = 0x02
+    DisplayLotus = 0x03
+    ZigZag = 0x04
+    FullBrightness = 0x05
+    DisplayPanic = 0x06
+    DisplayLotus2 = 0x07
+
+
 PATTERNS = [
     'All LEDs on',
     '"LOTUS" sideways',
@@ -128,11 +172,9 @@ def main():
     if args.bootloader:
         bootloader()
     elif args.sleep is not None:
-        command = FWK_MAGIC + [0x03, args.sleep]
-        send_command(command)
+        send_command(CommandVals.Sleep, [args.sleep])
     elif args.is_sleeping:
-        command = FWK_MAGIC + [0x03]
-        res = send_command(command, with_response=True)
+        res = send_command(CommandVals.Sleep, with_response=True)
         sleeping = bool(res[0])
         print(f"Currently sleeping: {sleeping}")
     elif args.brightness is not None:
@@ -156,8 +198,7 @@ def main():
         animating = get_animate()
         print(f"Currently animating: {animating}")
     elif args.panic:
-        command = FWK_MAGIC + [0x05, 0x00]
-        send_command(command)
+        send_command(CommandVals.Panic, [0x00])
     elif args.image is not None:
         image_bl(args.image)
     elif args.image_grey is not None:
@@ -207,40 +248,36 @@ def main():
         version = get_version()
         print(f"Device version: {version}")
     else:
-        print("Provide arg")
+        parser.print_help(sys.stderr)
+        sys.exit(1)
 
 
 def bootloader():
     """Reboot into the bootloader to flash new firmware"""
-    command = FWK_MAGIC + [0x02, 0x00]
-    send_command(command)
+    send_command(CommandVals.BootloaderReset, [0x00])
 
 
 def percentage(p):
     """Fill a percentage of the screen. Bottom to top"""
-    command = FWK_MAGIC + [0x01, 0x00, p]
-    send_command(command)
+    send_command(CommandVals.Pattern, [PatternVals.Percentage, p])
 
 
 def brightness(b: int):
     """Adjust the brightness scaling of the entire screen.
     """
-    command = FWK_MAGIC + [0x00, b]
-    send_command(command)
+    send_command(CommandVals.Brightness, [b])
 
 
 def get_brightness():
     """Adjust the brightness scaling of the entire screen.
     """
-    command = FWK_MAGIC + [0x00]
-    res = send_command(command, with_response=True)
+    res = send_command(CommandVals.Brightness, with_response=True)
     return int(res[0])
 
 
 def get_version():
     """Get the device's firmware version"""
-    command = FWK_MAGIC + [0x20]
-    res = send_command(command, with_response=True)
+    res = send_command(CommandVals.Version, with_response=True)
     major = res[0]
     minor = (res[1] & 0xF0) >> 4
     patch = res[1] & 0xF
@@ -255,15 +292,13 @@ def get_version():
 def animate(b: bool):
     """Tell the firmware to start/stop animation.
     Scrolls the currently saved grid vertically down."""
-    command = FWK_MAGIC + [0x04, b]
-    send_command(command)
+    send_command(CommandVals.Animate, [b])
 
 
 def get_animate():
     """Tell the firmware to start/stop animation.
     Scrolls the currently saved grid vertically down."""
-    command = FWK_MAGIC + [0x04]
-    res = send_command(command, with_response=True)
+    res = send_command(CommandVals.Animate, with_response=True)
     return bool(res[0])
 
 
@@ -328,8 +363,7 @@ def image_bl(image_file):
         if brightness > 0xFF/2:
             vals[int(i/8)] |= (1 << i % 8)
 
-    command = FWK_MAGIC + [0x06] + vals
-    send_command(command)
+    send_command(CommandVals.Draw, vals)
 
 
 def pixel_to_brightness(pixel):
@@ -376,20 +410,19 @@ def image_greyscale(image_file):
 
 def send_col(s, x, vals):
     """Stage greyscale values for a single column. Must be committed with commit_cols()"""
-    command = FWK_MAGIC + [0x07, x] + vals
+    command = FWK_MAGIC + [CommandVals.StageGreyCol, x] + vals
     send_serial(s, command)
 
 
 def commit_cols(s):
     """Commit the changes from sending individual cols with send_col(), displaying the matrix.
     This makes sure that the matrix isn't partially updated."""
-    command = FWK_MAGIC + [0x08, 0x00]
+    command = FWK_MAGIC + [CommandVals.DrawGreyColBuffer, 0x00]
     send_serial(s, command)
 
 
 def get_color():
-    command = FWK_MAGIC + [0x13]
-    res = send_command(command, with_response=True)
+    res = send_command(CommandVals.SetColor, with_response=True)
     return (int(res[0]), int(res[1]), int(res[2]))
 
 
@@ -416,8 +449,7 @@ def set_color(color):
         return
 
     if rgb:
-        command = FWK_MAGIC + [0x13] + rgb
-        send_command(command)
+        send_command(CommandVals.SetColor, rgb)
 
 
 def all_brightnesses():
@@ -551,8 +583,7 @@ def snake_embedded_keyscan():
             # Quit
             key_arg = 4
         if key_arg is not None:
-            command = FWK_MAGIC + [0x11, key_arg]
-            send_command(command)
+            send_command(CommandVals.GameControl, [key_arg])
 
 
 def game_over():
@@ -569,8 +600,7 @@ def game_over():
 
 def pong_embedded():
     # Start game
-    command = FWK_MAGIC + [0x10, 0x01]
-    send_command(command)
+    send_command(CommandVals.StartGame, [Game.Pong])
 
     from getkey import getkey, keys
 
@@ -589,21 +619,18 @@ def pong_embedded():
             # Quit
             key_arg = ARG_QUIT
         if key_arg is not None:
-            command = FWK_MAGIC + [0x11, key_arg]
-            send_command(command)
+            send_command(CommandVals.GameControl, [key_arg])
 
 
 def game_of_life_embedded():
     # Start game
     # TODO: Add a way to stop it
-    command = FWK_MAGIC + [0x10, 0x03]
-    send_command(command)
+    send_command(CommandVals.StartGame, [Game.GameOfLife])
 
 
 def snake_embedded():
     # Start game
-    command = FWK_MAGIC + [0x10, 0x00]
-    send_command(command)
+    send_command(CommandVals.StartGame, [Game.Snake])
 
     snake_embedded_keyscan()
 
@@ -749,8 +776,7 @@ def render_matrix(matrix):
             if matrix[x][y]:
                 vals[int(i/8)] = vals[int(i/8)] | (1 << i % 8)
 
-    command = FWK_MAGIC + [0x06] + vals
-    send_command(command)
+    send_command(CommandVals.Draw, vals)
 
 
 def light_leds(leds):
@@ -760,33 +786,25 @@ def light_leds(leds):
         vals[byte] = 0xFF
     for i in range(leds % 8):
         vals[int(leds / 8)] += 1 << i
-    command = FWK_MAGIC + [0x06] + vals
-    send_command(command)
+    send_command(CommandVals.Draw, vals)
 
 
 def pattern(p):
     """Display a pattern that's already programmed into the firmware"""
     if p == 'All LEDs on':
-        command = FWK_MAGIC + [0x01, 5]
-        send_command(command)
+        send_command(CommandVals.Pattern, [PatternVals.FullBrightness])
     elif p == 'Gradient (0-13% Brightness)':
-        command = FWK_MAGIC + [0x01, 1]
-        send_command(command)
+        send_command(CommandVals.Pattern, [PatternVals.Gradient])
     elif p == 'Double Gradient (0-7-0% Brightness)':
-        command = FWK_MAGIC + [0x01, 2]
-        send_command(command)
+        send_command(CommandVals.Pattern, [PatternVals.DoubleGradient])
     elif p == '"LOTUS" sideways':
-        command = FWK_MAGIC + [0x01, 3]
-        send_command(command)
+        send_command(CommandVals.Pattern, [PatternVals.DisplayLotus])
     elif p == 'Zigzag':
-        command = FWK_MAGIC + [0x01, 4]
-        send_command(command)
+        send_command(CommandVals.Pattern, [PatternVals.ZigZag])
     elif p == '"PANIC"':
-        command = FWK_MAGIC + [0x01, 6]
-        send_command(command)
+        send_command(CommandVals.Pattern, [PatternVals.DisplayPanic])
     elif p == '"LOTUS" Top Down':
-        command = FWK_MAGIC + [0x01, 7]
-        send_command(command)
+        send_command(CommandVals.Pattern, [PatternVals.DisplayLotus2])
     elif p == 'All brightness levels (1 LED each)':
         all_brightnesses()
     else:
@@ -811,8 +829,7 @@ def show_font(font_items):
                 if pixel_value:
                     vals[int(i/8)] = vals[int(i/8)] | (1 << i % 8)
 
-    command = FWK_MAGIC + [0x06] + vals
-    send_command(command)
+    send_command(CommandVals.Draw, vals)
 
 
 def show_symbols(symbols):
@@ -844,7 +861,11 @@ def clock():
         time.sleep(1)
 
 
-def send_command(command, with_response=False):
+def send_command(command, parameters=[], with_response=False):
+    return send_command_raw(FWK_MAGIC + [command] + parameters, with_response)
+
+
+def send_command_raw(command, with_response=False):
     """Send a command to the device.
     Opens new serial connection every time"""
     # print(f"Sending command: {command}")
@@ -986,30 +1007,25 @@ def gui():
             STOP_THREAD = True
 
         if event == 'Sleep':
-            command = FWK_MAGIC + [0x03, True]
-            send_command(command)
+            send_command(CommandVals.Sleep, [True])
 
         if event == 'Wake':
-            command = FWK_MAGIC + [0x03, False]
-            send_command(command)
+            send_command(CommandVals.Sleep, [False])
 
     window.close()
 
 
 def display_string(disp_str):
     b = [ord(x) for x in disp_str]
-    command = FWK_MAGIC + [0x09, len(disp_str)] + b
-    send_command(command)
+    send_command(CommandVals.SetText, [len(disp_str)] + b)
 
 
 def display_on_cmd(on):
-    command = FWK_MAGIC + [0x014, int(on)]
-    send_command(command)
+    send_command(CommandVals.DisplayOn, [on])
 
 
 def invert_screen_cmd(invert):
-    command = FWK_MAGIC + [0x015, int(invert)]
-    send_command(command)
+    send_command(CommandVals.InvertScreen, [invert])
 
 
 # 5x6 symbol font. Leaves 2 pixels on each side empty
