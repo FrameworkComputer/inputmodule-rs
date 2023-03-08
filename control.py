@@ -60,6 +60,36 @@ class PatternVals(IntEnum):
     DisplayLotus2 = 0x07
 
 
+class GameOfLifeStartParam(IntEnum):
+    Currentmatrix = 0x00
+    Pattern1 = 0x01
+    Blinker = 0x02
+    Toad = 0x03
+    Beacon = 0x04
+    Glider = 0x05
+
+    def __str__(self):
+        return self.name.lower()
+
+    def __repr__(self):
+        return str(self)
+
+    @staticmethod
+    def argparse(s):
+        try:
+            return GameOfLifeStartParam[s.lower().capitalize()]
+        except KeyError:
+            return s
+
+
+class GameControlVal(IntEnum):
+    Up = 0
+    Down = 1
+    Left = 2
+    Right = 3
+    Quit = 4
+
+
 PATTERNS = [
     'All LEDs on',
     '"LOTUS" sideways',
@@ -142,7 +172,9 @@ def main():
     parser.add_argument("--pong-embedded",
                         help="Pong on the module", action="store_true")
     parser.add_argument("--game-of-life-embedded",
-                        help="Game of Life", action="store_true")
+                        help="Game of Life", type=GameOfLifeStartParam.argparse, choices=list(GameOfLifeStartParam))
+    parser.add_argument("--quit-embedded-game",
+                        help="Quit the current game", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
     parser.add_argument(
@@ -222,8 +254,10 @@ def main():
         snake()
     elif args.snake_embedded:
         snake_embedded()
-    elif args.game_of_life_embedded:
-        game_of_life_embedded()
+    elif args.game_of_life_embedded is not None:
+        game_of_life_embedded(args.game_of_life_embedded)
+    elif args.quit_embedded_game is not None:
+        send_command(CommandVals.GameControl, [GameControlVal.Quit])
     elif args.pong_embedded:
         pong_embedded()
     elif args.eq is not None:
@@ -572,16 +606,16 @@ def snake_embedded_keyscan():
         key_arg = None
         key = getkey()
         if key == keys.UP:
-            key_arg = 0
+            key_arg = GameControlVal.Up
         elif key == keys.DOWN:
-            key_arg = 1
+            key_arg = GameControlVal.Down
         elif key == keys.LEFT:
-            key_arg = 2
+            key_arg = GameControlVal.Left
         elif key == keys.RIGHT:
-            key_arg = 3
+            key_arg = GameControlVal.Right
         elif key == 'q':
             # Quit
-            key_arg = 4
+            key_arg = GameControlVal.Quit
         if key_arg is not None:
             send_command(CommandVals.GameControl, [key_arg])
 
@@ -622,10 +656,11 @@ def pong_embedded():
             send_command(CommandVals.GameControl, [key_arg])
 
 
-def game_of_life_embedded():
+def game_of_life_embedded(arg):
     # Start game
     # TODO: Add a way to stop it
-    send_command(CommandVals.StartGame, [Game.GameOfLife])
+    print("Game", int(arg))
+    send_command(CommandVals.StartGame, [Game.GameOfLife, int(arg)])
 
 
 def snake_embedded():

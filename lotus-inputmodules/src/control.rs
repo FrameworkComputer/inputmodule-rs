@@ -72,15 +72,22 @@ pub enum PatternVals {
     DisplayLotus2 = 0x07,
 }
 
-#[derive(num_derive::FromPrimitive)]
 pub enum Game {
+    Snake,
+    Pong,
+    Tetris,
+    GameOfLife(GameOfLifeStartParam),
+}
+
+#[derive(Copy, Clone, num_derive::FromPrimitive)]
+pub enum GameVal {
     Snake = 0,
     Pong = 1,
     Tetris = 2,
     GameOfLife = 3,
 }
 
-#[derive(Clone, num_derive::FromPrimitive)]
+#[derive(Copy, Clone, num_derive::FromPrimitive)]
 pub enum GameControlArg {
     Up = 0,
     Down = 1,
@@ -89,6 +96,16 @@ pub enum GameControlArg {
     Exit = 4,
     SecondLeft = 5,
     SecondRight = 6,
+}
+
+#[derive(Copy, Clone, num_derive::FromPrimitive)]
+pub enum GameOfLifeStartParam {
+    CurrentMatrix = 0x00,
+    Pattern1 = 0x01,
+    Blinker = 0x02,
+    Toad = 0x03,
+    Beacon = 0x04,
+    Glider = 0x05,
 }
 
 // TODO: Reduce size for modules that don't require other commands
@@ -241,10 +258,17 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             }
             Some(CommandVals::DrawGreyColBuffer) => Some(Command::DrawGreyColBuffer),
             Some(CommandVals::StartGame) => match arg.and_then(FromPrimitive::from_u8) {
-                Some(Game::Snake) => Some(Command::StartGame(Game::Snake)),
-                Some(Game::Pong) => Some(Command::StartGame(Game::Pong)),
-                // Some(2) Reserved for Tetris
-                Some(Game::GameOfLife) => Some(Command::StartGame(Game::GameOfLife)),
+                Some(GameVal::Snake) => Some(Command::StartGame(Game::Snake)),
+                Some(GameVal::Pong) => Some(Command::StartGame(Game::Pong)),
+                Some(GameVal::Tetris) => None,
+                Some(GameVal::GameOfLife) => {
+                    if count >= 5 {
+                        FromPrimitive::from_u8(buf[4])
+                            .map(|x| Command::StartGame(Game::GameOfLife(x)))
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             },
             Some(CommandVals::GameControl) => match arg.and_then(FromPrimitive::from_u8) {
@@ -434,7 +458,7 @@ pub fn handle_command(
                 Game::Snake => snake::start_game(state, random),
                 Game::Pong => pong::start_game(state, random),
                 Game::Tetris => {}
-                Game::GameOfLife => game_of_life::start_game(state, random),
+                Game::GameOfLife(param) => game_of_life::start_game(state, random, *param),
             }
             None
         }

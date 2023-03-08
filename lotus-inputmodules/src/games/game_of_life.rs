@@ -1,7 +1,7 @@
-use crate::control::GameControlArg;
+use crate::control::{GameControlArg, GameOfLifeStartParam};
 use crate::matrix::{GameState, Grid, State, HEIGHT, WIDTH};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, num_derive::FromPrimitive)]
 pub enum Cell {
     Dead = 0,
     Alive = 1,
@@ -12,8 +12,8 @@ pub struct GameOfLifeState {
     cells: [[Cell; WIDTH]; HEIGHT],
 }
 
-pub fn start_game(state: &mut State, _random: u8) {
-    let gol = GameOfLifeState::default();
+pub fn start_game(state: &mut State, _random: u8, param: GameOfLifeStartParam) {
+    let gol = GameOfLifeState::new(param, &state.grid);
     state.grid = gol.draw_matrix();
     state.game = Some(GameState::GameOfLife(gol));
 }
@@ -34,7 +34,32 @@ pub fn game_step(state: &mut State, _random: u8) {
 }
 
 impl GameOfLifeState {
-    fn _pattern1() -> Self {
+    pub fn new(param: GameOfLifeStartParam, grid: &Grid) -> Self {
+        match param {
+            GameOfLifeStartParam::Beacon => Self::beacon(),
+            GameOfLifeStartParam::CurrentMatrix => {
+                let mut cells = [[Cell::Dead; WIDTH]; HEIGHT];
+                for row in 0..HEIGHT {
+                    for col in 0..WIDTH {
+                        cells[row][col] = if grid.0[col][row] == 0 {
+                            Cell::Dead
+                        } else {
+                            Cell::Alive
+                        };
+                    }
+                }
+                //cells: grid
+                //    .0
+                //    .map(|col| col.map(|val| if val == 0 { Cell::Dead } else { Cell::Alive })),
+                GameOfLifeState { cells }
+            }
+            GameOfLifeStartParam::Pattern1 => Self::pattern1(),
+            GameOfLifeStartParam::Blinker => Self::blinker(),
+            GameOfLifeStartParam::Toad => Self::toad(),
+            GameOfLifeStartParam::Glider => Self::glider(),
+        }
+    }
+    fn pattern1() -> Self {
         // Starts off with lots of alive cells, quickly reduced.
         // Eventually reaches a stable pattern without changes.
         let mut cells = [[Cell::Dead; WIDTH]; HEIGHT];
@@ -48,7 +73,7 @@ impl GameOfLifeState {
         }
         GameOfLifeState { cells }
     }
-    fn _blinker() -> Self {
+    fn blinker() -> Self {
         // Oscillates between:
         //     XXX
         // and
@@ -64,7 +89,7 @@ impl GameOfLifeState {
         cells[14][7] = Cell::Alive;
         GameOfLifeState { cells }
     }
-    fn _toad() -> Self {
+    fn toad() -> Self {
         // Oscillates between
         //  XXX
         // XXX
@@ -82,7 +107,7 @@ impl GameOfLifeState {
         cells[11][7] = Cell::Alive;
         GameOfLifeState { cells }
     }
-    fn _beacon() -> Self {
+    fn beacon() -> Self {
         // Oscillates between
         //   XX
         //   XX
@@ -182,15 +207,5 @@ impl GameOfLifeState {
         }
 
         grid
-    }
-}
-impl Default for GameOfLifeState {
-    fn default() -> Self {
-        // TODO: Allow selection between patterns
-        //Self::pattern1()
-        //Self::blinker()
-        //Self::toad()
-        //Self::beacon()
-        Self::glider()
     }
 }
