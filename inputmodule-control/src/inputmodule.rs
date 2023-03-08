@@ -8,7 +8,7 @@ use serialport::{SerialPort, SerialPortInfo};
 
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
-use crate::ledmatrix::Pattern;
+use crate::ledmatrix::{Game, Pattern};
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 const FRAMEWORK_VID: u16 = 0x32AC;
@@ -27,7 +27,7 @@ const DISPLAY_BW_IMAGE: u8 = 0x06;
 const SEND_COL: u8 = 0x07;
 const COMMIT_COLS: u8 = 0x08;
 const _B1_RESERVED: u8 = 0x09;
-const _START_GAME: u8 = 0x10;
+const START_GAME: u8 = 0x10;
 const _GAME_CONTROL: u8 = 0x11;
 const _GAME_STATUS: u8 = 0x12;
 const SET_COLOR: u8 = 0x13;
@@ -145,6 +145,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     show_symbols(serialdev, symbols);
                 }
 
+                if let Some(game) = ledmatrix_args.start_game {
+                    start_game_cmd(serialdev, game);
+                }
+
                 if ledmatrix_args.version {
                     get_device_version(serialdev);
                 }
@@ -254,6 +258,10 @@ fn percentage_cmd(serialdev: &str, arg: u8) {
 
 fn pattern_cmd(serialdev: &str, arg: Pattern) {
     simple_cmd(serialdev, PATTERN, &[arg as u8]);
+}
+
+fn start_game_cmd(serialdev: &str, arg: Game) {
+    simple_cmd(serialdev, START_GAME, &[arg as u8]);
 }
 
 fn simple_cmd_multiple(serialdevs: &Vec<String>, command: u8, args: &[u8]) {

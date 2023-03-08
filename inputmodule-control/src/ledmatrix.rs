@@ -13,6 +13,14 @@ pub enum Pattern {
     //AllBrightnesses
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
+pub enum Game {
+    Snake = 0,
+    Pong = 1,
+    Tetris = 2,
+    GameOfLife = 3,
+}
+
 /// LED Matrix
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -81,6 +89,11 @@ pub struct LedMatrixSubcommand {
     /// Display a string (max 5 symbols)
     #[arg(long, num_args(0..6))]
     pub symbols: Option<Vec<String>>,
+
+    /// Start a game
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub start_game: Option<Game>,
 
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]
