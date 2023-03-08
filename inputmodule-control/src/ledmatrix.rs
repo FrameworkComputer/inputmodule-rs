@@ -1,8 +1,9 @@
 use clap::Parser;
 
 #[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
+#[repr(u8)]
 pub enum Pattern {
-    // Percentage = 0
+    Percentage = 0,
     Gradient = 1,
     DoubleGradient = 2,
     LotusSideways = 3,
@@ -14,6 +15,7 @@ pub enum Pattern {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
+#[repr(u8)]
 pub enum Game {
     Snake = 0,
     Pong = 1,
