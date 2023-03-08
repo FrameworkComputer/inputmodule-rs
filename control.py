@@ -97,6 +97,8 @@ def main():
                         help="Snake on the module", action="store_true")
     parser.add_argument("--pong-embedded",
                         help="Pong on the module", action="store_true")
+    parser.add_argument("--game-of-life-embedded",
+                        help="Game of Life", action="store_true")
     parser.add_argument(
         "--all-brightnesses", help="Show every pixel in a different brightness", action="store_true")
     parser.add_argument(
@@ -179,6 +181,8 @@ def main():
         snake()
     elif args.snake_embedded:
         snake_embedded()
+    elif args.game_of_life_embedded:
+        game_of_life_embedded()
     elif args.pong_embedded:
         pong_embedded()
     elif args.eq is not None:
@@ -587,6 +591,13 @@ def pong_embedded():
         if key_arg is not None:
             command = FWK_MAGIC + [0x11, key_arg]
             send_command(command)
+
+
+def game_of_life_embedded():
+    # Start game
+    # TODO: Add a way to stop it
+    command = FWK_MAGIC + [0x10, 0x03]
+    send_command(command)
 
 
 def snake_embedded():

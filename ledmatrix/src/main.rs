@@ -75,7 +75,7 @@ use rp2040_panic_usb_boot as _;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
-use lotus_inputmodules::lotus_led_hal as bsp;
+use lotus_inputmodules::{games::game_of_life, lotus_led_hal as bsp};
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -306,12 +306,17 @@ fn main() -> ! {
         let game_step_diff = match state.game {
             Some(GameState::Pong(ref pong_state)) => 100_000 - 5_000 * pong_state.speed,
             Some(GameState::Snake(_)) => 500_000,
+            Some(GameState::GameOfLife(_)) => 500_000,
             _ => 500_000,
         };
         if timer.get_counter().ticks() > game_timer + game_step_diff {
             let _ = serial.write(b"Game step\r\n");
             let random = get_random_byte(&rosc);
             match state.game {
+                Some(GameState::GameOfLife(_)) => {
+                    let _ = serial.write(b"GOL\r\n");
+                    game_of_life::game_step(&mut state, random);
+                }
                 Some(GameState::Pong(_)) => {
                     pong::game_step(&mut state, random);
                 }

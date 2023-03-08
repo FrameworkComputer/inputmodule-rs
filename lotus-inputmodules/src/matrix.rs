@@ -1,3 +1,4 @@
+use crate::games::game_of_life::GameOfLifeState;
 use crate::games::pong::PongState;
 use crate::games::snake::SnakeState;
 
@@ -34,4 +35,5 @@ pub enum SleepState {
 pub enum GameState {
     Snake(SnakeState),
     Pong(PongState),
+    GameOfLife(GameOfLifeState),
 }

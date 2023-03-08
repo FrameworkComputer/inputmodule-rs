@@ -71,6 +71,7 @@ pub enum PatternVals {
 pub enum Game {
     Snake,
     Pong,
+    GameOfLife,
 }
 
 #[derive(Clone)]
@@ -227,6 +228,8 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             0x10 => match arg {
                 Some(0) => Some(Command::StartGame(Game::Snake)),
                 Some(1) => Some(Command::StartGame(Game::Pong)),
+                // Some(2) Reserved for Tetris
+                Some(3) => Some(Command::StartGame(Game::GameOfLife)),
                 _ => None,
             },
             0x11 => match arg {
@@ -333,6 +336,8 @@ pub fn handle_command(
     matrix: &mut Foo,
     random: u8,
 ) -> Option<[u8; 32]> {
+    use crate::games::game_of_life;
+
     match command {
         Command::GetBrightness => {
             let mut response: [u8; 32] = [0; 32];
@@ -409,6 +414,7 @@ pub fn handle_command(
             match game {
                 Game::Snake => snake::start_game(state, random),
                 Game::Pong => pong::start_game(state, random),
+                Game::GameOfLife => game_of_life::start_game(state, random),
             }
             None
         }
@@ -416,6 +422,7 @@ pub fn handle_command(
             match state.game {
                 Some(GameState::Snake(_)) => snake::handle_control(state, arg),
                 Some(GameState::Pong(_)) => pong::handle_control(state, arg),
+                Some(GameState::GameOfLife(_)) => game_of_life::handle_control(state, arg),
                 _ => {}
             }
             None
