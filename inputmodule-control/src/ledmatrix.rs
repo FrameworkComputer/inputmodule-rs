@@ -1,8 +1,9 @@
 use clap::Parser;
 
 #[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
+#[repr(u8)]
 pub enum Pattern {
-    // Percentage = 0
+    Percentage = 0,
     Gradient = 1,
     DoubleGradient = 2,
     LotusSideways = 3,
@@ -11,6 +12,25 @@ pub enum Pattern {
     Panic = 6,
     LotusTopDown = 7,
     //AllBrightnesses
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
+#[repr(u8)]
+pub enum Game {
+    Snake = 0,
+    Pong = 1,
+    Tetris = 2,
+    GameOfLife = 3,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
+pub enum GameOfLifeStartParam {
+    CurrentMatrix = 0x00,
+    Pattern1 = 0x01,
+    Blinker = 0x02,
+    Toad = 0x03,
+    Beacon = 0x04,
+    Glider = 0x05,
 }
 
 /// LED Matrix
@@ -81,6 +101,21 @@ pub struct LedMatrixSubcommand {
     /// Display a string (max 5 symbols)
     #[arg(long, num_args(0..6))]
     pub symbols: Option<Vec<String>>,
+
+    /// Start a game
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub start_game: Option<Game>,
+
+    /// Paramater for starting the game. Required for some games
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub game_param: Option<GameOfLifeStartParam>,
+
+    /// Stop the currently running game
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub stop_game: bool,
 
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]

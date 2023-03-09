@@ -8,34 +8,47 @@ use serialport::{SerialPort, SerialPortInfo};
 
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
-use crate::ledmatrix::Pattern;
+use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 const FRAMEWORK_VID: u16 = 0x32AC;
 const LED_MATRIX_PID: u16 = 0x0020;
 const B1_LCD_PID: u16 = 0x0021;
 
-// Commands
-const BRIGHTNESS: u8 = 0x00;
-const PERCENTAGE: u8 = 0x01;
-const PATTERN: u8 = 0x01;
-const BOOTLOADER: u8 = 0x02;
-const SLEEPING: u8 = 0x03;
-const ANIMATE: u8 = 0x04;
-const PANIC: u8 = 0x05;
-const DISPLAY_BW_IMAGE: u8 = 0x06;
-const SEND_COL: u8 = 0x07;
-const COMMIT_COLS: u8 = 0x08;
-const _B1_RESERVED: u8 = 0x09;
-const _START_GAME: u8 = 0x10;
-const _GAME_CONTROL: u8 = 0x11;
-const _GAME_STATUS: u8 = 0x12;
-const SET_COLOR: u8 = 0x13;
-const DISPLAY_ON: u8 = 0x14;
-const INVERT_SCREEN: u8 = 0x15;
-const SET_PIXEL_COLUMN: u8 = 0x16;
-const FLUSH_FRAMEBUFFER: u8 = 0x17;
-const VERSION: u8 = 0x20;
+// TODO: Use a shared enum with the firmware code
+#[derive(Clone, Copy)]
+#[repr(u8)]
+enum Command {
+    Brightness = 0x00,
+    Pattern = 0x01,
+    Bootloader = 0x02,
+    Sleeping = 0x03,
+    Animate = 0x04,
+    Panic = 0x05,
+    DisplayBwImage = 0x06,
+    SendCol = 0x07,
+    CommitCols = 0x08,
+    _B1Reserved = 0x09,
+    StartGame = 0x10,
+    GameControl = 0x11,
+    _GameStatus = 0x12,
+    SetColor = 0x13,
+    DisplayOn = 0x14,
+    InvertScreen = 0x15,
+    SetPixelColumn = 0x16,
+    FlushFramebuffer = 0x17,
+    Version = 0x20,
+}
+
+enum GameControlArg {
+    _Up = 0,
+    _Down = 1,
+    _Left = 2,
+    _Right = 3,
+    Exit = 4,
+    _SecondLeft = 5,
+    _SecondRight = 6,
+}
 
 const WIDTH: usize = 9;
 const HEIGHT: usize = 34;
@@ -123,7 +136,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     all_brightnesses_cmd(serialdev);
                 }
                 if ledmatrix_args.panic {
-                    simple_cmd(serialdev, PANIC, &[0x00]);
+                    simple_cmd(serialdev, Command::Panic, &[0x00]);
                 }
                 if let Some(image_path) = &ledmatrix_args.image_bw {
                     display_bw_image_cmd(serialdev, image_path);
@@ -145,6 +158,17 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     show_symbols(serialdev, symbols);
                 }
 
+                if let Some(game) = ledmatrix_args.start_game {
+                    start_game_cmd(serialdev, game, ledmatrix_args.game_param);
+                }
+
+                if ledmatrix_args.stop_game {
+                    simple_cmd(
+                        serialdev,
+                        Command::GameControl,
+                        &[GameControlArg::Exit as u8],
+                    );
+                }
                 if ledmatrix_args.version {
                     get_device_version(serialdev);
                 }
@@ -178,7 +202,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     sleeping_cmd(serialdev, sleeping_arg);
                 }
                 if b1display_args.panic {
-                    simple_cmd(serialdev, PANIC, &[0x00]);
+                    simple_cmd(serialdev, Command::Panic, &[0x00]);
                 }
                 if b1display_args.version {
                     get_device_version(serialdev);
@@ -207,7 +231,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     sleeping_cmd(serialdev, sleeping_arg);
                 }
                 if c1minimal_args.panic {
-                    simple_cmd(serialdev, PANIC, &[0x00]);
+                    simple_cmd(serialdev, Command::Panic, &[0x00]);
                 }
                 if c1minimal_args.version {
                     get_device_version(serialdev);
@@ -227,7 +251,7 @@ fn get_device_version(serialdev: &str) {
         .open()
         .expect("Failed to open port");
 
-    simple_cmd_port(&mut port, VERSION, &[]);
+    simple_cmd_port(&mut port, Command::Version, &[]);
 
     let mut response: Vec<u8> = vec![0; 32];
     port.read_exact(response.as_mut_slice())
@@ -245,24 +269,40 @@ fn get_device_version(serialdev: &str) {
 }
 
 fn bootloader_cmd(serialdev: &str) {
-    simple_cmd(serialdev, BOOTLOADER, &[0x00]);
+    simple_cmd(serialdev, Command::Bootloader, &[0x00]);
 }
 
 fn percentage_cmd(serialdev: &str, arg: u8) {
-    simple_cmd(serialdev, PERCENTAGE, &[0, arg]);
+    simple_cmd(
+        serialdev,
+        Command::Pattern,
+        &[Pattern::Percentage as u8, arg],
+    );
 }
 
 fn pattern_cmd(serialdev: &str, arg: Pattern) {
-    simple_cmd(serialdev, PATTERN, &[arg as u8]);
+    simple_cmd(serialdev, Command::Pattern, &[arg as u8]);
 }
 
-fn simple_cmd_multiple(serialdevs: &Vec<String>, command: u8, args: &[u8]) {
+fn start_game_cmd(serialdev: &str, game: Game, param: Option<GameOfLifeStartParam>) {
+    match (game, param) {
+        (Game::GameOfLife, Some(param)) => {
+            simple_cmd(serialdev, Command::StartGame, &[game as u8, param as u8])
+        }
+        (Game::GameOfLife, None) => {
+            println!("To start Game of Life, provide a --game-param");
+        }
+        (_, _) => simple_cmd(serialdev, Command::StartGame, &[game as u8]),
+    }
+}
+
+fn simple_cmd_multiple(serialdevs: &Vec<String>, command: Command, args: &[u8]) {
     for serialdev in serialdevs {
         simple_cmd(serialdev, command, args);
     }
 }
 
-fn simple_cmd(serialdev: &str, command: u8, args: &[u8]) {
+fn simple_cmd(serialdev: &str, command: Command, args: &[u8]) {
     let mut port = serialport::new(serialdev, 115_200)
         .timeout(SERIAL_TIMEOUT)
         .open()
@@ -271,10 +311,10 @@ fn simple_cmd(serialdev: &str, command: u8, args: &[u8]) {
     simple_cmd_port(&mut port, command, args);
 }
 
-fn simple_cmd_port(port: &mut Box<dyn SerialPort>, command: u8, args: &[u8]) {
+fn simple_cmd_port(port: &mut Box<dyn SerialPort>, command: Command, args: &[u8]) {
     let mut buffer: [u8; 64] = [0; 64];
     buffer[..2].copy_from_slice(FWK_MAGIC);
-    buffer[2] = command;
+    buffer[2] = command as u8;
     buffer[3..3 + args.len()].copy_from_slice(args);
     port.write_all(&buffer[..3 + args.len()])
         .expect("Write failed!");
@@ -287,9 +327,9 @@ fn sleeping_cmd(serialdev: &str, arg: Option<bool>) {
         .expect("Failed to open port");
 
     if let Some(goto_sleep) = arg {
-        simple_cmd_port(&mut port, SLEEPING, &[u8::from(goto_sleep)]);
+        simple_cmd_port(&mut port, Command::Sleeping, &[u8::from(goto_sleep)]);
     } else {
-        simple_cmd_port(&mut port, SLEEPING, &[]);
+        simple_cmd_port(&mut port, Command::Sleeping, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
         port.read_exact(response.as_mut_slice())
@@ -307,9 +347,9 @@ fn brightness_cmd(serialdev: &str, arg: Option<u8>) {
         .expect("Failed to open port");
 
     if let Some(brightness) = arg {
-        simple_cmd_port(&mut port, BRIGHTNESS, &[brightness]);
+        simple_cmd_port(&mut port, Command::Brightness, &[brightness]);
     } else {
-        simple_cmd_port(&mut port, BRIGHTNESS, &[]);
+        simple_cmd_port(&mut port, Command::Brightness, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
         port.read_exact(response.as_mut_slice())
@@ -327,9 +367,9 @@ fn animate_cmd(serialdev: &str, arg: Option<bool>) {
         .expect("Failed to open port");
 
     if let Some(animate) = arg {
-        simple_cmd_port(&mut port, ANIMATE, &[animate as u8]);
+        simple_cmd_port(&mut port, Command::Animate, &[animate as u8]);
     } else {
-        simple_cmd_port(&mut port, ANIMATE, &[]);
+        simple_cmd_port(&mut port, Command::Animate, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
         port.read_exact(response.as_mut_slice())
@@ -345,13 +385,13 @@ fn send_col(port: &mut Box<dyn SerialPort>, x: u8, vals: &[u8]) {
     let mut buffer: [u8; 64] = [0; 64];
     buffer[0] = x;
     buffer[1..vals.len() + 1].copy_from_slice(vals);
-    simple_cmd_port(port, SEND_COL, &buffer[0..vals.len() + 1]);
+    simple_cmd_port(port, Command::SendCol, &buffer[0..vals.len() + 1]);
 }
 
 /// Commit the changes from sending individual cols with send_col(), displaying the matrix.
 /// This makes sure that the matrix isn't partially updated.
 fn commit_cols(port: &mut Box<dyn SerialPort>) {
-    simple_cmd_port(port, COMMIT_COLS, &[]);
+    simple_cmd_port(port, Command::CommitCols, &[]);
 }
 
 ///Increase the brightness with each pixel.
@@ -378,9 +418,9 @@ fn all_brightnesses_cmd(serialdev: &str) {
 fn blinking_cmd(serialdevs: &Vec<String>) {
     let duration = Duration::from_millis(500);
     loop {
-        simple_cmd_multiple(serialdevs, BRIGHTNESS, &[0]);
+        simple_cmd_multiple(serialdevs, Command::Brightness, &[0]);
         thread::sleep(duration);
-        simple_cmd_multiple(serialdevs, BRIGHTNESS, &[200]);
+        simple_cmd_multiple(serialdevs, Command::Brightness, &[200]);
         thread::sleep(duration);
     }
 }
@@ -390,25 +430,25 @@ fn breathing_cmd(serialdevs: &Vec<String>) {
         // Go quickly from 250 to 50
         for i in 0..10 {
             thread::sleep(Duration::from_millis(30));
-            simple_cmd_multiple(serialdevs, BRIGHTNESS, &[250 - i * 20]);
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[250 - i * 20]);
         }
 
         // Go slowly from 50 to 0
         for i in 0..10 {
             thread::sleep(Duration::from_millis(60));
-            simple_cmd_multiple(serialdevs, BRIGHTNESS, &[50 - i * 5]);
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 - i * 5]);
         }
 
         // Go slowly from 0 to 50
         for i in 0..10 {
             thread::sleep(Duration::from_millis(60));
-            simple_cmd_multiple(serialdevs, BRIGHTNESS, &[i * 5]);
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[i * 5]);
         }
 
         // Go quickly from 50 to 250
         for i in 0..10 {
             thread::sleep(Duration::from_millis(30));
-            simple_cmd_multiple(serialdevs, BRIGHTNESS, &[50 + i * 20]);
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 + i * 20]);
         }
     }
 }
@@ -437,7 +477,7 @@ fn display_bw_image_cmd(serialdev: &str, image_path: &str) {
         }
     }
 
-    simple_cmd(serialdev, DISPLAY_BW_IMAGE, &vals);
+    simple_cmd(serialdev, Command::DisplayBwImage, &vals);
 }
 
 // Calculate pixel brightness from an RGB triple
@@ -543,7 +583,7 @@ fn render_matrix(serialdev: &str, matrix: &[[u8; 34]; 9]) {
         }
     }
 
-    simple_cmd(serialdev, DISPLAY_BW_IMAGE, &vals);
+    simple_cmd(serialdev, Command::DisplayBwImage, &vals);
 }
 
 /// Render the current time and display.
@@ -584,7 +624,7 @@ fn show_font(serialdev: &str, font_items: &[Vec<u8>]) {
         }
     }
 
-    simple_cmd(serialdev, DISPLAY_BW_IMAGE, &vals);
+    simple_cmd(serialdev, Command::DisplayBwImage, &vals);
 }
 
 /// Render a list of up to five symbols
@@ -596,11 +636,11 @@ fn show_symbols(serialdev: &str, symbols: &Vec<String>) {
 }
 
 fn display_on_cmd(serialdev: &str, display_on: bool) {
-    simple_cmd(serialdev, DISPLAY_ON, &[display_on as u8]);
+    simple_cmd(serialdev, Command::DisplayOn, &[display_on as u8]);
 }
 
 fn invert_screen_cmd(serialdev: &str, invert_on: bool) {
-    simple_cmd(serialdev, INVERT_SCREEN, &[invert_on as u8]);
+    simple_cmd(serialdev, Command::InvertScreen, &[invert_on as u8]);
 }
 
 fn set_color_cmd(serialdev: &str, color: Color) {
@@ -614,7 +654,7 @@ fn set_color_cmd(serialdev: &str, color: Color) {
         Color::Cyan => &[0x00, 0xFF, 0xFF],
         Color::Purple => &[0xFF, 0x00, 0xFF],
     };
-    simple_cmd(serialdev, SET_COLOR, args);
+    simple_cmd(serialdev, Command::SetColor, args);
 }
 
 /// Display an image in black and white
@@ -656,8 +696,8 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
             }
         }
 
-        simple_cmd(serialdev, SET_PIXEL_COLUMN, &vals);
+        simple_cmd(serialdev, Command::SetPixelColumn, &vals);
     }
 
-    simple_cmd(serialdev, FLUSH_FRAMEBUFFER, &[]);
+    simple_cmd(serialdev, Command::FlushFramebuffer, &[]);
 }

@@ -65,10 +65,8 @@ pub fn handle_control(state: &mut State, arg: &GameControlArg) {
                     pong_state.paddles.1 -= 1;
                 }
             }
-            //GameControlArg::Exit => {
-            _ => {
-                // TODO
-            }
+            GameControlArg::Exit => state.game = None,
+            _ => {}
         }
     }
 }
