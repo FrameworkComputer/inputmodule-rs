@@ -49,10 +49,8 @@ pub fn handle_control(state: &mut State, arg: &GameControlArg) {
             GameControlArg::Down => snake_state.direction = HeadDirection::Down,
             GameControlArg::Left => snake_state.direction = HeadDirection::Left,
             GameControlArg::Right => snake_state.direction = HeadDirection::Right,
-            //GameControlArg::Exit => {
-            _ => {
-                // TODO
-            }
+            GameControlArg::Exit => state.game = None,
+            _ => {}
         }
     }
 }
