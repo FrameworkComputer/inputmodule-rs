@@ -8,7 +8,7 @@ use serialport::{SerialPort, SerialPortInfo};
 
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
-use crate::ledmatrix::{Game, Pattern};
+use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 const FRAMEWORK_VID: u16 = 0x32AC;
@@ -30,7 +30,7 @@ enum Command {
     CommitCols = 0x08,
     _B1Reserved = 0x09,
     StartGame = 0x10,
-    _GameControl = 0x11,
+    GameControl = 0x11,
     _GameStatus = 0x12,
     SetColor = 0x13,
     DisplayOn = 0x14,
@@ -38,6 +38,16 @@ enum Command {
     SetPixelColumn = 0x16,
     FlushFramebuffer = 0x17,
     Version = 0x20,
+}
+
+enum GameControlArg {
+    _Up = 0,
+    _Down = 1,
+    _Left = 2,
+    _Right = 3,
+    Exit = 4,
+    _SecondLeft = 5,
+    _SecondRight = 6,
 }
 
 const WIDTH: usize = 9;
@@ -149,9 +159,16 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
 
                 if let Some(game) = ledmatrix_args.start_game {
-                    start_game_cmd(serialdev, game);
+                    start_game_cmd(serialdev, game, ledmatrix_args.game_param);
                 }
 
+                if ledmatrix_args.stop_game {
+                    simple_cmd(
+                        serialdev,
+                        Command::GameControl,
+                        &[GameControlArg::Exit as u8],
+                    );
+                }
                 if ledmatrix_args.version {
                     get_device_version(serialdev);
                 }
@@ -267,8 +284,16 @@ fn pattern_cmd(serialdev: &str, arg: Pattern) {
     simple_cmd(serialdev, Command::Pattern, &[arg as u8]);
 }
 
-fn start_game_cmd(serialdev: &str, arg: Game) {
-    simple_cmd(serialdev, Command::StartGame, &[arg as u8]);
+fn start_game_cmd(serialdev: &str, game: Game, param: Option<GameOfLifeStartParam>) {
+    match (game, param) {
+        (Game::GameOfLife, Some(param)) => {
+            simple_cmd(serialdev, Command::StartGame, &[game as u8, param as u8])
+        }
+        (Game::GameOfLife, None) => {
+            println!("To start Game of Life, provide a --game-param");
+        }
+        (_, _) => simple_cmd(serialdev, Command::StartGame, &[game as u8]),
+    }
 }
 
 fn simple_cmd_multiple(serialdevs: &Vec<String>, command: Command, args: &[u8]) {

@@ -23,6 +23,16 @@ pub enum Game {
     GameOfLife = 3,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
+pub enum GameOfLifeStartParam {
+    CurrentMatrix = 0x00,
+    Pattern1 = 0x01,
+    Blinker = 0x02,
+    Toad = 0x03,
+    Beacon = 0x04,
+    Glider = 0x05,
+}
+
 /// LED Matrix
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -96,6 +106,16 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     #[clap(value_enum)]
     pub start_game: Option<Game>,
+
+    /// Paramater for starting the game. Required for some games
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub game_param: Option<GameOfLifeStartParam>,
+
+    /// Stop the currently running game
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub stop_game: bool,
 
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]
