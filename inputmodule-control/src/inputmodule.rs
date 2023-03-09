@@ -81,29 +81,43 @@ fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<
 
 /// Commands that interact with serial devices
 pub fn serial_commands(args: &crate::ClapCli) {
-    let ports = serialport::available_ports().expect("No ports found!");
-    if args.list || args.verbose {
-        for p in &ports {
-            //println!("{}", p.port_name);
-            println!("{p:?}");
+    let mut serialdevs: Vec<String>;
+    loop {
+        let ports = serialport::available_ports().expect("No ports found!");
+        if args.list || args.verbose {
+            for p in &ports {
+                // TODO: Print prettier
+                //println!("{}", p.port_name);
+                println!("{p:?}");
+            }
+        }
+        serialdevs = match &args.command {
+            Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
+                find_serialdevs(&ports, &ledmatrix_args.serial_dev)
+            }
+            Some(crate::Commands::B1Display(ledmatrix_args)) => {
+                find_serialdevs(&ports, &ledmatrix_args.serial_dev)
+            }
+            Some(crate::Commands::C1Minimal(c1minimal_args)) => {
+                find_serialdevs(&ports, &c1minimal_args.serial_dev)
+            }
+            None => vec![],
+        };
+        if serialdevs.is_empty() {
+            if args.wait_for_device {
+                // Try again after short wait
+                thread::sleep(Duration::from_millis(100));
+                continue;
+            } else {
+                println!(
+                    "Failed to find serial devivce. Please manually specify with --serial-dev"
+                );
+                return;
+            }
+        } else {
+            break;
         }
     }
-    let serialdevs = match &args.command {
-        Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
-            find_serialdevs(&ports, &ledmatrix_args.serial_dev)
-        }
-        Some(crate::Commands::B1Display(ledmatrix_args)) => {
-            find_serialdevs(&ports, &ledmatrix_args.serial_dev)
-        }
-        Some(crate::Commands::C1Minimal(c1minimal_args)) => {
-            find_serialdevs(&ports, &c1minimal_args.serial_dev)
-        }
-        None => vec![],
-    };
-    if serialdevs.is_empty() {
-        println!("Failed to find serial device. Please manually specify with --serial-dev");
-        return;
-    };
 
     match &args.command {
         // TODO: Handle generic commands without code deduplication

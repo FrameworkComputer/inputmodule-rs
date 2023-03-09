@@ -41,6 +41,10 @@ pub struct ClapCli {
     /// PID (Product ID) in hex digits
     #[arg(long)]
     pid: Option<String>,
+
+    /// Retry connecting to the device until it works
+    #[arg(long)]
+    wait_for_device: bool,
 }
 
 fn main() {
