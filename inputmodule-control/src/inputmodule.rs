@@ -4,7 +4,7 @@ use std::time::Duration;
 use chrono::Local;
 use image::{io::Reader as ImageReader, Luma};
 use rand::prelude::*;
-use serialport::{SerialPort, SerialPortInfo};
+use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
@@ -55,7 +55,7 @@ const HEIGHT: usize = 34;
 
 const SERIAL_TIMEOUT: Duration = Duration::from_millis(20);
 
-fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<String> {
+fn match_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<String> {
     if let Some(requested) = requested {
         for p in ports {
             if requested == &p.port_name {
@@ -65,9 +65,9 @@ fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<
         vec![]
     } else {
         let mut compatible_devs = vec![];
-        // If nothing requested, fall back to a generic one or the first supported Framework USB device
+        // Find all supported Framework devices
         for p in ports {
-            if let serialport::SerialPortType::UsbPort(usbinfo) = &p.port_type {
+            if let SerialPortType::UsbPort(usbinfo) = &p.port_type {
                 if usbinfo.vid == FRAMEWORK_VID
                     && [LED_MATRIX_PID, B1_LCD_PID].contains(&usbinfo.pid)
                 {
@@ -79,44 +79,66 @@ fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<
     }
 }
 
-/// Commands that interact with serial devices
-pub fn serial_commands(args: &crate::ClapCli) {
+pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> Vec<String> {
     let mut serialdevs: Vec<String>;
     loop {
         let ports = serialport::available_ports().expect("No ports found!");
         if args.list || args.verbose {
             for p in &ports {
-                // TODO: Print prettier
-                //println!("{}", p.port_name);
-                println!("{p:?}");
+                match &p.port_type {
+                    SerialPortType::UsbPort(usbinfo) => {
+                        println!("{}", p.port_name);
+                        println!("  VID     {:#06X}", usbinfo.vid);
+                        println!("  PID     {:#06X}", usbinfo.pid);
+                        if let Some(sn) = &usbinfo.serial_number {
+                            println!("  SN      {}", sn);
+                        }
+                        if let Some(product) = &usbinfo.product {
+                            // TODO: Seems to replace the spaces with underscore, not sure why
+                            println!("  Product {}", product);
+                        }
+                    }
+                    _ => {
+                        //println!("{}", p.port_name);
+                        //println!("  Unknown (PCI Port)");
+                    }
+                }
             }
         }
         serialdevs = match &args.command {
+            // TODO: Must be the correct device type
             Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
-                find_serialdevs(&ports, &ledmatrix_args.serial_dev)
+                match_serialdevs(&ports, &ledmatrix_args.serial_dev)
             }
             Some(crate::Commands::B1Display(ledmatrix_args)) => {
-                find_serialdevs(&ports, &ledmatrix_args.serial_dev)
+                match_serialdevs(&ports, &ledmatrix_args.serial_dev)
             }
             Some(crate::Commands::C1Minimal(c1minimal_args)) => {
-                find_serialdevs(&ports, &c1minimal_args.serial_dev)
+                match_serialdevs(&ports, &c1minimal_args.serial_dev)
             }
             None => vec![],
         };
         if serialdevs.is_empty() {
-            if args.wait_for_device {
+            if wait_for_device {
                 // Try again after short wait
                 thread::sleep(Duration::from_millis(100));
                 continue;
             } else {
-                println!(
-                    "Failed to find serial devivce. Please manually specify with --serial-dev"
-                );
-                return;
+                return Vec::new();
             }
         } else {
             break;
         }
+    }
+    serialdevs
+}
+
+/// Commands that interact with serial devices
+pub fn serial_commands(args: &crate::ClapCli) {
+    let serialdevs: Vec<String> = find_serialdevs(args, args.wait_for_device);
+    if serialdevs.is_empty() {
+        println!("Failed to find serial devivce. Please manually specify with --serial-dev");
+        return;
     }
 
     match &args.command {

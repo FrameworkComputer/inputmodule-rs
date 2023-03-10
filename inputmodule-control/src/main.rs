@@ -6,6 +6,7 @@ mod inputmodule;
 mod ledmatrix;
 
 use clap::{Parser, Subcommand};
+use inputmodule::find_serialdevs;
 
 use crate::b1display::B1DisplaySubcommand;
 use crate::c1minimal::C1MinimalSubcommand;
@@ -55,6 +56,10 @@ fn main() {
         Some(Commands::B1Display(_)) => serial_commands(&args),
         Some(Commands::LedMatrix(_)) => serial_commands(&args),
         Some(Commands::C1Minimal(_)) => serial_commands(&args),
-        None => panic!("Not allowed"),
+        None => {
+            if args.list {
+                find_serialdevs(&args, false);
+            }
+        }
     }
 }
