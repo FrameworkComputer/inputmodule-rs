@@ -106,19 +106,7 @@ pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> Vec<Stri
                 }
             }
         }
-        serialdevs = match &args.command {
-            // TODO: Must be the correct device type
-            Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
-                match_serialdevs(&ports, &ledmatrix_args.serial_dev)
-            }
-            Some(crate::Commands::B1Display(ledmatrix_args)) => {
-                match_serialdevs(&ports, &ledmatrix_args.serial_dev)
-            }
-            Some(crate::Commands::C1Minimal(c1minimal_args)) => {
-                match_serialdevs(&ports, &c1minimal_args.serial_dev)
-            }
-            None => vec![],
-        };
+        serialdevs = match_serialdevs(&ports, &args.serial_dev);
         if serialdevs.is_empty() {
             if wait_for_device {
                 // Try again after short wait

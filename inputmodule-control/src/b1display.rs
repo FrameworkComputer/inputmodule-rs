@@ -22,10 +22,6 @@ pub struct B1DisplaySubcommand {
     #[arg(long)]
     pub panic: bool,
 
-    /// Serial device, like /dev/ttyACM0 or COM0
-    #[arg(long)]
-    pub serial_dev: Option<String>,
-
     /// Get the device version
     #[arg(short, long)]
     pub version: bool,

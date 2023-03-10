@@ -35,13 +35,9 @@ pub struct ClapCli {
     #[arg(short, long)]
     verbose: bool,
 
-    /// VID (Vendor ID) in hex digits
+    /// Serial device, like /dev/ttyACM0 or COM0
     #[arg(long)]
-    vid: Option<String>,
-
-    /// PID (Product ID) in hex digits
-    #[arg(long)]
-    pid: Option<String>,
+    pub serial_dev: Option<String>,
 
     /// Retry connecting to the device until it works
     #[arg(long)]
@@ -53,9 +49,7 @@ fn main() {
     let args = ClapCli::parse_from(args);
 
     match args.command {
-        Some(Commands::B1Display(_)) => serial_commands(&args),
-        Some(Commands::LedMatrix(_)) => serial_commands(&args),
-        Some(Commands::C1Minimal(_)) => serial_commands(&args),
+        Some(_) => serial_commands(&args),
         None => {
             if args.list {
                 find_serialdevs(&args, false);
