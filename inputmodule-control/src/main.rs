@@ -1,4 +1,5 @@
 #![allow(clippy::needless_range_loop)]
+#![allow(clippy::single_match)]
 mod b1display;
 mod c1minimal;
 mod font;
@@ -6,10 +7,11 @@ mod inputmodule;
 mod ledmatrix;
 
 use clap::{Parser, Subcommand};
+use inputmodule::find_serialdevs;
 
 use crate::b1display::B1DisplaySubcommand;
 use crate::c1minimal::C1MinimalSubcommand;
-use crate::inputmodule::serial_commands;
+use crate::inputmodule::{serial_commands, B1_LCD_PID, LED_MATRIX_PID};
 use crate::ledmatrix::LedMatrixSubcommand;
 
 #[derive(Subcommand, Debug)]
@@ -17,6 +19,16 @@ enum Commands {
     LedMatrix(LedMatrixSubcommand),
     B1Display(B1DisplaySubcommand),
     C1Minimal(C1MinimalSubcommand),
+}
+
+impl Commands {
+    pub fn to_pid(&self) -> u16 {
+        match self {
+            Self::LedMatrix(_) => LED_MATRIX_PID,
+            Self::B1Display(_) => B1_LCD_PID,
+            Self::C1Minimal(_) => 0x22,
+        }
+    }
 }
 
 /// RAW HID and VIA commandline for QMK devices
@@ -34,13 +46,13 @@ pub struct ClapCli {
     #[arg(short, long)]
     verbose: bool,
 
-    /// VID (Vendor ID) in hex digits
+    /// Serial device, like /dev/ttyACM0 or COM0
     #[arg(long)]
-    vid: Option<String>,
+    pub serial_dev: Option<String>,
 
-    /// PID (Product ID) in hex digits
+    /// Retry connecting to the device until it works
     #[arg(long)]
-    pid: Option<String>,
+    wait_for_device: bool,
 }
 
 fn main() {
@@ -48,9 +60,11 @@ fn main() {
     let args = ClapCli::parse_from(args);
 
     match args.command {
-        Some(Commands::B1Display(_)) => serial_commands(&args),
-        Some(Commands::LedMatrix(_)) => serial_commands(&args),
-        Some(Commands::C1Minimal(_)) => serial_commands(&args),
-        None => panic!("Not allowed"),
+        Some(_) => serial_commands(&args),
+        None => {
+            if args.list {
+                find_serialdevs(&args, false);
+            }
+        }
     }
 }

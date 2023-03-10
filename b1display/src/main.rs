@@ -182,6 +182,8 @@ fn main() -> ! {
 
     let mut state = B1DIsplayState {
         sleeping: SimpleSleepState::Awake,
+        screen_inverted: false,
+        screen_on: true,
     };
 
     let mut said_hello = false;
@@ -240,21 +242,22 @@ fn main() -> ! {
                             };
                         }
                         (Some(command), SimpleSleepState::Awake) => {
-                            let mut text: String<64> = String::new();
-                            write!(
-                                &mut text,
-                                "Handling command {}:{}:{}:{}\r\n",
-                                buf[0], buf[1], buf[2], buf[3]
-                            )
-                            .unwrap();
-                            let _ = serial.write(text.as_bytes());
-
                             // While sleeping no command is handled, except waking up
                             if let Some(response) =
                                 handle_command(&command, &mut state, logo_rect, &mut disp)
                             {
                                 let _ = serial.write(&response);
                             };
+                            // Must write AFTER writing response, otherwise the
+                            // client interprets this debug message as the response
+                            let mut text: String<64> = String::new();
+                            write!(
+                                &mut text,
+                                "Handled command {}:{}:{}:{}\r\n",
+                                buf[0], buf[1], buf[2], buf[3]
+                            )
+                            .unwrap();
+                            let _ = serial.write(text.as_bytes());
                         }
                         _ => {}
                     }

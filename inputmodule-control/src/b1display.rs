@@ -1,5 +1,11 @@
 use clap::Parser;
 
+#[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
+pub enum B1Pattern {
+    White,
+    Black,
+}
+
 /// B1 Display
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -16,10 +22,6 @@ pub struct B1DisplaySubcommand {
     #[arg(long)]
     pub panic: bool,
 
-    /// Serial device, like /dev/ttyACM0 or COM0
-    #[arg(long)]
-    pub serial_dev: Option<String>,
-
     /// Get the device version
     #[arg(short, long)]
     pub version: bool,
@@ -27,12 +29,16 @@ pub struct B1DisplaySubcommand {
     /// Turn display on/off
     // TODO: Allow getting current state
     #[arg(long)]
-    pub display_on: Option<bool>,
+    pub display_on: Option<Option<bool>>,
+
+    /// Display a simple pattern
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub pattern: Option<B1Pattern>,
 
     /// Invert screen on/off
-    // TODO: Allow getting current state
     #[arg(long)]
-    pub invert_screen: Option<bool>,
+    pub invert_screen: Option<Option<bool>>,
 
     /// Display black&white image (300x400px)
     #[arg(long)]

@@ -1,106 +1,122 @@
 # Lotus Input Module Firmware
 
-See below sections for LED Matrix, LCD Display and C1 Minimal module details.
+This repository contains both the firmware for the Lotus input modules, as well
+as the tool to control them.
 
-Rust project setup based off of: https://github.com/rp-rs/rp2040-project-template
+Rust firmware project setup based off of: https://github.com/rp-rs/rp2040-project-template
 
-## Features
+## Modules
 
-- Reset into bootloader when firmware crashes/panics
+See pages of the individual modules for details about how they work and how
+they're controlled.
+
+- [LED Matrix](ledmatrix/README.md)
+- [2nd Display](b1display/README.md)
+- [Minimal C1 Input Module](c1minimal/README.md)
+
+## Generic Features
+
+All modules are built with an RP2040 microcontroller
+Features that all modules share
+
+- Firmware written in bare-metal Rust
+- Reset into RP2040 bootloader when firmware crashes/panics
+- Sleep Mode to save power
 - API over USB ACM Serial Port - Requires no Drivers on Windows and Linux
-  - Display various pre-programmed patterns
-  - Light up a percentage of the screen
-  - Change brightness
-  - Send a black/white image to the display
-  - Send a greyscale image to the display
   - Go to sleep
   - Reset into bootloader
-  - Scroll and loop the display content vertically
-  - A commandline script and graphical application to control it
-- Sleep Mode
-  - Transition slowly turns off/on the LEDs
-  - Current hardware does not have the SLEEP# GPIO connected, can't sleep automatically
-
-Future features:
-
-- API
-  - Send a greyscale image to display
-  - Read current system state (brightness, sleeping, ...)
+  - Control and read module state (brightness, displayed image, ...)
 
 ## Control from the host
 
-Requirements: Python, [PySimpleGUI](https://www.pysimplegui.org) and optionally [pillow](https://pillow.readthedocs.io/en/stable/index.html)
+To build your own application see the: [API command documentation](commands.md)
 
-Use `control.py`. Either the commandline, see `control.py --help` or the graphical version: `control.py --gui`
+Or use our `inputmodule-control` app. Optionally there are is also a 
+[Python script](python.md).
 
-```
-options:
-  -h, --help            show this help message and exit
-  --bootloader          Jump to the bootloader to flash new firmware
-  --sleep, --no-sleep   Simulate the host going to sleep or waking up
-  --brightness BRIGHTNESS
-                        Adjust the brightness. Value 0-255
-  --animate, --no-animate
-                        Start/stop vertical scrolling
-  --pattern {full,lotus,gradient,double-gradient,zigzag,panic,lotus2}
-                        Display a pattern
-  --image IMAGE         Display a PNG or GIF image in black and white only)
-  --image-grey IMAGE_GREY
-                        Display a PNG or GIF image in greyscale
-  --percentage PERCENTAGE
-                        Fill a percentage of the screen
-  --clock               Display the current time
-  --string STRING       Display a string or number, like FPS
-  --symbols SYMBOLS [SYMBOLS ...]
-                        Show symbols (degF, degC, :), snow, cloud, ...)
-  --gui                 Launch the graphical version of the program
-  --blink               Blink the current pattern
-  --breathing           Breathing of the current pattern
-  --eq EQ [EQ ...]      Equalizer
-  --random-eq           Random Equalizer
-  --wpm                 WPM Demo
-  --snake               Snake
-  --all-brightnesses    Show every pixel in a different brightness
-  --set-color {white,black,red,green,blue,cyan,yellow,purple}
-                        Set RGB color (C1 Minimal Input Module)
-  --get-color           Get RGB color (C1 Minimal Input Module)
-  -v, --version         Get device version
-  --serial-dev SERIAL_DEV
-                        Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
-```
+For device specific commands, see their individual documentation pages.
 
-Examples
+Common commands:
+
+###### Listing available devices
 
 ```sh
-# Launch graphical application
-./control.py --gui
-
-# Show current time and keep updating it
-./control.py --clock
-
-# Draw PNG or GIF
-./control.py --image stripe.gif
-./control.py --image stripe.png
-
-# Change brightness (0-255)
-./control.py --brightness 50
+> inputmodule-control --list
+/dev/ttyACM0
+  VID     0x32AC
+  PID     0x0020
+  SN      FRAKDEAM0020110001
+  Product Lotus_LED_Matrix
+/dev/ttyACM1
+  VID     0x32AC
+  PID     0x0021
+  SN      FRAKDEAM0000000000
+  Product Lotus_B1_Display
 ```
 
-## Control via Rust binary
+###### Apply command to single device
 
-Currently have to specify the build target because it's not possible to specify a per package build target.
-Tracking issue: https://github.com/rust-lang/cargo/issues/9406
+By default a command will be sent to all devices that can be found, to apply it
+to a single device, specify the COM port.
+In this example the command is targeted at `b1-display`, so it will only apply
+to this module type.
 
 ```
-> cargo build --target x86_64-unknown-linux-gnu -p inputmodule-control
-> cargo run --target x86_64-unknown-linux-gnu -p inputmodule-control
+# Example on Linux
+> inputmodule-control --serial-dev /dev/ttyACM0 b1-display --pattern black
+
+# Example on Windows
+> inputmodule-control.exe --serial-dev COM5 b1-display --pattern black
 ```
 
-## Building
+###### Send command when device connects
+
+By default the app tries to connect with the device and aborts if it can't
+connect. But you might want to start the app, have it wait until the device is
+connected and then send the command.
+
+```
+> inputmodule-control b1-display --pattern black
+Failed to find serial devivce. Please manually specify with --serial-dev
+
+# No failure, waits until the device is connected, sends command and exits
+> inputmodule-control --wait-for-device b1-display --pattern black
+
+# If the device is already connected, it does nothing, just wait 1s.
+# This means you can run this command by a system service and restart it when
+# it finishes. Then it will only ever do anything if the device reconnects.
+> inputmodule-control --wait-for-device b1-display --pattern black
+Device already present. No need to wait. Not executing command.
+```
+
+## Update the Firmware
+
+First, put the module into bootloader mode.
+
+This can be done either by pressing the bootsel button while plugging it in or
+by using one of the following commands: 
+
+```sh
+inputmodule-control led-matrix --bootloader
+inputmodule-control b1-display --bootloader
+inputmodule-control c1-minimal --bootloader
+```
+
+Then the module will present itself in the same way as a USB thumb drive.
+Copy the UF2 firmware file onto it and the device will flash and reset automatically.
+Alternatively when building from source, run one of the following commands:
+
+```sh
+cargo run -p ledmatrix
+cargo run -p b1display
+cargo run -p c1minimal
+```
+
+## Building the firmware
 
 Dependencies: Rust
 
-Prepare Rust toolchain:
+Prepare Rust toolchain (once):
 
 ```sh
 rustup target install thumbv6m-none-eabi
@@ -116,36 +132,33 @@ cargo build -p b1display
 cargo build -p c1minimal
 ```
 
-Generate UF2 file:
+Generate the UF2 update file:
 
 ```sh
 elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
 elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1dipslay.uf2
-elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display c1minimal.uf2
+elf2uf2-rs target/thumbv6m-none-eabi/debug/c1minimal c1minimal.uf2
 ```
 
-## Flashing
+## Building the Application
 
-First, put the module into bootloader mode, which will expose a filesystem
+Dependencies: Rust, pkg-config, libudev
 
-This can be done by pressing the bootsel button while plugging it in.
+Currently have to specify the build target because it's not possible to specify a per package build target.
+Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 
-```sh
-cargo run -p ledmatrix
-cargo run -p b1display
-cargo run -p c1minimal
 ```
-
-Or by copying the above generated UF2 file to the partition mounted when the
-module is in the bootloder.
+> cargo build --target x86_64-unknown-linux-gnu -p inputmodule-control
+> cargo run --target x86_64-unknown-linux-gnu -p inputmodule-control
+```
 
 ### Check the firmware version of the device
 
-###### In-band using `control.py`
+###### In-band using commandline
 
 ```sh
-> ./control.py --version
-Device version: 0.1.2
+> inputmodule-control b1-display --version
+Device Version: 0.1.3
 ```
 
 ###### By looking at the USB descriptor
@@ -168,31 +181,4 @@ Additionally the panic message is written to flash, which can be read as follows
 ```sh
 sudo picotool save -r 0x15000000 0x15004000 message.bin
 strings message.bin | head
-```
-
-## LED Matrix
-
-It's a 9x34 (306) LED matrix, controlled by RP2040 MCU and IS31FL3741A LED controller.
-
-Connection to the host system is via USB 2.0 and currently there is a USB Serial API to control it without reflashing.
-
-## B1 Display
-
-## C1 Minimal Input Module
-
-It's a very minimal input module. Many GPIO pins are exposed so that headers
-can be soldered onto them. Additionally there are pads for a WS2812/Neopixel
-compatible RGB LED.
-
-When booting up this LED is lit in green color.
-Its color and brightness can be controlled via the commands:
-
-```sh
-> ./control.py --brightness 255
-> ./control.py --get-brightness
-Current brightness: 255
-
-> ./control.py --set-color yellow
-> ./control.py --get-color
-Current color: RGB:(255, 255, 0)
 ```

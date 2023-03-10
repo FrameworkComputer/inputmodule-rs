@@ -4,16 +4,17 @@ use std::time::Duration;
 use chrono::Local;
 use image::{io::Reader as ImageReader, Luma};
 use rand::prelude::*;
-use serialport::{SerialPort, SerialPortInfo};
+use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
+use crate::b1display::B1Pattern;
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
 use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
-const FRAMEWORK_VID: u16 = 0x32AC;
-const LED_MATRIX_PID: u16 = 0x0020;
-const B1_LCD_PID: u16 = 0x0021;
+pub const FRAMEWORK_VID: u16 = 0x32AC;
+pub const LED_MATRIX_PID: u16 = 0x0020;
+pub const B1_LCD_PID: u16 = 0x0021;
 
 // TODO: Use a shared enum with the firmware code
 #[derive(Clone, Copy)]
@@ -55,7 +56,11 @@ const HEIGHT: usize = 34;
 
 const SERIAL_TIMEOUT: Duration = Duration::from_millis(20);
 
-fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<String> {
+fn match_serialdevs(
+    ports: &[SerialPortInfo],
+    requested: &Option<String>,
+    pid: Option<u16>,
+) -> Vec<String> {
     if let Some(requested) = requested {
         for p in ports {
             if requested == &p.port_name {
@@ -65,12 +70,16 @@ fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<
         vec![]
     } else {
         let mut compatible_devs = vec![];
-        // If nothing requested, fall back to a generic one or the first supported Framework USB device
+        let pids = if let Some(pid) = pid {
+            vec![pid]
+        } else {
+            // By default accept any type
+            vec![LED_MATRIX_PID, B1_LCD_PID, 0x22, 0xFF]
+        };
+        // Find all supported Framework devices
         for p in ports {
-            if let serialport::SerialPortType::UsbPort(usbinfo) = &p.port_type {
-                if usbinfo.vid == FRAMEWORK_VID
-                    && [LED_MATRIX_PID, B1_LCD_PID].contains(&usbinfo.pid)
-                {
+            if let SerialPortType::UsbPort(usbinfo) = &p.port_type {
+                if usbinfo.vid == FRAMEWORK_VID && pids.contains(&usbinfo.pid) {
                     compatible_devs.push(p.port_name.clone());
                 }
             }
@@ -79,31 +88,68 @@ fn find_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<
     }
 }
 
-/// Commands that interact with serial devices
-pub fn serial_commands(args: &crate::ClapCli) {
-    let ports = serialport::available_ports().expect("No ports found!");
-    if args.list || args.verbose {
-        for p in &ports {
-            //println!("{}", p.port_name);
-            println!("{p:?}");
+pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<String>, bool) {
+    let mut serialdevs: Vec<String>;
+    let mut waited = false;
+    loop {
+        let ports = serialport::available_ports().expect("No ports found!");
+        if args.list || args.verbose {
+            for p in &ports {
+                match &p.port_type {
+                    SerialPortType::UsbPort(usbinfo) => {
+                        println!("{}", p.port_name);
+                        println!("  VID     {:#06X}", usbinfo.vid);
+                        println!("  PID     {:#06X}", usbinfo.pid);
+                        if let Some(sn) = &usbinfo.serial_number {
+                            println!("  SN      {}", sn);
+                        }
+                        if let Some(product) = &usbinfo.product {
+                            // TODO: Seems to replace the spaces with underscore, not sure why
+                            println!("  Product {}", product);
+                        }
+                    }
+                    _ => {
+                        //println!("{}", p.port_name);
+                        //println!("  Unknown (PCI Port)");
+                    }
+                }
+            }
+        }
+        serialdevs = match_serialdevs(
+            &ports,
+            &args.serial_dev,
+            args.command.as_ref().map(|x| x.to_pid()),
+        );
+        if serialdevs.is_empty() {
+            if wait_for_device {
+                // Waited at least once, that means the device was not present
+                // when the program started
+                waited = true;
+
+                // Try again after short wait
+                thread::sleep(Duration::from_millis(100));
+                continue;
+            } else {
+                return (vec![], waited);
+            }
+        } else {
+            break;
         }
     }
-    let serialdevs = match &args.command {
-        Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
-            find_serialdevs(&ports, &ledmatrix_args.serial_dev)
-        }
-        Some(crate::Commands::B1Display(ledmatrix_args)) => {
-            find_serialdevs(&ports, &ledmatrix_args.serial_dev)
-        }
-        Some(crate::Commands::C1Minimal(c1minimal_args)) => {
-            find_serialdevs(&ports, &c1minimal_args.serial_dev)
-        }
-        None => vec![],
-    };
+    (serialdevs, waited)
+}
+
+/// Commands that interact with serial devices
+pub fn serial_commands(args: &crate::ClapCli) {
+    let (serialdevs, waited): (Vec<String>, bool) = find_serialdevs(args, args.wait_for_device);
     if serialdevs.is_empty() {
-        println!("Failed to find serial device. Please manually specify with --serial-dev");
+        println!("Failed to find serial devivce. Please manually specify with --serial-dev");
         return;
-    };
+    } else if args.wait_for_device && !waited {
+        println!("Device already present. No need to wait. Not executing command. Sleep 1s");
+        thread::sleep(Duration::from_millis(1000));
+        return;
+    }
 
     match &args.command {
         // TODO: Handle generic commands without code deduplication
@@ -216,6 +262,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 if let Some(image_path) = &b1display_args.image_bw {
                     b1display_bw_image_cmd(serialdev, image_path);
                 }
+                if let Some(pattern) = b1display_args.pattern {
+                    b1_display_pattern(serialdev, pattern);
+                }
             }
         }
         Some(crate::Commands::C1Minimal(c1minimal_args)) => {
@@ -309,6 +358,17 @@ fn simple_cmd(serialdev: &str, command: Command, args: &[u8]) {
         .expect("Failed to open port");
 
     simple_cmd_port(&mut port, command, args);
+}
+
+fn open_serialport(serialdev: &str) -> Box<dyn SerialPort> {
+    serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port")
+}
+
+fn simple_open_cmd(serialport: &mut Box<dyn SerialPort>, command: Command, args: &[u8]) {
+    simple_cmd_port(serialport, command, args);
 }
 
 fn simple_cmd_port(port: &mut Box<dyn SerialPort>, command: Command, args: &[u8]) {
@@ -635,12 +695,44 @@ fn show_symbols(serialdev: &str, symbols: &Vec<String>) {
     show_font(serialdev, &font_items);
 }
 
-fn display_on_cmd(serialdev: &str, display_on: bool) {
-    simple_cmd(serialdev, Command::DisplayOn, &[display_on as u8]);
+fn display_on_cmd(serialdev: &str, arg: Option<bool>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(display_on) = arg {
+        simple_cmd_port(&mut port, Command::DisplayOn, &[display_on as u8]);
+    } else {
+        simple_cmd_port(&mut port, Command::DisplayOn, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let on = response[0] == 1;
+        println!("Currently on: {on}");
+    }
 }
 
-fn invert_screen_cmd(serialdev: &str, invert_on: bool) {
-    simple_cmd(serialdev, Command::InvertScreen, &[invert_on as u8]);
+fn invert_screen_cmd(serialdev: &str, arg: Option<bool>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(invert_on) = arg {
+        simple_cmd_port(&mut port, Command::InvertScreen, &[invert_on as u8]);
+    } else {
+        simple_cmd_port(&mut port, Command::InvertScreen, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let inverted = response[0] == 1;
+        println!("Currently inverted: {inverted}");
+    }
 }
 
 fn set_color_cmd(serialdev: &str, color: Color) {
@@ -662,6 +754,7 @@ fn set_color_cmd(serialdev: &str, color: Color) {
 /// Must be 300x400 in size.
 /// Sends one 400px column in a single commands and a flush at the end
 fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
+    let mut serialport = open_serialport(serialdev);
     let img = ImageReader::open(image_path)
         .unwrap()
         .decode()
@@ -696,8 +789,28 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
             }
         }
 
-        simple_cmd(serialdev, Command::SetPixelColumn, &vals);
+        simple_open_cmd(&mut serialport, Command::SetPixelColumn, &vals);
     }
 
-    simple_cmd(serialdev, Command::FlushFramebuffer, &[]);
+    simple_open_cmd(&mut serialport, Command::FlushFramebuffer, &[]);
+}
+
+fn b1_display_color(serialdev: &str, black: bool) {
+    let mut serialport = open_serialport(serialdev);
+    for x in 0..300 {
+        let byte = if black { 0xFF } else { 0x00 };
+        let mut vals: [u8; 2 + 50] = [byte; 2 + 50];
+        let column = (x as u16).to_le_bytes();
+        vals[0] = column[0];
+        vals[1] = column[1];
+        simple_open_cmd(&mut serialport, Command::SetPixelColumn, &vals);
+    }
+    simple_open_cmd(&mut serialport, Command::FlushFramebuffer, &[]);
+}
+
+fn b1_display_pattern(serialdev: &str, pattern: B1Pattern) {
+    match pattern {
+        B1Pattern::Black => b1_display_color(serialdev, true),
+        B1Pattern::White => b1_display_color(serialdev, false),
+    }
 }
