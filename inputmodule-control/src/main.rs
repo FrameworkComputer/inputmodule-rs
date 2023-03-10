@@ -11,7 +11,7 @@ use inputmodule::find_serialdevs;
 
 use crate::b1display::B1DisplaySubcommand;
 use crate::c1minimal::C1MinimalSubcommand;
-use crate::inputmodule::serial_commands;
+use crate::inputmodule::{serial_commands, B1_LCD_PID, LED_MATRIX_PID};
 use crate::ledmatrix::LedMatrixSubcommand;
 
 #[derive(Subcommand, Debug)]
@@ -19,6 +19,16 @@ enum Commands {
     LedMatrix(LedMatrixSubcommand),
     B1Display(B1DisplaySubcommand),
     C1Minimal(C1MinimalSubcommand),
+}
+
+impl Commands {
+    pub fn to_pid(&self) -> u16 {
+        match self {
+            Self::LedMatrix(_) => LED_MATRIX_PID,
+            Self::B1Display(_) => B1_LCD_PID,
+            Self::C1Minimal(_) => 0x22,
+        }
+    }
 }
 
 /// RAW HID and VIA commandline for QMK devices

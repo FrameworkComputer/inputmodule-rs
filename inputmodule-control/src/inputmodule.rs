@@ -12,9 +12,9 @@ use crate::font::{convert_font, convert_symbol};
 use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
-const FRAMEWORK_VID: u16 = 0x32AC;
-const LED_MATRIX_PID: u16 = 0x0020;
-const B1_LCD_PID: u16 = 0x0021;
+pub const FRAMEWORK_VID: u16 = 0x32AC;
+pub const LED_MATRIX_PID: u16 = 0x0020;
+pub const B1_LCD_PID: u16 = 0x0021;
 
 // TODO: Use a shared enum with the firmware code
 #[derive(Clone, Copy)]
@@ -56,7 +56,11 @@ const HEIGHT: usize = 34;
 
 const SERIAL_TIMEOUT: Duration = Duration::from_millis(20);
 
-fn match_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec<String> {
+fn match_serialdevs(
+    ports: &[SerialPortInfo],
+    requested: &Option<String>,
+    pid: Option<u16>,
+) -> Vec<String> {
     if let Some(requested) = requested {
         for p in ports {
             if requested == &p.port_name {
@@ -66,12 +70,16 @@ fn match_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec
         vec![]
     } else {
         let mut compatible_devs = vec![];
+        let pids = if let Some(pid) = pid {
+            vec![pid]
+        } else {
+            // By default accept any type
+            vec![LED_MATRIX_PID, B1_LCD_PID, 0x22, 0xFF]
+        };
         // Find all supported Framework devices
         for p in ports {
             if let SerialPortType::UsbPort(usbinfo) = &p.port_type {
-                if usbinfo.vid == FRAMEWORK_VID
-                    && [LED_MATRIX_PID, B1_LCD_PID].contains(&usbinfo.pid)
-                {
+                if usbinfo.vid == FRAMEWORK_VID && pids.contains(&usbinfo.pid) {
                     compatible_devs.push(p.port_name.clone());
                 }
             }
@@ -107,7 +115,11 @@ pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<Str
                 }
             }
         }
-        serialdevs = match_serialdevs(&ports, &args.serial_dev);
+        serialdevs = match_serialdevs(
+            &ports,
+            &args.serial_dev,
+            args.command.as_ref().map(|x| x.to_pid()),
+        );
         if serialdevs.is_empty() {
             if wait_for_device {
                 // Waited at least once, that means the device was not present
