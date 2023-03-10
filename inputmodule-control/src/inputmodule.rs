@@ -6,6 +6,7 @@ use image::{io::Reader as ImageReader, Luma};
 use rand::prelude::*;
 use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
+use crate::b1display::B1Pattern;
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
 use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
@@ -251,6 +252,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if let Some(image_path) = &b1display_args.image_bw {
                     b1display_bw_image_cmd(serialdev, image_path);
+                }
+                if let Some(pattern) = b1display_args.pattern {
+                    b1_display_pattern(serialdev, pattern);
                 }
             }
         }
@@ -780,4 +784,24 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
     }
 
     simple_open_cmd(&mut serialport, Command::FlushFramebuffer, &[]);
+}
+
+fn b1_display_color(serialdev: &str, black: bool) {
+    let mut serialport = open_serialport(serialdev);
+    for x in 0..300 {
+        let byte = if black { 0xFF } else { 0x00 };
+        let mut vals: [u8; 2 + 50] = [byte; 2 + 50];
+        let column = (x as u16).to_le_bytes();
+        vals[0] = column[0];
+        vals[1] = column[1];
+        simple_open_cmd(&mut serialport, Command::SetPixelColumn, &vals);
+    }
+    simple_open_cmd(&mut serialport, Command::FlushFramebuffer, &[]);
+}
+
+fn b1_display_pattern(serialdev: &str, pattern: B1Pattern) {
+    match pattern {
+        B1Pattern::Black => b1_display_color(serialdev, true),
+        B1Pattern::White => b1_display_color(serialdev, false),
+    }
 }

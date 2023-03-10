@@ -1,5 +1,11 @@
 use clap::Parser;
 
+#[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
+pub enum B1Pattern {
+    White,
+    Black,
+}
+
 /// B1 Display
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -28,6 +34,11 @@ pub struct B1DisplaySubcommand {
     // TODO: Allow getting current state
     #[arg(long)]
     pub display_on: Option<Option<bool>>,
+
+    /// Display a simple pattern
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub pattern: Option<B1Pattern>,
 
     /// Invert screen on/off
     #[arg(long)]
