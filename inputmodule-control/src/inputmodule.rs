@@ -488,27 +488,27 @@ fn blinking_cmd(serialdevs: &Vec<String>) {
 fn breathing_cmd(serialdevs: &Vec<String>) {
     loop {
         // Go quickly from 250 to 50
-        for i in 0..10 {
-            thread::sleep(Duration::from_millis(30));
-            simple_cmd_multiple(serialdevs, Command::Brightness, &[250 - i * 20]);
+        for i in 0..40 {
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[250 - i * 5]);
+            thread::sleep(Duration::from_millis(25));
         }
 
         // Go slowly from 50 to 0
-        for i in 0..10 {
-            thread::sleep(Duration::from_millis(60));
-            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 - i * 5]);
+        for i in 0..50 {
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 - i]);
+            thread::sleep(Duration::from_millis(10));
         }
 
         // Go slowly from 0 to 50
-        for i in 0..10 {
-            thread::sleep(Duration::from_millis(60));
-            simple_cmd_multiple(serialdevs, Command::Brightness, &[i * 5]);
+        for i in 0..50 {
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[i]);
+            thread::sleep(Duration::from_millis(10));
         }
 
         // Go quickly from 50 to 250
-        for i in 0..10 {
-            thread::sleep(Duration::from_millis(30));
-            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 + i * 20]);
+        for i in 0..40 {
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 + i * 5]);
+            thread::sleep(Duration::from_millis(25));
         }
     }
 }
