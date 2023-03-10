@@ -182,6 +182,8 @@ fn main() -> ! {
 
     let mut state = B1DIsplayState {
         sleeping: SimpleSleepState::Awake,
+        screen_inverted: false,
+        screen_on: true,
     };
 
     let mut said_hello = false;

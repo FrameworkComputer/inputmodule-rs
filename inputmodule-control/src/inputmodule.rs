@@ -682,12 +682,44 @@ fn show_symbols(serialdev: &str, symbols: &Vec<String>) {
     show_font(serialdev, &font_items);
 }
 
-fn display_on_cmd(serialdev: &str, display_on: bool) {
-    simple_cmd(serialdev, Command::DisplayOn, &[display_on as u8]);
+fn display_on_cmd(serialdev: &str, arg: Option<bool>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(display_on) = arg {
+        simple_cmd_port(&mut port, Command::DisplayOn, &[display_on as u8]);
+    } else {
+        simple_cmd_port(&mut port, Command::DisplayOn, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let on = response[0] == 1;
+        println!("Currently on: {on}");
+    }
 }
 
-fn invert_screen_cmd(serialdev: &str, invert_on: bool) {
-    simple_cmd(serialdev, Command::InvertScreen, &[invert_on as u8]);
+fn invert_screen_cmd(serialdev: &str, arg: Option<bool>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(invert_on) = arg {
+        simple_cmd_port(&mut port, Command::InvertScreen, &[invert_on as u8]);
+    } else {
+        simple_cmd_port(&mut port, Command::InvertScreen, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let inverted = response[0] == 1;
+        println!("Currently inverted: {inverted}");
+    }
 }
 
 fn set_color_cmd(serialdev: &str, color: Color) {

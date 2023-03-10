@@ -27,12 +27,11 @@ pub struct B1DisplaySubcommand {
     /// Turn display on/off
     // TODO: Allow getting current state
     #[arg(long)]
-    pub display_on: Option<bool>,
+    pub display_on: Option<Option<bool>>,
 
     /// Invert screen on/off
-    // TODO: Allow getting current state
     #[arg(long)]
-    pub invert_screen: Option<bool>,
+    pub invert_screen: Option<Option<bool>>,
 
     /// Display black&white image (300x400px)
     #[arg(long)]

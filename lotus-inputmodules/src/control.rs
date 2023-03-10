@@ -144,7 +144,9 @@ pub enum Command {
     #[cfg(feature = "c1minimal")]
     SetColor(RGB8),
     DisplayOn(bool),
+    GetDisplayOn,
     InvertScreen(bool),
+    GetInvertScreen,
     SetPixelColumn(usize, [u8; 50]),
     FlushFramebuffer,
     _Unknown,
@@ -167,6 +169,8 @@ pub struct C1MinimalState {
 #[cfg(feature = "b1display")]
 pub struct B1DIsplayState {
     pub sleeping: SimpleSleepState,
+    pub screen_inverted: bool,
+    pub screen_on: bool,
 }
 
 pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
@@ -324,8 +328,16 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     None
                 }
             }
-            Some(CommandVals::DisplayOn) => Some(Command::DisplayOn(arg == Some(1))),
-            Some(CommandVals::InvertScreen) => Some(Command::InvertScreen(arg == Some(1))),
+            Some(CommandVals::DisplayOn) => Some(if let Some(on) = arg {
+                Command::DisplayOn(on == 1)
+            } else {
+                Command::GetDisplayOn
+            }),
+            Some(CommandVals::InvertScreen) => Some(if let Some(invert) = arg {
+                Command::InvertScreen(invert == 1)
+            } else {
+                Command::GetInvertScreen
+            }),
             Some(CommandVals::SetPixelColumn) => {
                 //  3B for magic and command
                 //  2B for column (u16)
@@ -519,16 +531,28 @@ where
             None
         }
         Command::DisplayOn(on) => {
+            state.screen_on = *on;
             disp.on_off(*on).unwrap();
             None
         }
+        Command::GetDisplayOn => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.screen_on as u8;
+            Some(response)
+        }
         Command::InvertScreen(invert) => {
+            state.screen_inverted = *invert;
             if *invert {
                 disp.write_command(Instruction::INVON, &[]).unwrap();
             } else {
                 disp.write_command(Instruction::INVOFF, &[]).unwrap();
             }
             None
+        }
+        Command::GetInvertScreen => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.screen_inverted as u8;
+            Some(response)
         }
         Command::SetPixelColumn(column, pixel_bytes) => {
             let mut pixels: [bool; 400] = [false; 400];
