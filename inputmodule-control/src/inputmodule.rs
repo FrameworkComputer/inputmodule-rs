@@ -101,7 +101,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
         None => vec![],
     };
     if serialdevs.is_empty() {
-        println!("Failed to find serial devivce. Please manually specify with --serial-dev");
+        println!("Failed to find serial device. Please manually specify with --serial-dev");
         return;
     };
 

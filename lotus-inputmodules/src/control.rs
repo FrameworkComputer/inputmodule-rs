@@ -150,7 +150,7 @@ pub enum Command {
     _Unknown,
 }
 
-#[cfg(feature = "c1minimal")]
+#[cfg(any(feature = "c1minimal", feature = "b1display"))]
 #[derive(Clone)]
 pub enum SimpleSleepState {
     Awake,
@@ -162,6 +162,11 @@ pub struct C1MinimalState {
     pub sleeping: SimpleSleepState,
     pub color: RGB8,
     pub brightness: u8,
+}
+
+#[cfg(feature = "b1display")]
+pub struct B1DIsplayState {
+    pub sleeping: SimpleSleepState,
 }
 
 pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
@@ -355,10 +360,6 @@ pub fn handle_generic_command(command: &Command) -> Option<[u8; 32]> {
             reset_to_usb_boot(0, 0);
             None
         }
-        Command::Sleep(_go_sleeping) => {
-            // Handled elsewhere
-            None
-        }
         Command::Panic => panic!("Ahhh"),
         Command::Version => {
             let mut response: [u8; 32] = [0; 32];
@@ -479,6 +480,7 @@ pub fn handle_command(
 #[cfg(feature = "b1display")]
 pub fn handle_command<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
     command: &Command,
+    state: &mut B1DIsplayState,
     logo_rect: Rectangle,
     disp: &mut ST7306<SPI, DC, CS, RST, COLS, ROWS>,
 ) -> Option<[u8; 32]>
@@ -490,14 +492,14 @@ where
     <SPI as spi::Write<u8>>::Error: Debug,
 {
     match command {
-        Command::BootloaderReset => {
-            //let _ = serial.write("Bootloader Reset".as_bytes());
-            reset_to_usb_boot(0, 0);
-            None
-        }
-        Command::Sleep(_go_sleeping) => {
-            // Handled elsewhere
-            None
+        // TODO: Move to handle_generic_command
+        Command::IsSleeping => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = match state.sleeping {
+                SimpleSleepState::Sleeping => 1,
+                SimpleSleepState::Awake => 0,
+            };
+            Some(response)
         }
         Command::Panic => panic!("Ahhh"),
         Command::SetText(text) => {
@@ -567,6 +569,15 @@ pub fn handle_command(
     ws2812: &mut impl SmartLedsWrite<Color = RGB8, Error = ()>,
 ) -> Option<[u8; 32]> {
     match command {
+        // TODO: Move to handle_generic_command
+        Command::IsSleeping => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = match state.sleeping {
+                SimpleSleepState::Sleeping => 1,
+                SimpleSleepState::Awake => 0,
+            };
+            Some(response)
+        }
         Command::GetBrightness => {
             let mut response: [u8; 32] = [0; 32];
             response[0] = state.brightness;
