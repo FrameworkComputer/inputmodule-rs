@@ -190,7 +190,7 @@ fn main() -> ! {
     );
 
     let mut state = State {
-        grid: percentage(100),
+        grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
         brightness: 120,
@@ -215,6 +215,8 @@ fn main() -> ! {
     let mut prev_timer = timer.get_counter().ticks();
     let mut game_timer = timer.get_counter().ticks();
 
+    let mut startup_percentage = 0;
+
     loop {
         // TODO: Current hardware revision does not have the sleep pin wired up :(
         // Go to sleep if the host is sleeping
@@ -223,6 +225,12 @@ fn main() -> ! {
 
         // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + 20_000 {
+            // On startup slowly turn the screen on - it's a pretty effect :)
+            if startup_percentage < 100 {
+                state.grid = percentage(startup_percentage);
+                startup_percentage += 5;
+            }
+
             fill_grid_pixels(&state.grid, &mut matrix);
             if state.animate {
                 for x in 0..WIDTH {
@@ -279,6 +287,9 @@ fn main() -> ! {
                             };
                         }
                         (Some(command), SleepState::Awake) => {
+                            // If there's a very early command, cancel the startup animation
+                            startup_percentage = 100;
+
                             // While sleeping no command is handled, except waking up
                             if let Some(response) =
                                 handle_command(&command, &mut state, &mut matrix, random)
