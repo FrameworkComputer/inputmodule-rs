@@ -325,6 +325,17 @@ fn simple_cmd(serialdev: &str, command: Command, args: &[u8]) {
     simple_cmd_port(&mut port, command, args);
 }
 
+fn open_serialport(serialdev: &str) -> Box<dyn SerialPort> {
+    serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port")
+}
+
+fn simple_open_cmd(serialport: &mut Box<dyn SerialPort>, command: Command, args: &[u8]) {
+    simple_cmd_port(serialport, command, args);
+}
+
 fn simple_cmd_port(port: &mut Box<dyn SerialPort>, command: Command, args: &[u8]) {
     let mut buffer: [u8; 64] = [0; 64];
     buffer[..2].copy_from_slice(FWK_MAGIC);
@@ -676,6 +687,7 @@ fn set_color_cmd(serialdev: &str, color: Color) {
 /// Must be 300x400 in size.
 /// Sends one 400px column in a single commands and a flush at the end
 fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
+    let mut serialport = open_serialport(serialdev);
     let img = ImageReader::open(image_path)
         .unwrap()
         .decode()
@@ -710,8 +722,8 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
             }
         }
 
-        simple_cmd(serialdev, Command::SetPixelColumn, &vals);
+        simple_open_cmd(&mut serialport, Command::SetPixelColumn, &vals);
     }
 
-    simple_cmd(serialdev, Command::FlushFramebuffer, &[]);
+    simple_open_cmd(&mut serialport, Command::FlushFramebuffer, &[]);
 }
