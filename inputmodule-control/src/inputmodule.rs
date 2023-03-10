@@ -80,8 +80,9 @@ fn match_serialdevs(ports: &[SerialPortInfo], requested: &Option<String>) -> Vec
     }
 }
 
-pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> Vec<String> {
+pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<String>, bool) {
     let mut serialdevs: Vec<String>;
+    let mut waited = false;
     loop {
         let ports = serialport::available_ports().expect("No ports found!");
         if args.list || args.verbose {
@@ -109,24 +110,32 @@ pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> Vec<Stri
         serialdevs = match_serialdevs(&ports, &args.serial_dev);
         if serialdevs.is_empty() {
             if wait_for_device {
+                // Waited at least once, that means the device was not present
+                // when the program started
+                waited = true;
+
                 // Try again after short wait
                 thread::sleep(Duration::from_millis(100));
                 continue;
             } else {
-                return Vec::new();
+                return (vec![], waited);
             }
         } else {
             break;
         }
     }
-    serialdevs
+    (serialdevs, waited)
 }
 
 /// Commands that interact with serial devices
 pub fn serial_commands(args: &crate::ClapCli) {
-    let serialdevs: Vec<String> = find_serialdevs(args, args.wait_for_device);
+    let (serialdevs, waited): (Vec<String>, bool) = find_serialdevs(args, args.wait_for_device);
     if serialdevs.is_empty() {
         println!("Failed to find serial devivce. Please manually specify with --serial-dev");
+        return;
+    } else if args.wait_for_device && !waited {
+        println!("Device already present. No need to wait. Not executing command. Sleep 1s");
+        thread::sleep(Duration::from_millis(1000));
         return;
     }
 
