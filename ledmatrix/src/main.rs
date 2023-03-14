@@ -288,7 +288,7 @@ fn main() -> ! {
                         }
                         (Some(command), SleepState::Awake) => {
                             // If there's a very early command, cancel the startup animation
-                            startup_percentage = 100;
+                            startup_percentage = 101;
 
                             // While sleeping no command is handled, except waking up
                             if let Some(response) =
