@@ -4,6 +4,7 @@ use clap::Parser;
 pub enum B1Pattern {
     White,
     Black,
+    //Checkerboard,
 }
 
 /// B1 Display
