@@ -18,6 +18,21 @@ To run it, just install Python and the dependencies, then run `main.py`.
 The configuration (`config.yaml`) is already adapted for this display - 
 it should be able to find the display by itself (Windows or Linux).
 
+###### Configuration
+
+Check out the [upstream documentation](https://github.com/mathoudebine/turing-smart-screen-python/wiki/System-monitor-%3A-themes)
+for more information about editing themes.
+
+Currently we have two themes optimized for this display: `B1Terminal` and `B1Blank`.
+
+`B1Terminal` comes pre-configured with lots of system stats.
+
+`B1Blank` comes configured as rendering the text in `file1.txt` onto the screen.
+
+Both can be fully customized by changing the background image and the displayed statistics
+in `res/themes/{B1Blank,B1Terminal}/background.png` and `res/themes/{B1Blank,B1Terminal}/theme.yaml`
+respectively.
+
 ### Commandline
 
 ```
@@ -61,4 +76,22 @@ example image is included in the repository.
 ```sh
 # Should show the Framework Logo and a Lotus flower
 inputmodule-control b1-display --image-bw b1display.gif
+```
+
+###### Invert the colors (dark-mode)
+
+Since the screen is just black and white, you can display black text on a
+white/light background. This can be turned into dark mode by inverting the
+colors, making it show light text on a black background.
+
+```sh
+# Invert on
+> inputmodule-control b1-display --invert-screen true
+
+# Invert off
+> inputmodule-control b1-display --invert-screen false
+
+# Check if currently inverted
+> inputmodule-control b1-display --invert-screen
+Currently inverted: false
 ```
