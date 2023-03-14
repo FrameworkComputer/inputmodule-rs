@@ -226,7 +226,7 @@ fn main() -> ! {
         // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + 20_000 {
             // On startup slowly turn the screen on - it's a pretty effect :)
-            if startup_percentage < 100 {
+            if startup_percentage <= 100 {
                 state.grid = percentage(startup_percentage);
                 startup_percentage += 5;
             }
