@@ -22,7 +22,7 @@ use embedded_hal::digital::v2::OutputPin;
 #[cfg(feature = "b1display")]
 use heapless::String;
 #[cfg(feature = "b1display")]
-use st7306_lcd::{instruction::Instruction, ST7306};
+use st7306_lcd::ST7306;
 
 #[cfg(feature = "ledmatrix")]
 use crate::games::pong;
@@ -57,6 +57,7 @@ pub enum CommandVals {
     InvertScreen = 0x15,
     SetPixelColumn = 0x16,
     FlushFramebuffer = 0x17,
+    ClearRam = 0x18,
     Version = 0x20,
 }
 
@@ -108,6 +109,14 @@ pub enum GameOfLifeStartParam {
     Glider = 0x05,
 }
 
+#[derive(Copy, Clone, num_derive::FromPrimitive)]
+pub enum DisplayMode {
+    /// Low Power Mode
+    Lpm = 0x00,
+    /// High Power Mode
+    Hpm = 0x01,
+}
+
 // TODO: Reduce size for modules that don't require other commands
 pub enum Command {
     /// Get current brightness scaling
@@ -149,6 +158,7 @@ pub enum Command {
     GetInvertScreen,
     SetPixelColumn(usize, [u8; 50]),
     FlushFramebuffer,
+    ClearRam,
     _Unknown,
 }
 
@@ -353,6 +363,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                 }
             }
             Some(CommandVals::FlushFramebuffer) => Some(Command::FlushFramebuffer),
+            Some(CommandVals::ClearRam) => Some(Command::ClearRam),
             _ => None,
         }
     } else {
@@ -542,11 +553,7 @@ where
         }
         Command::InvertScreen(invert) => {
             state.screen_inverted = *invert;
-            if *invert {
-                disp.write_command(Instruction::INVON, &[]).unwrap();
-            } else {
-                disp.write_command(Instruction::INVOFF, &[]).unwrap();
-            }
+            disp.invert_screen(state.screen_inverted).unwrap();
             None
         }
         Command::GetInvertScreen => {
@@ -580,6 +587,10 @@ where
         }
         Command::FlushFramebuffer => {
             disp.flush().unwrap();
+            None
+        }
+        Command::ClearRam => {
+            disp.clear_ram().unwrap();
             None
         }
         _ => handle_generic_command(command),

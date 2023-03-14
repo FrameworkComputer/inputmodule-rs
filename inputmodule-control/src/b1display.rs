@@ -44,4 +44,8 @@ pub struct B1DisplaySubcommand {
     /// Display black&white image (300x400px)
     #[arg(long)]
     pub image_bw: Option<String>,
+
+    /// Clear display RAM
+    #[arg(long)]
+    pub clear_ram: bool,
 }

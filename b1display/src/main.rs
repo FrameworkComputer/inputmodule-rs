@@ -18,7 +18,7 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::*;
 use embedded_hal::blocking::spi;
-use st7306_lcd::ST7306;
+use st7306_lcd::{FpsConfig, HpmFps, LpmFps, PowerMode, ST7306};
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
@@ -140,7 +140,28 @@ fn main() -> ! {
         &embedded_hal::spi::MODE_0,
     );
 
-    let mut disp: B1ST7306 = ST7306::new(spi, dc, cs, rst, false, 300, 400);
+    const INVERTED: bool = false;
+    const AUTO_PWRDOWN: bool = true;
+    const TE_ENABLE: bool = true;
+    const COL_START: u16 = 0x12;
+    const ROW_START: u16 = 0x00;
+    let mut disp: B1ST7306 = ST7306::new(
+        spi,
+        dc,
+        cs,
+        rst,
+        INVERTED,
+        AUTO_PWRDOWN,
+        TE_ENABLE,
+        FpsConfig {
+            hpm: HpmFps::ThirtyTwo,
+            lpm: LpmFps::One,
+        },
+        300,
+        400,
+        COL_START,
+        ROW_START,
+    );
     disp.init(&mut delay).unwrap();
 
     // TODO: Seems broken
@@ -270,7 +291,7 @@ fn main() -> ! {
 fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
     go_sleeping: bool,
     state: &mut B1DIsplayState,
-    _delay: &mut Delay,
+    delay: &mut Delay,
     disp: &mut ST7306<SPI, DC, CS, RST, COLS, ROWS>,
 ) where
     SPI: spi::Write<u8>,
@@ -285,7 +306,8 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
             state.sleeping = SimpleSleepState::Sleeping;
 
             // Turn off display
-            disp.on_off(false).unwrap();
+            //disp.on_off(false).unwrap();
+            disp.sleep_in(delay).unwrap();
 
             // TODO: Power Display controller down
 
@@ -298,7 +320,10 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
             state.sleeping = SimpleSleepState::Awake;
 
             // Turn display back on
-            disp.on_off(true).unwrap();
+            //disp.on_off(true).unwrap();
+            disp.sleep_out(delay).unwrap();
+            // Sleep-in has to go into HPM first, so we'll be in HPM after wake-up as well
+            disp.switch_mode(delay, PowerMode::Lpm).unwrap();
 
             // TODO: Power display controller back on
         }

@@ -38,6 +38,7 @@ enum Command {
     InvertScreen = 0x15,
     SetPixelColumn = 0x16,
     FlushFramebuffer = 0x17,
+    ClearRam = 0x18,
     Version = 0x20,
 }
 
@@ -261,6 +262,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if let Some(image_path) = &b1display_args.image_bw {
                     b1display_bw_image_cmd(serialdev, image_path);
+                }
+                if b1display_args.clear_ram {
+                    simple_cmd(serialdev, Command::ClearRam, &[0x00]);
                 }
                 if let Some(pattern) = b1display_args.pattern {
                     b1_display_pattern(serialdev, pattern);
