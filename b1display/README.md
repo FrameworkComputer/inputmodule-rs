@@ -5,6 +5,12 @@ It's 4.2 inches in size and mounted in portrait orientation.
 Because it's optimized for power, the recommended framerate is 1 FPS.
 But it can go up to 32 FPS.
 
+The current panel is susceptible to image retention, so the display will start
+up with the screen saver. If you send a command to draw anything on the display,
+the screensaver will exit.
+Currently it does not re-appear after a timeout, it will only re-appear on the
+next power-on or after waking from sleep.
+
 ## Controlling
 
 ### Display System Status
@@ -56,6 +62,8 @@ Options:
           Display a simple pattern [possible values: white, black]
       --invert-screen [<INVERT_SCREEN>]
           Invert screen on/off [possible values: true, false]
+      --screen-saver [<SCREEN_SAVER>]
+          Screensaver on/off [possible values: true, false]
       --image-bw <IMAGE_BW>
           Display black&white image (300x400px)
       --clear-ram

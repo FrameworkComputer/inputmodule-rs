@@ -39,6 +39,8 @@ class CommandVals(IntEnum):
     InvertScreen = 0x15
     SetPixelColumn = 0x16
     FlushFramebuffer = 0x17
+    ClearRam = 0x18
+    ScreenSaver = 0x19
     Version = 0x20
 
 
@@ -192,6 +194,8 @@ def main():
                         action=argparse.BooleanOptionalAction)
     parser.add_argument("--invert-screen", help="Invert display",
                         action=argparse.BooleanOptionalAction)
+    parser.add_argument("--screen-saver", help="Turn on/off screensaver",
+                        action=argparse.BooleanOptionalAction)
     parser.add_argument("--b1image", help="On the B1 display, show a PNG or GIF image in black and white only)",
                         type=argparse.FileType('rb'))
 
@@ -256,7 +260,7 @@ def main():
         snake_embedded()
     elif args.game_of_life_embedded is not None:
         game_of_life_embedded(args.game_of_life_embedded)
-    elif args.quit_embedded_game is not None:
+    elif args.quit_embedded_game:
         send_command(CommandVals.GameControl, [GameControlVal.Quit])
     elif args.pong_embedded:
         pong_embedded()
@@ -276,6 +280,8 @@ def main():
         display_on_cmd(args.display_on)
     elif args.invert_screen is not None:
         invert_screen_cmd(args.invert_screen)
+    elif args.screen_saver is not None:
+        screen_saver_cmd(args.screen_saver)
     elif args.b1image is not None:
         b1image_bl(args.b1image)
     elif args.version:
@@ -1061,6 +1067,10 @@ def display_on_cmd(on):
 
 def invert_screen_cmd(invert):
     send_command(CommandVals.InvertScreen, [invert])
+
+
+def screen_saver_cmd(on):
+    send_command(CommandVals.ScreenSaver, [on])
 
 
 # 5x6 symbol font. Leaves 2 pixels on each side empty
