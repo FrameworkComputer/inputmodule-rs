@@ -1476,7 +1476,7 @@ dependencies = [
 [[package]]
 name = "st7306-lcd"
 version = "0.8.2"
-source = "git+ssh://git@github.com/FrameworkComputer/st7306.git#42c470fddc60753783df5b9313d6ff7a2a150b9c"
+source = "git+ssh://git@github.com/FrameworkComputer/st7306.git#b5148a927071421562eafa4a19c75d3849b11daf"
 dependencies = [
  "embedded-graphics",
  "embedded-hal",

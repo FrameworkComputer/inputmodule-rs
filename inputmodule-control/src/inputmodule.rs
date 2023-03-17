@@ -39,6 +39,7 @@ enum Command {
     SetPixelColumn = 0x16,
     FlushFramebuffer = 0x17,
     ClearRam = 0x18,
+    ScreenSaver = 0x19,
     Version = 0x20,
 }
 
@@ -259,6 +260,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if let Some(invert_screen) = b1display_args.invert_screen {
                     invert_screen_cmd(serialdev, invert_screen);
+                }
+                if let Some(screensaver_on) = b1display_args.screen_saver {
+                    screensaver_cmd(serialdev, screensaver_on);
                 }
                 if let Some(image_path) = &b1display_args.image_bw {
                     b1display_bw_image_cmd(serialdev, image_path);
@@ -736,6 +740,26 @@ fn invert_screen_cmd(serialdev: &str, arg: Option<bool>) {
 
         let inverted = response[0] == 1;
         println!("Currently inverted: {inverted}");
+    }
+}
+
+fn screensaver_cmd(serialdev: &str, arg: Option<bool>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(display_on) = arg {
+        simple_cmd_port(&mut port, Command::ScreenSaver, &[display_on as u8]);
+    } else {
+        simple_cmd_port(&mut port, Command::ScreenSaver, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let on = response[0] == 1;
+        println!("Currently on: {on}");
     }
 }
 

@@ -41,6 +41,10 @@ pub struct B1DisplaySubcommand {
     #[arg(long)]
     pub invert_screen: Option<Option<bool>>,
 
+    /// Screensaver on/off
+    #[arg(long)]
+    pub screen_saver: Option<Option<bool>>,
+
     /// Display black&white image (300x400px)
     #[arg(long)]
     pub image_bw: Option<String>,

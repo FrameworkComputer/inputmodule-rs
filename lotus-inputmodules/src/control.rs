@@ -58,6 +58,7 @@ pub enum CommandVals {
     SetPixelColumn = 0x16,
     FlushFramebuffer = 0x17,
     ClearRam = 0x18,
+    ScreenSaver = 0x19,
     Version = 0x20,
 }
 
@@ -159,6 +160,8 @@ pub enum Command {
     SetPixelColumn(usize, [u8; 50]),
     FlushFramebuffer,
     ClearRam,
+    ScreenSaver(bool),
+    GetScreenSaver,
     _Unknown,
 }
 
@@ -176,11 +179,27 @@ pub struct C1MinimalState {
     pub brightness: u8,
 }
 
+#[derive(Copy, Clone)]
+pub struct ScreenSaverState {
+    pub rightwards: i32,
+    pub downwards: i32,
+}
+
+impl Default for ScreenSaverState {
+    fn default() -> Self {
+        Self {
+            rightwards: 1,
+            downwards: 1,
+        }
+    }
+}
+
 #[cfg(feature = "b1display")]
 pub struct B1DIsplayState {
     pub sleeping: SimpleSleepState,
     pub screen_inverted: bool,
     pub screen_on: bool,
+    pub screensaver: Option<ScreenSaverState>,
 }
 
 pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
@@ -364,6 +383,11 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             }
             Some(CommandVals::FlushFramebuffer) => Some(Command::FlushFramebuffer),
             Some(CommandVals::ClearRam) => Some(Command::ClearRam),
+            Some(CommandVals::ScreenSaver) => Some(if let Some(on) = arg {
+                Command::ScreenSaver(on == 1)
+            } else {
+                Command::GetScreenSaver
+            }),
             _ => None,
         }
     } else {
@@ -526,6 +550,9 @@ where
         }
         Command::Panic => panic!("Ahhh"),
         Command::SetText(text) => {
+            // Turn screensaver off, when drawing something
+            state.screensaver = None;
+
             clear_text(
                 disp,
                 Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
@@ -539,6 +566,7 @@ where
                 Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
             )
             .unwrap();
+            disp.flush().unwrap();
             None
         }
         Command::DisplayOn(on) => {
@@ -562,6 +590,9 @@ where
             Some(response)
         }
         Command::SetPixelColumn(column, pixel_bytes) => {
+            // Turn screensaver off, when drawing something
+            state.screensaver = None;
+
             let mut pixels: [bool; 400] = [false; 400];
             for (i, byte) in pixel_bytes.iter().enumerate() {
                 pixels[8 * i] = byte & 0b00000001 != 0;
@@ -590,8 +621,25 @@ where
             None
         }
         Command::ClearRam => {
+            // Turn screensaver off, when drawing something
+            state.screensaver = None;
+
             disp.clear_ram().unwrap();
             None
+        }
+        Command::ScreenSaver(on) => {
+            state.screensaver = match (*on, state.screensaver) {
+                (true, Some(x)) => Some(x),
+                (true, None) => Some(ScreenSaverState::default()),
+                (false, Some(_)) => None,
+                (false, None) => None,
+            };
+            None
+        }
+        Command::GetScreenSaver => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.screensaver.is_some() as u8;
+            Some(response)
         }
         _ => handle_generic_command(command),
     }

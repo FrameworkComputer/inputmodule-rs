@@ -43,8 +43,9 @@ use usb_device::{class_prelude::*, prelude::*};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // Used to demonstrate writing formatted strings
-use core::fmt::{Debug, Write};
-use heapless::String;
+use core::fmt::Debug;
+//use core::fmt::Write;
+//use heapless::String;
 
 use lotus_inputmodules::control::*;
 use lotus_inputmodules::graphics::*;
@@ -65,6 +66,12 @@ type B1ST7306 = ST7306<
     25,
     200,
 >;
+
+const DEBUG: bool = false;
+const SCRNS_DELTA: i32 = 10;
+const WIDTH: i32 = 300;
+const HEIGHT: i32 = 400;
+const SIZE: Size = Size::new(WIDTH as u32, HEIGHT as u32);
 
 #[entry]
 fn main() -> ! {
@@ -128,7 +135,6 @@ fn main() -> ! {
     let spi = bsp::hal::Spi::<_, _, 8>::new(pac.SPI0);
     // Display control pins
     let dc = pins.dc.into_push_pull_output();
-    //let mut lcd_led = pins.backlight.into_push_pull_output();
     let mut cs = pins.cs.into_push_pull_output();
     cs.set_low().unwrap();
     let rst = pins.rstb.into_push_pull_output();
@@ -157,47 +163,51 @@ fn main() -> ! {
             hpm: HpmFps::ThirtyTwo,
             lpm: LpmFps::One,
         },
-        300,
-        400,
+        WIDTH as u16,
+        HEIGHT as u16,
         COL_START,
         ROW_START,
     );
     disp.init(&mut delay).unwrap();
 
+    // Clear display, might have garbage in display memory
     // TODO: Seems broken
     //disp.clear(Rgb565::WHITE).unwrap();
-    Rectangle::new(Point::new(0, 0), Size::new(300, 400))
+    Rectangle::new(Point::new(0, 0), SIZE)
         .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
         .draw(&mut disp)
         .unwrap();
 
-    let logo_rect = draw_logo(&mut disp).unwrap();
-    Rectangle::new(Point::new(10, 10), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-        .draw(&mut disp)
+    let logo_rect = draw_logo(&mut disp, Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y)).unwrap();
+    if DEBUG {
+        Rectangle::new(Point::new(10, 10), Size::new(10, 10))
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+            .draw(&mut disp)
+            .unwrap();
+        Rectangle::new(Point::new(20, 20), Size::new(10, 10))
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+            .draw(&mut disp)
+            .unwrap();
+        Rectangle::new(Point::new(30, 30), Size::new(10, 10))
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+            .draw(&mut disp)
+            .unwrap();
+        Rectangle::new(Point::new(40, 40), Size::new(10, 10))
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+            .draw(&mut disp)
+            .unwrap();
+        Rectangle::new(Point::new(50, 50), Size::new(10, 10))
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+            .draw(&mut disp)
+            .unwrap();
+        draw_text(
+            &mut disp,
+            "Framework",
+            Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
+        )
         .unwrap();
-    Rectangle::new(Point::new(20, 20), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-        .draw(&mut disp)
-        .unwrap();
-    Rectangle::new(Point::new(30, 30), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-        .draw(&mut disp)
-        .unwrap();
-    Rectangle::new(Point::new(40, 40), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-        .draw(&mut disp)
-        .unwrap();
-    Rectangle::new(Point::new(50, 50), Size::new(10, 10))
-        .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-        .draw(&mut disp)
-        .unwrap();
-    draw_text(
-        &mut disp,
-        "Framework",
-        Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y + logo_rect.size.height as i32),
-    )
-    .unwrap();
+    }
+    disp.flush().unwrap();
 
     let sleep = pins.sleep.into_pull_down_input();
 
@@ -205,10 +215,13 @@ fn main() -> ! {
         sleeping: SimpleSleepState::Awake,
         screen_inverted: false,
         screen_on: true,
+        screensaver: Some(ScreenSaverState::default()),
     };
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
+
+    let mut logo_pos = Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y);
 
     loop {
         // Go to sleep if the host is sleeping
@@ -216,9 +229,43 @@ fn main() -> ! {
         handle_sleep(host_sleeping, &mut state, &mut delay, &mut disp);
 
         // Handle period display updates. Don't do it too often
-        if timer.get_counter().ticks() > prev_timer + 20_000 {
-            // TODO: Update display
+        if timer.get_counter().ticks() > prev_timer + 500_000 {
             prev_timer = timer.get_counter().ticks();
+
+            if let Some(ref mut screensaver) = state.screensaver {
+                logo_pos = {
+                    let (x, y) = (logo_pos.x, logo_pos.y);
+                    let w = logo_rect.size.width as i32;
+                    let h = logo_rect.size.height as i32;
+
+                    // Bounce off the walls
+                    if x <= 0 || x + w >= WIDTH {
+                        screensaver.rightwards *= -1;
+                    }
+                    if y <= 0 || y + h >= HEIGHT {
+                        screensaver.downwards *= -1;
+                    }
+
+                    Point::new(
+                        x + screensaver.rightwards * SCRNS_DELTA,
+                        y + screensaver.downwards * SCRNS_DELTA,
+                    )
+                };
+                // Draw a border around the new logo, to clear previously drawn adjacent logos
+                let style = PrimitiveStyleBuilder::new()
+                    .stroke_color(Rgb565::WHITE)
+                    .stroke_width(2 * SCRNS_DELTA as u32)
+                    .build();
+                Rectangle::new(
+                    logo_pos - Point::new(SCRNS_DELTA, SCRNS_DELTA),
+                    logo_rect.size + Size::new(2 * SCRNS_DELTA as u32, 2 * SCRNS_DELTA as u32),
+                )
+                .into_styled(style)
+                .draw(&mut disp)
+                .unwrap();
+                draw_logo(&mut disp, logo_pos).unwrap();
+                disp.flush().unwrap();
+            }
         }
 
         // Check for new data
@@ -253,14 +300,14 @@ fn main() -> ! {
                             };
                             // Must write AFTER writing response, otherwise the
                             // client interprets this debug message as the response
-                            let mut text: String<64> = String::new();
-                            write!(
-                                &mut text,
-                                "Handled command {}:{}:{}:{}\r\n",
-                                buf[0], buf[1], buf[2], buf[3]
-                            )
-                            .unwrap();
-                            let _ = serial.write(text.as_bytes());
+                            //let mut text: String<64> = String::new();
+                            //write!(
+                            //    &mut text,
+                            //    "Handled command {}:{}:{}:{}\r\n",
+                            //    buf[0], buf[1], buf[2], buf[3]
+                            //)
+                            //.unwrap();
+                            //let _ = serial.write(text.as_bytes());
                         }
                         _ => {}
                     }
@@ -306,6 +353,10 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
             disp.sleep_out(delay).unwrap();
             // Sleep-in has to go into HPM first, so we'll be in HPM after wake-up as well
             disp.switch_mode(delay, PowerMode::Lpm).unwrap();
+
+            // Turn screensaver on when resuming from sleep
+            // TODO Subject to change, but currently I want to avoid burn-in by default
+            state.screensaver = Some(ScreenSaverState::default());
 
             // TODO: Power display controller back on
         }
