@@ -207,8 +207,6 @@ fn main() -> ! {
         screen_on: true,
     };
 
-    let mut said_hello = false;
-
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
 
@@ -221,22 +219,6 @@ fn main() -> ! {
         if timer.get_counter().ticks() > prev_timer + 20_000 {
             // TODO: Update display
             prev_timer = timer.get_counter().ticks();
-        }
-
-        // A welcome message at the beginning
-        if !said_hello && timer.get_counter().ticks() >= 2_000_000 {
-            said_hello = true;
-            let _ = serial.write(b"Hello, World!\r\n");
-
-            let time = timer.get_counter();
-            let mut text: String<64> = String::new();
-            write!(&mut text, "Current timer ticks: {}\r\n", time).unwrap();
-
-            // This only works reliably because the number of bytes written to
-            // the serial port is smaller than the buffers available to the USB
-            // peripheral. In general, the return value should be handled, so that
-            // bytes not transferred yet don't get lost.
-            let _ = serial.write(text.as_bytes());
         }
 
         // Check for new data
