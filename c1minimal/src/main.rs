@@ -40,8 +40,8 @@ use usb_device::{class_prelude::*, prelude::*};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // Used to demonstrate writing formatted strings
-use core::fmt::Write;
-use heapless::String;
+// use core::fmt::Write;
+// use heapless::String;
 
 // RGB LED
 use smart_leds::{colors, SmartLedsWrite, RGB8};
