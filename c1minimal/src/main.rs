@@ -40,8 +40,8 @@ use usb_device::{class_prelude::*, prelude::*};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // Used to demonstrate writing formatted strings
-use core::fmt::Write;
-use heapless::String;
+// use core::fmt::Write;
+// use heapless::String;
 
 // RGB LED
 use smart_leds::{colors, SmartLedsWrite, RGB8};
@@ -125,8 +125,6 @@ fn main() -> ! {
         brightness: 10,
     };
 
-    let mut said_hello = false;
-
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
 
@@ -155,22 +153,6 @@ fn main() -> ! {
         if timer.get_counter().ticks() > prev_timer + 20_000 {
             // TODO: Can do animations here
             prev_timer = timer.get_counter().ticks();
-        }
-
-        // A welcome message at the beginning
-        if !said_hello && timer.get_counter().ticks() >= 2_000_000 {
-            said_hello = true;
-            let _ = serial.write(b"Hello, World!\r\n");
-
-            let time = timer.get_counter();
-            let mut text: String<64> = String::new();
-            write!(&mut text, "Current timer ticks: {}\r\n", time).unwrap();
-
-            // This only works reliably because the number of bytes written to
-            // the serial port is smaller than the buffers available to the USB
-            // peripheral. In general, the return value should be handled, so that
-            // bytes not transferred yet don't get lost.
-            let _ = serial.write(text.as_bytes());
         }
 
         // Check for new data

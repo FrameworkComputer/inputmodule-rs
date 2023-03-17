@@ -31,8 +31,10 @@ Features that all modules share
 
 To build your own application see the: [API command documentation](commands.md)
 
-Or use our `inputmodule-control` app. Optionally there are is also a 
-[Python script](python.md).
+Or use our `inputmodule-control` app, which you can download from the latest
+[GH Actions](https://github.com/FrameworkComputer/led_matrix_fw/actions) run or
+the [release page](https://github.com/FrameworkComputer/led_matrix_fw/releases).
+Optionally there are is also a [Python script](python.md).
 
 For device specific commands, see their individual documentation pages.
 

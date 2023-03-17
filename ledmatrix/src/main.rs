@@ -190,7 +190,7 @@ fn main() -> ! {
     );
 
     let mut state = State {
-        grid: percentage(100),
+        grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
         brightness: 120,
@@ -207,22 +207,37 @@ fn main() -> ! {
         .set_scaling(state.brightness)
         .expect("failed to set scaling");
 
-    let mut said_hello = false;
-
     fill_grid_pixels(&state.grid, &mut matrix);
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
     let mut game_timer = timer.get_counter().ticks();
 
+    let mut startup_percentage = Some(0);
+
     loop {
         // TODO: Current hardware revision does not have the sleep pin wired up :(
         // Go to sleep if the host is sleeping
         let _host_sleeping = sleep.is_low().unwrap();
-        //handle_sleep(host_sleeping, &mut state, &mut matrix, &mut delay);
+        //handle_sleep(
+        //    host_sleeping,
+        //    &mut state,
+        //    &mut matrix,
+        //    &mut delay,
+        //    &mut led_enable,
+        //);
 
         // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + 20_000 {
+            // On startup slowly turn the screen on - it's a pretty effect :)
+            match startup_percentage {
+                Some(p) if p <= 100 => {
+                    state.grid = percentage(p);
+                    startup_percentage = Some(p + 5);
+                }
+                _ => {}
+            }
+
             fill_grid_pixels(&state.grid, &mut matrix);
             if state.animate {
                 for x in 0..WIDTH {
@@ -230,22 +245,6 @@ fn main() -> ! {
                 }
             }
             prev_timer = timer.get_counter().ticks();
-        }
-
-        // A welcome message at the beginning
-        if !said_hello && timer.get_counter().ticks() >= 2_000_000 {
-            said_hello = true;
-            let _ = serial.write(b"Hello, World!\r\n");
-
-            let time = timer.get_counter();
-            let mut text: String<64> = String::new();
-            write!(&mut text, "Current timer ticks: {}\r\n", time).unwrap();
-
-            // This only works reliably because the number of bytes written to
-            // the serial port is smaller than the buffers available to the USB
-            // peripheral. In general, the return value should be handled, so that
-            // bytes not transferred yet don't get lost.
-            let _ = serial.write(text.as_bytes());
         }
 
         // Check for new data
@@ -279,6 +278,9 @@ fn main() -> ! {
                             };
                         }
                         (Some(command), SleepState::Awake) => {
+                            // If there's a very early command, cancel the startup animation
+                            startup_percentage = None;
+
                             // While sleeping no command is handled, except waking up
                             if let Some(response) =
                                 handle_command(&command, &mut state, &mut matrix, random)

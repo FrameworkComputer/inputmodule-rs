@@ -42,12 +42,12 @@ where
     Ok(())
 }
 
-pub fn draw_logo<D>(target: &mut D) -> Result<Rectangle, D::Error>
+pub fn draw_logo<D>(target: &mut D, offset: Point) -> Result<Rectangle, D::Error>
 where
     D: DrawTarget<Color = Rgb565>,
 {
     let bmp: Bmp<Rgb565> = Bmp::from_slice(include_bytes!("../assets/logo.bmp")).unwrap();
-    let image = Image::new(&bmp, Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y));
+    let image = Image::new(&bmp, offset);
     image.draw(target)?;
 
     Ok(image.bounding_box())

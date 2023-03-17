@@ -38,6 +38,8 @@ enum Command {
     InvertScreen = 0x15,
     SetPixelColumn = 0x16,
     FlushFramebuffer = 0x17,
+    ClearRam = 0x18,
+    ScreenSaver = 0x19,
     Version = 0x20,
 }
 
@@ -259,8 +261,14 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 if let Some(invert_screen) = b1display_args.invert_screen {
                     invert_screen_cmd(serialdev, invert_screen);
                 }
+                if let Some(screensaver_on) = b1display_args.screen_saver {
+                    screensaver_cmd(serialdev, screensaver_on);
+                }
                 if let Some(image_path) = &b1display_args.image_bw {
                     b1display_bw_image_cmd(serialdev, image_path);
+                }
+                if b1display_args.clear_ram {
+                    simple_cmd(serialdev, Command::ClearRam, &[0x00]);
                 }
                 if let Some(pattern) = b1display_args.pattern {
                     b1_display_pattern(serialdev, pattern);
@@ -488,27 +496,27 @@ fn blinking_cmd(serialdevs: &Vec<String>) {
 fn breathing_cmd(serialdevs: &Vec<String>) {
     loop {
         // Go quickly from 250 to 50
-        for i in 0..10 {
-            thread::sleep(Duration::from_millis(30));
-            simple_cmd_multiple(serialdevs, Command::Brightness, &[250 - i * 20]);
+        for i in 0..40 {
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[250 - i * 5]);
+            thread::sleep(Duration::from_millis(25));
         }
 
         // Go slowly from 50 to 0
-        for i in 0..10 {
-            thread::sleep(Duration::from_millis(60));
-            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 - i * 5]);
+        for i in 0..50 {
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 - i]);
+            thread::sleep(Duration::from_millis(10));
         }
 
         // Go slowly from 0 to 50
-        for i in 0..10 {
-            thread::sleep(Duration::from_millis(60));
-            simple_cmd_multiple(serialdevs, Command::Brightness, &[i * 5]);
+        for i in 0..50 {
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[i]);
+            thread::sleep(Duration::from_millis(10));
         }
 
         // Go quickly from 50 to 250
-        for i in 0..10 {
-            thread::sleep(Duration::from_millis(30));
-            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 + i * 20]);
+        for i in 0..40 {
+            simple_cmd_multiple(serialdevs, Command::Brightness, &[50 + i * 5]);
+            thread::sleep(Duration::from_millis(25));
         }
     }
 }
@@ -732,6 +740,26 @@ fn invert_screen_cmd(serialdev: &str, arg: Option<bool>) {
 
         let inverted = response[0] == 1;
         println!("Currently inverted: {inverted}");
+    }
+}
+
+fn screensaver_cmd(serialdev: &str, arg: Option<bool>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(display_on) = arg {
+        simple_cmd_port(&mut port, Command::ScreenSaver, &[display_on as u8]);
+    } else {
+        simple_cmd_port(&mut port, Command::ScreenSaver, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let on = response[0] == 1;
+        println!("Currently on: {on}");
     }
 }
 
