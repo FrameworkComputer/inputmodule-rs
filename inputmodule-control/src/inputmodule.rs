@@ -42,6 +42,7 @@ enum Command {
     ScreenSaver = 0x19,
     Fps = 0x1A,
     PowerMode = 0x1B,
+    AnimationPeriod = 0x1C,
     Version = 0x20,
 }
 
@@ -271,6 +272,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if let Some(power_mode) = b1display_args.power_mode {
                     power_mode_cmd(serialdev, power_mode);
+                }
+                if let Some(fps) = b1display_args.animation_fps {
+                    animation_fps_cmd(serialdev, fps);
                 }
                 if let Some(image_path) = &b1display_args.image_bw {
                     b1display_bw_image_cmd(serialdev, image_path);
@@ -857,6 +861,28 @@ fn set_power_mode(port: &mut Box<dyn SerialPort>, mode: PowerMode) {
     match mode {
         PowerMode::Low => simple_cmd_port(port, Command::PowerMode, &[0]),
         PowerMode::High => simple_cmd_port(port, Command::PowerMode, &[1]),
+    }
+}
+
+fn animation_fps_cmd(serialdev: &str, arg: Option<u16>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(fps) = arg {
+        let period = (1000 / fps).to_le_bytes();
+        simple_cmd_port(&mut port, Command::AnimationPeriod, &[period[0], period[1]]);
+    } else {
+        simple_cmd_port(&mut port, Command::AnimationPeriod, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        println!("Response: {:X?}", response);
+        let period = u16::from_le_bytes([response[0], response[1]]);
+        println!("Animation Frequency: {}ms / {}Hz", period, 1_000 / period);
     }
 }
 

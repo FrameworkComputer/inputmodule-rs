@@ -63,6 +63,7 @@ pub enum CommandVals {
     ScreenSaver = 0x19,
     SetFps = 0x1A,
     SetPowerMode = 0x1B,
+    AnimationPeriod = 0x1C,
     Version = 0x20,
 }
 
@@ -170,6 +171,8 @@ pub enum Command {
     GetFps,
     SetPowerMode(u8),
     GetPowerMode,
+    SetAnimationPeriod(u16),
+    GetAnimationPeriod,
     _Unknown,
 }
 
@@ -210,6 +213,7 @@ pub struct B1DIsplayState {
     pub screensaver: Option<ScreenSaverState>,
     pub power_mode: PowerMode,
     pub fps_config: FpsConfig,
+    pub animation_period: u64,
 }
 
 pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
@@ -408,6 +412,14 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             } else {
                 Command::GetPowerMode
             }),
+            Some(CommandVals::AnimationPeriod) => {
+                if count == 3 + 2 {
+                    let period = u16::from_le_bytes([buf[3], buf[4]]);
+                    Some(Command::SetAnimationPeriod(period))
+                } else {
+                    Some(Command::GetAnimationPeriod)
+                }
+            }
             _ => None,
         }
     } else {
@@ -695,6 +707,17 @@ where
                 PowerMode::Lpm => 0,
                 PowerMode::Hpm => 1,
             };
+            Some(response)
+        }
+        Command::SetAnimationPeriod(period) => {
+            state.animation_period = (*period as u64) * 1_000;
+            None
+        }
+        Command::GetAnimationPeriod => {
+            // TODO: Doesn't seem to work when the FPS is 16 or higher
+            let mut response: [u8; 32] = [0; 32];
+            let period_ms = state.animation_period / 1_000;
+            response[0..2].copy_from_slice(&(period_ms as u16).to_le_bytes());
             Some(response)
         }
         _ => handle_generic_command(command),

@@ -72,6 +72,10 @@ pub struct B1DisplaySubcommand {
     #[arg(long)]
     pub power_mode: Option<Option<PowerMode>>,
 
+    /// Set/get animation FPS
+    #[arg(long)]
+    pub animation_fps: Option<Option<u16>>,
+
     /// Display black&white image (300x400px)
     #[arg(long)]
     pub image_bw: Option<String>,

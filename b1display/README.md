@@ -68,6 +68,8 @@ Options:
           Set/get FPS [possible values: quarter, half, one, two, four, eight, sixteen, thirty-two]
       --power-mode [<POWER_MODE>]
           Set/get power mode [possible values: low, high]
+      --animation-fps [<ANIMATION_FPS>]
+          Set/get animation FPS
       --image-bw <IMAGE_BW>
           Display black&white image (300x400px)
       --clear-ram
