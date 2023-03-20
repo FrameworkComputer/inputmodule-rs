@@ -64,6 +64,10 @@ Options:
           Invert screen on/off [possible values: true, false]
       --screen-saver [<SCREEN_SAVER>]
           Screensaver on/off [possible values: true, false]
+      --fps [<FPS>]
+          Set/get FPS [possible values: quarter, half, one, two, four, eight, sixteen, thirty-two]
+      --power-mode [<POWER_MODE>]
+          Set/get power mode [possible values: low, high]
       --image-bw <IMAGE_BW>
           Display black&white image (300x400px)
       --clear-ram

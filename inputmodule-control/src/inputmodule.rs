@@ -6,7 +6,7 @@ use image::{io::Reader as ImageReader, Luma};
 use rand::prelude::*;
 use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
-use crate::b1display::B1Pattern;
+use crate::b1display::{B1Pattern, Fps, PowerMode};
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
 use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
@@ -40,6 +40,8 @@ enum Command {
     FlushFramebuffer = 0x17,
     ClearRam = 0x18,
     ScreenSaver = 0x19,
+    Fps = 0x1A,
+    PowerMode = 0x1B,
     Version = 0x20,
 }
 
@@ -263,6 +265,12 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if let Some(screensaver_on) = b1display_args.screen_saver {
                     screensaver_cmd(serialdev, screensaver_on);
+                }
+                if let Some(fps) = b1display_args.fps {
+                    fps_cmd(serialdev, fps);
+                }
+                if let Some(power_mode) = b1display_args.power_mode {
+                    power_mode_cmd(serialdev, power_mode);
                 }
                 if let Some(image_path) = &b1display_args.image_bw {
                     b1display_bw_image_cmd(serialdev, image_path);
@@ -760,6 +768,95 @@ fn screensaver_cmd(serialdev: &str, arg: Option<bool>) {
 
         let on = response[0] == 1;
         println!("Currently on: {on}");
+    }
+}
+
+fn fps_cmd(serialdev: &str, arg: Option<Fps>) {
+    const HIGH_FPS_MASK: u8 = 0b00010000;
+    const LOW_FPS_MASK: u8 = 0b00000111;
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::Fps, &[]);
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+    let current_fps = response[0];
+
+    if let Some(fps) = arg {
+        let power_mode = match fps {
+            Fps::Sixteen | Fps::ThirtyTwo => PowerMode::High,
+            _ => PowerMode::Low,
+        };
+        let fps_bits = match fps {
+            Fps::Quarter => current_fps & !LOW_FPS_MASK,
+            Fps::Half => (current_fps & !LOW_FPS_MASK) | 0b001,
+            Fps::One => (current_fps & !LOW_FPS_MASK) | 0b010,
+            Fps::Two => (current_fps & !LOW_FPS_MASK) | 0b011,
+            Fps::Four => (current_fps & !LOW_FPS_MASK) | 0b100,
+            Fps::Eight => (current_fps & !LOW_FPS_MASK) | 0b101,
+            Fps::Sixteen => current_fps & !HIGH_FPS_MASK,
+            Fps::ThirtyTwo => (current_fps & !HIGH_FPS_MASK) | 0b00010000,
+        };
+        set_power_mode(&mut port, power_mode);
+        simple_cmd_port(&mut port, Command::Fps, &[fps_bits]);
+    } else {
+        simple_cmd_port(&mut port, Command::PowerMode, &[]);
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+        let high = response[0] == 1;
+
+        let fps = if high {
+            if current_fps & HIGH_FPS_MASK == 0 {
+                16.0
+            } else {
+                32.0
+            }
+        } else {
+            let current_fps = current_fps & LOW_FPS_MASK;
+            if current_fps == 0 {
+                0.25
+            } else if current_fps == 1 {
+                0.5
+            } else {
+                (1 << (current_fps - 2)) as f32
+            }
+        };
+
+        println!("Current FPS: {fps}");
+    }
+}
+
+fn power_mode_cmd(serialdev: &str, arg: Option<PowerMode>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(mode) = arg {
+        set_power_mode(&mut port, mode);
+    } else {
+        simple_cmd_port(&mut port, Command::PowerMode, &[]);
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+        let high = response[0] == 1;
+
+        if high {
+            println!("Current Power Mode: High");
+        } else {
+            println!("Current Power Mode: Low");
+        }
+    }
+}
+
+fn set_power_mode(port: &mut Box<dyn SerialPort>, mode: PowerMode) {
+    match mode {
+        PowerMode::Low => simple_cmd_port(port, Command::PowerMode, &[0]),
+        PowerMode::High => simple_cmd_port(port, Command::PowerMode, &[1]),
     }
 }
 

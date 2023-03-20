@@ -146,6 +146,18 @@ fn main() -> ! {
         &embedded_hal::spi::MODE_0,
     );
 
+    let mut state = B1DIsplayState {
+        sleeping: SimpleSleepState::Awake,
+        screen_inverted: false,
+        screen_on: true,
+        screensaver: Some(ScreenSaverState::default()),
+        power_mode: PowerMode::Lpm,
+        fps_config: FpsConfig {
+            hpm: HpmFps::ThirtyTwo,
+            lpm: LpmFps::Two,
+        },
+    };
+
     const INVERTED: bool = false;
     const AUTO_PWRDOWN: bool = true;
     const TE_ENABLE: bool = true;
@@ -159,10 +171,7 @@ fn main() -> ! {
         INVERTED,
         AUTO_PWRDOWN,
         TE_ENABLE,
-        FpsConfig {
-            hpm: HpmFps::ThirtyTwo,
-            lpm: LpmFps::One,
-        },
+        state.fps_config,
         WIDTH as u16,
         HEIGHT as u16,
         COL_START,
@@ -210,13 +219,6 @@ fn main() -> ! {
     disp.flush().unwrap();
 
     let sleep = pins.sleep.into_pull_down_input();
-
-    let mut state = B1DIsplayState {
-        sleeping: SimpleSleepState::Awake,
-        screen_inverted: false,
-        screen_on: true,
-        screensaver: Some(ScreenSaverState::default()),
-    };
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
@@ -286,16 +288,16 @@ fn main() -> ! {
                         (Some(c @ Command::BootloaderReset), _)
                         | (Some(c @ Command::IsSleeping), _) => {
                             if let Some(response) =
-                                handle_command(&c, &mut state, logo_rect, &mut disp)
+                                handle_command(&c, &mut state, logo_rect, &mut disp, &mut delay)
                             {
                                 let _ = serial.write(&response);
                             };
                         }
                         (Some(command), SimpleSleepState::Awake) => {
                             // While sleeping no command is handled, except waking up
-                            if let Some(response) =
-                                handle_command(&command, &mut state, logo_rect, &mut disp)
-                            {
+                            if let Some(response) = handle_command(
+                                &command, &mut state, logo_rect, &mut disp, &mut delay,
+                            ) {
                                 let _ = serial.write(&response);
                             };
                             // Must write AFTER writing response, otherwise the
@@ -352,7 +354,9 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
             //disp.on_off(true).unwrap();
             disp.sleep_out(delay).unwrap();
             // Sleep-in has to go into HPM first, so we'll be in HPM after wake-up as well
-            disp.switch_mode(delay, PowerMode::Lpm).unwrap();
+            if state.power_mode == PowerMode::Lpm {
+                disp.switch_mode(delay, PowerMode::Lpm).unwrap();
+            }
 
             // Turn screensaver on when resuming from sleep
             // TODO Subject to change, but currently I want to avoid burn-in by default
