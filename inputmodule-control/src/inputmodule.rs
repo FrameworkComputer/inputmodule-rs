@@ -213,6 +213,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     start_game_cmd(serialdev, game, ledmatrix_args.game_param);
                 }
 
+                if let Some(fps) = ledmatrix_args.animation_fps {
+                    animation_fps_cmd(serialdev, fps);
+                }
+
                 if ledmatrix_args.stop_game {
                     simple_cmd(
                         serialdev,

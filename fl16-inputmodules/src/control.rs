@@ -338,6 +338,14 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                 _ => None,
             },
             Some(CommandVals::GameStatus) => Some(Command::GameStatus),
+            Some(CommandVals::AnimationPeriod) => {
+                if count == 3 + 2 {
+                    let period = u16::from_le_bytes([buf[3], buf[4]]);
+                    Some(Command::SetAnimationPeriod(period))
+                } else {
+                    Some(Command::GetAnimationPeriod)
+                }
+            }
             _ => None,
         }
     } else {
@@ -455,7 +463,7 @@ pub fn handle_generic_command(command: &Command) -> Option<[u8; 32]> {
 #[cfg(feature = "ledmatrix")]
 pub fn handle_command(
     command: &Command,
-    state: &mut State,
+    state: &mut LedmatrixState,
     matrix: &mut Foo,
     random: u8,
 ) -> Option<[u8; 32]> {
@@ -552,6 +560,17 @@ pub fn handle_command(
             None
         }
         Command::GameStatus => None,
+        Command::SetAnimationPeriod(period) => {
+            state.animation_period = (*period as u64) * 1_000;
+            None
+        }
+        Command::GetAnimationPeriod => {
+            // TODO: Doesn't seem to work when the FPS is 16 or higher
+            let mut response: [u8; 32] = [0; 32];
+            let period_ms = state.animation_period / 1_000;
+            response[0..2].copy_from_slice(&(period_ms as u16).to_le_bytes());
+            Some(response)
+        }
         _ => handle_generic_command(command),
     }
 }

@@ -14,13 +14,14 @@ impl Default for Grid {
     }
 }
 
-pub struct State {
+pub struct LedmatrixState {
     pub grid: Grid,
     pub col_buffer: Grid,
     pub animate: bool,
     pub brightness: u8,
     pub sleeping: SleepState,
     pub game: Option<GameState>,
+    pub animation_period: u64,
 }
 
 #[allow(clippy::large_enum_variant)]
