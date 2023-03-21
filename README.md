@@ -1,7 +1,7 @@
-# Lotus Input Module Firmware
+# Framework Laptop 16 Input Module Firmware
 
-This repository contains both the firmware for the Lotus input modules, as well
-as the tool to control them.
+This repository contains both the firmware for the Framework Laptop 16 input modules,
+as well as the tool to control them.
 
 Rust firmware project setup based off of: https://github.com/rp-rs/rp2040-project-template
 
