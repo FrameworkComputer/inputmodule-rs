@@ -2,11 +2,16 @@
 edition = "2021"
 name = "ledmatrix"
 version = "0.1.4"
+build = "build.rs"
+
+[build-dependencies]
+built = { version = "0.5", features = ["chrono", "git2"] }
 
 [dependencies]
 cortex-m = "0.7"
 cortex-m-rt = "0.7.3"
 embedded-hal = { version = "0.2.7", features = ["unproven"] }
+rp-binary-info = { git = "https://github.com/JohnAZoidberg/rp-binary-info", branch = "custom-string" }
 
 defmt = "0.3"
 defmt-rtt = "0.4"
