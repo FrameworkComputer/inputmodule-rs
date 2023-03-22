@@ -1,4 +1,4 @@
-# Framework Laptop 16 Input Module Firmware
+# Framework Laptop 16 - Input Module Firmware/Software
 
 This repository contains both the firmware for the Framework Laptop 16 input modules,
 as well as the tool to control them.
