@@ -14,15 +14,15 @@ pub static BOOT2_FIRMWARE: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
 
 pub use hal::pac;
 
-// Current mapping is prototyping with ST7735 on Raspberry Pi
-// Lotus LCD Module will have different pin mapping
-// |  FN  | Pico | Lotus |
-// |  SCL | GP14 | GP18  |
-// |  SDA | GP15 | GP19  |
-// |   RX | GP12 | GP16  |
-// | DC/A0| GP13 | GP20  |
-// |   BL | GP18 | GP??  |
-// | RSTB | GP16 | GP21  |
+// Previously prototyping with ST7735 on Raspberry Pi
+// LCD Module Input Module has a different pin mapping
+// |  FN  | Pico | LCD Input Module |
+// |  SCL | GP14 |            GP18  |
+// |  SDA | GP15 |            GP19  |
+// |   RX | GP12 |            GP16  |
+// | DC/A0| GP13 |            GP20  |
+// |   BL | GP18 |            GP??  |
+// | RSTB | GP16 |            GP21  |
 hal::bsp_pins!(
     /// GPIO 0 is connected to the SLEEP# pin of the EC
     Gpio0 { name: sleep },

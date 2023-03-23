@@ -988,7 +988,7 @@ def gui():
 
         [sg.Button("Quit")]
     ]
-    window = sg.Window("Lotus LED Matrix Control", layout)
+    window = sg.Window("LED Matrix Control", layout)
     global STOP_THREAD
     while True:
         event, values = window.read()

@@ -14,7 +14,7 @@ defmt-rtt = "0.4"
 #panic-probe = { version = "0.3", features = ["print-defmt"] }
 rp2040-panic-usb-boot = { git = "https://github.com/rwalkr/rp2040-panic-usb-boot" }
 
-# Not using a BSP, we've got a Lotus BSP's locally in this crate
+# Not using an external BSP, we've got the Framework Laptop BSPs locally in this crate
 rp2040-hal = { version="0.7", features=["rt", "critical-section-impl"] }
 rp2040-boot2 = "0.2"
 
@@ -29,6 +29,6 @@ fugit = "0.3.6"
 smart-leds = "0.3.0"
 ws2812-pio = "0.5.0"
 
-[dependencies.lotus-inputmodules]
-path = "../lotus-inputmodules"
+[dependencies.fl16-inputmodules]
+path = "../fl16-inputmodules"
 features = [ "c1minimal" ]

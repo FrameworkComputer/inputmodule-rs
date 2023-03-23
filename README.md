@@ -48,12 +48,12 @@ Common commands:
   VID     0x32AC
   PID     0x0020
   SN      FRAKDEAM0020110001
-  Product Lotus_LED_Matrix
+  Product LED_Matrix
 /dev/ttyACM1
   VID     0x32AC
   PID     0x0021
   SN      FRAKDEAM0000000000
-  Product Lotus_B1_Display
+  Product B1_Display
 ```
 
 ###### Apply command to single device
@@ -169,7 +169,7 @@ On Linux:
 
 ```sh
 > lsusb -d 32ac: -v 2> /dev/null | grep -P 'ID 32ac|bcdDevice'
-Bus 003 Device 078: ID 32ac:0021 Framework Lotus B1 Display
+Bus 003 Device 078: ID 32ac:0021 Framework Laptop 16 B1 Display
   bcdDevice            0.10
 ```
 

@@ -1,4 +1,4 @@
-# Python script to control Lotus input modules
+# Python script to control Framework Laptop 16 Input Modules
 
 Requirements: Python, [PySimpleGUI](https://www.pysimplegui.org) and optionally [pillow](https://pillow.readthedocs.io/en/stable/index.html)
 

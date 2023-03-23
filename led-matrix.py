@@ -40,7 +40,7 @@ class Led:
 def get_leds():
     leds = []
 
-    # Generate LED mapping as how they are mapped in the Lotus LED Matrix Module
+    # Generate LED mapping as how they are mapped in the Framework Laptop 16 LED Matrix Module
 
     # First down and then right
     # CS1 through CS4
