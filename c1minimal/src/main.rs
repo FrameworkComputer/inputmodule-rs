@@ -1,4 +1,4 @@
-//! Lotus C1 Minimal Input Module
+//! C1 Minimal Input Module
 //!
 //! Neopixel/WS2812 compatible RGB LED is connected to GPIO16.
 //! This pin doesn't support SPI TX.
@@ -21,7 +21,7 @@ use rp2040_panic_usb_boot as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-use lotus_inputmodules::lotus_minimal_hal as bsp;
+use fl16_inputmodules::minimal_hal as bsp;
 //use rp_pico as bsp;
 
 use bsp::hal::{
@@ -52,11 +52,11 @@ pub type Ws2812<'a> = ws2812_pio::Ws2812<
     Gpio16,
 >;
 
-use lotus_inputmodules::control::*;
-use lotus_inputmodules::serialnum::{device_release, get_serialnum};
+use fl16_inputmodules::control::*;
+use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
-//                               000             - Lotus C1 Minimal Input Module (No assigned  value)
+//                               000             - C1 Minimal Input Module (No assigned  value)
 //                                  AM           - Atemitech
 //                                    00         - Default Configuration
 //                                      00000000 - Device Identifier
@@ -109,8 +109,8 @@ fn main() -> ! {
     };
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0022))
-        .manufacturer("Framework")
-        .product("Lotus C1 Minimal Input Module")
+        .manufacturer("Framework Computer Inc")
+        .product("C1 Minimal Input Module")
         .serial_number(serialnum)
         .max_power(500) // TODO: Check how much
         .device_release(device_release())

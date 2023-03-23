@@ -3,8 +3,8 @@ use rp2040_hal::{
     pac::I2C1,
 };
 
-use crate::lotus::LotusLedMatrix;
-use crate::lotus_led_hal as bsp;
+use crate::fl16::LedMatrix;
+use crate::led_hal as bsp;
 use crate::mapping::*;
 use crate::matrix::*;
 
@@ -12,7 +12,7 @@ use crate::matrix::*;
 /// math.ceil(WIDTH * HEIGHT / 8)
 pub const DRAW_BYTES: usize = 39;
 
-pub type Foo = LotusLedMatrix<
+pub type Foo = LedMatrix<
     bsp::hal::I2C<
         I2C1,
         (

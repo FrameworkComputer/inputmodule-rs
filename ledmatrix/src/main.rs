@@ -1,4 +1,4 @@
-//! Lotus LED Matrix Module
+//! LED Matrix Module
 #![no_std]
 #![no_main]
 #![allow(clippy::needless_range_loop)]
@@ -60,7 +60,7 @@ use rp2040_panic_usb_boot as _;
 //        &clocks.peripheral_clock,
 //    );
 //
-//    let mut matrix = LotusLedMatrix::configure(i2c);
+//    let mut matrix = LedMatrix::configure(i2c);
 //    matrix
 //        .setup(&mut delay)
 //        .expect("failed to setup rgb controller");
@@ -75,7 +75,7 @@ use rp2040_panic_usb_boot as _;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
-use lotus_inputmodules::{games::game_of_life, lotus_led_hal as bsp};
+use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -99,15 +99,15 @@ use usbd_serial::{SerialPort, USB_CLASS_CDC};
 use core::fmt::Write;
 use heapless::String;
 
-use lotus_inputmodules::control::*;
-use lotus_inputmodules::games::{pong, snake};
-use lotus_inputmodules::lotus::LotusLedMatrix;
-use lotus_inputmodules::matrix::*;
-use lotus_inputmodules::patterns::*;
-use lotus_inputmodules::serialnum::{device_release, get_serialnum};
+use fl16_inputmodules::control::*;
+use fl16_inputmodules::fl16::LedMatrix;
+use fl16_inputmodules::games::{pong, snake};
+use fl16_inputmodules::matrix::*;
+use fl16_inputmodules::patterns::*;
+use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
-//                               KDE             - Lotus C2 LED Matrix
+//                               KDE             - C1 LED Matrix
 //                                  AM           - Atemitech
 //                                    00         - Default Configuration
 //                                      00000000 - Device Identifier
@@ -163,8 +163,8 @@ fn main() -> ! {
     };
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0020))
-        .manufacturer("Framework")
-        .product("Lotus LED Matrix")
+        .manufacturer("Framework Computer Inc")
+        .product("LED Matrix Input Module")
         .serial_number(serialnum)
         .max_power(200) // Device uses roughly 164mW when all LEDs are at full brightness
         .device_release(device_release())
@@ -198,7 +198,7 @@ fn main() -> ! {
         game: None,
     };
 
-    let mut matrix = LotusLedMatrix::configure(i2c);
+    let mut matrix = LedMatrix::configure(i2c);
     matrix
         .setup(&mut delay)
         .expect("failed to setup rgb controller");

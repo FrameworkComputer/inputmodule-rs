@@ -1,4 +1,4 @@
-//! Lotus LED Matrix Module
+//! LED Matrix Module
 #![no_std]
 #![no_main]
 #![allow(clippy::needless_range_loop)]
@@ -22,7 +22,7 @@ use st7306_lcd::{FpsConfig, HpmFps, LpmFps, PowerMode, ST7306};
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-use lotus_inputmodules::lotus_lcd_hal as bsp;
+use fl16_inputmodules::lcd_hal as bsp;
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -47,12 +47,12 @@ use core::fmt::Debug;
 //use core::fmt::Write;
 //use heapless::String;
 
-use lotus_inputmodules::control::*;
-use lotus_inputmodules::graphics::*;
-use lotus_inputmodules::serialnum::{device_release, get_serialnum};
+use fl16_inputmodules::control::*;
+use fl16_inputmodules::graphics::*;
+use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
-//                               KDE             - Lotus C2 LED Matrix
+//                               KDE             - C1 LED Matrix
 //                                  AM           - Atemitech
 //                                    00         - Default Configuration
 //                                      00000000 - Device Identifier
@@ -120,8 +120,8 @@ fn main() -> ! {
     };
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0021))
-        .manufacturer("Framework")
-        .product("Lotus B1 Display")
+        .manufacturer("Framework Computer Inc")
+        .product("B1 Display")
         .serial_number(serialnum)
         .max_power(500) // TODO: Check how much
         .device_release(device_release()) // TODO: Assign dynamically based on crate version

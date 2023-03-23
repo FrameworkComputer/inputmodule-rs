@@ -84,9 +84,9 @@ dependencies = [
  "defmt-rtt",
  "embedded-graphics",
  "embedded-hal",
+ "fl16-inputmodules",
  "fugit",
  "heapless",
- "lotus-inputmodules",
  "rp2040-boot2",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
@@ -151,9 +151,9 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "embedded-hal",
+ "fl16-inputmodules",
  "fugit",
  "heapless",
- "lotus-inputmodules",
  "rp2040-boot2",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
@@ -527,6 +527,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "fl16-inputmodules"
+version = "0.1.4"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt",
+ "defmt-rtt",
+ "embedded-graphics",
+ "embedded-hal",
+ "fugit",
+ "heapless",
+ "is31fl3741",
+ "num",
+ "num-derive",
+ "num-traits",
+ "rp2040-boot2",
+ "rp2040-hal",
+ "rp2040-panic-usb-boot",
+ "smart-leds",
+ "st7306-lcd",
+ "tinybmp",
+ "usb-device",
+ "usbd-hid",
+ "usbd-serial",
+ "ws2812-pio",
+]
+
+[[package]]
 name = "flate2"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -787,10 +815,10 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "embedded-hal",
+ "fl16-inputmodules",
  "fugit",
  "heapless",
  "is31fl3741",
- "lotus-inputmodules",
  "rp2040-boot2",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
@@ -857,34 +885,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "lotus-inputmodules"
-version = "0.1.4"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "defmt",
- "defmt-rtt",
- "embedded-graphics",
- "embedded-hal",
- "fugit",
- "heapless",
- "is31fl3741",
- "num",
- "num-derive",
- "num-traits",
- "rp2040-boot2",
- "rp2040-hal",
- "rp2040-panic-usb-boot",
- "smart-leds",
- "st7306-lcd",
- "tinybmp",
- "usb-device",
- "usbd-hid",
- "usbd-serial",
- "ws2812-pio",
 ]
 
 [[package]]
