@@ -178,7 +178,7 @@ Bus 003 Device 078: ID 32ac:0021 Framework Laptop 16 B1 Display
 When the Rust code panics, the RP2040 resets itself into bootloader mode.
 This means a new firmware can be written to overwrite the old one.
 
-Additionally the panic message is written to XIP RAM, which can be with [picotool](https://github.com/raspberrypi/picotool):
+Additionally the panic message is written to XIP RAM, which can be read with [picotool](https://github.com/raspberrypi/picotool):
 
 ```sh
 sudo picotool save -r 0x15000000 0x15004000 message.bin
