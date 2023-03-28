@@ -76,9 +76,13 @@ pub struct B1DisplaySubcommand {
     #[arg(long)]
     pub animation_fps: Option<Option<u16>>,
 
-    /// Display black&white image (300x400px)
+    /// Display a black&white image (300x400px)
     #[arg(long)]
-    pub image_bw: Option<String>,
+    pub image: Option<String>,
+
+    /// Display an animated black&white GIF (300x400px)
+    #[arg(long)]
+    pub animated_gif: Option<String>,
 
     /// Clear display RAM
     #[arg(long)]

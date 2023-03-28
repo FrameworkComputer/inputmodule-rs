@@ -70,8 +70,10 @@ Options:
           Set/get power mode [possible values: low, high]
       --animation-fps [<ANIMATION_FPS>]
           Set/get animation FPS
-      --image-bw <IMAGE_BW>
-          Display black&white image (300x400px)
+      --image <IMAGE>
+          Display a black&white image (300x400px)
+      --animated-gif <ANIMATED_GIF>
+          Display an animated black&white GIF (300x400px)
       --clear-ram
           Clear display RAM
   -h, --help

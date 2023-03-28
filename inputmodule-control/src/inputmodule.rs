@@ -2,7 +2,9 @@ use std::thread;
 use std::time::Duration;
 
 use chrono::Local;
+use image::codecs::gif::GifDecoder;
 use image::{io::Reader as ImageReader, Luma};
+use image::{AnimationDecoder, DynamicImage, ImageBuffer};
 use rand::prelude::*;
 use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
@@ -280,8 +282,11 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 if let Some(fps) = b1display_args.animation_fps {
                     animation_fps_cmd(serialdev, fps);
                 }
-                if let Some(image_path) = &b1display_args.image_bw {
+                if let Some(image_path) = &b1display_args.image {
                     b1display_bw_image_cmd(serialdev, image_path);
+                }
+                if let Some(image_path) = &b1display_args.animated_gif {
+                    gif_cmd(serialdev, image_path);
                 }
                 if b1display_args.clear_ram {
                     simple_cmd(serialdev, Command::ClearRam, &[0x00]);
@@ -904,17 +909,48 @@ fn set_color_cmd(serialdev: &str, color: Color) {
     simple_cmd(serialdev, Command::SetColor, args);
 }
 
+fn gif_cmd(serialdev: &str, image_path: &str) {
+    let mut serialport = open_serialport(serialdev);
+
+    loop {
+        let img = std::fs::File::open(image_path).unwrap();
+        let gif = GifDecoder::new(img).unwrap();
+        let frames = gif.into_frames();
+        for (_i, frame) in frames.enumerate() {
+            //println!("Frame {i}");
+            let frame = frame.unwrap();
+            //let delay = frame.delay();
+            //println!("  Delay: {:?}", Duration::from(delay));
+            let frame_img = frame.into_buffer();
+            let frame_img = DynamicImage::from(frame_img);
+            let frame_img = frame_img.resize(300, 400, image::imageops::FilterType::Gaussian);
+            let frame_img = frame_img.into_luma8();
+            display_img(&mut serialport, &frame_img);
+            // Not delaying any further. Current transmission delay is big enough
+            //thread::sleep(delay.into());
+        }
+    }
+}
+
 /// Display an image in black and white
 /// Confirmed working with PNG and GIF.
 /// Must be 300x400 in size.
 /// Sends one 400px column in a single commands and a flush at the end
-fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
+fn generic_img_cmd(serialdev: &str, image_path: &str) {
     let mut serialport = open_serialport(serialdev);
     let img = ImageReader::open(image_path)
         .unwrap()
         .decode()
         .unwrap()
         .to_luma8();
+    display_img(&mut serialport, &img);
+}
+
+fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
+    generic_img_cmd(serialdev, image_path);
+}
+
+fn display_img(serialport: &mut Box<dyn SerialPort>, img: &ImageBuffer<Luma<u8>, Vec<u8>>) {
     let width = img.width();
     let height = img.height();
     assert!(width == 300);
@@ -957,10 +993,10 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
             }
         }
 
-        simple_open_cmd(&mut serialport, Command::SetPixelColumn, &vals);
+        simple_open_cmd(serialport, Command::SetPixelColumn, &vals);
     }
 
-    simple_open_cmd(&mut serialport, Command::FlushFramebuffer, &[]);
+    simple_open_cmd(serialport, Command::FlushFramebuffer, &[]);
 }
 
 fn b1_display_color(serialdev: &str, black: bool) {
