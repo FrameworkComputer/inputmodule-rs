@@ -920,6 +920,19 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
     assert!(width == 300);
     assert!(height == 400);
 
+    let (brightest, darkest) = img
+        .pixels()
+        .fold((0xFF, 0x00), |(brightest, darkest), pixel| {
+            let br = pixel.0[0];
+            let brightest = if br > brightest { br } else { brightest };
+            let darkest = if br < darkest { br } else { darkest };
+            (brightest, darkest)
+        });
+    let bright_diff = brightest - darkest;
+    // Anything brighter than 90% between darkest and brightest counts as white
+    // Just a heuristic. Don't use greyscale images! Use black and white instead
+    let threshold = darkest + (bright_diff / 10) * 9;
+
     for x in 0..300 {
         let mut vals: [u8; 2 + 50] = [0; 2 + 50];
         let column = (x as u16).to_le_bytes();
@@ -930,7 +943,7 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
         for y in 0..400usize {
             let pixel = img.get_pixel(x, y as u32);
             let brightness = pixel.0[0];
-            let black = brightness < 0xFF / 2;
+            let black = brightness < threshold;
 
             let bit = y % 8;
             if bit == 0 {
