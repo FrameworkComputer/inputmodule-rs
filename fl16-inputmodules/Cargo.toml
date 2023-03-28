@@ -33,7 +33,7 @@ num-traits = { version = "0.2", default-features = false }
 is31fl3741 = { git = "https://github.com/JohnAZoidberg/is31fl3741", branch = "all-at-once", optional = true }
 
 # B1 Display
-st7306-lcd = { git = "ssh://git@github.com/FrameworkComputer/st7306.git", optional = true }
+st7306 = { version = "0.8.2", optional = true }
 embedded-graphics = { version = "0.7", optional = true }
 tinybmp = { version = "0.4.0", optional = true }
 
@@ -44,5 +44,5 @@ ws2812-pio = { version = "0.5.0", optional = true }
 [features]
 default = []
 ledmatrix = [ "is31fl3741" ]
-b1display = [ "st7306-lcd", "embedded-graphics", "tinybmp" ]
+b1display = [ "st7306", "embedded-graphics", "tinybmp" ]
 c1minimal = ["smart-leds", "ws2812-pio" ]

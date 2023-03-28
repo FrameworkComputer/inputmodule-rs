@@ -22,7 +22,7 @@ use embedded_hal::digital::v2::OutputPin;
 #[cfg(feature = "b1display")]
 use heapless::String;
 #[cfg(feature = "b1display")]
-use st7306_lcd::ST7306;
+use st7306::ST7306;
 
 #[cfg(feature = "ledmatrix")]
 use crate::games::pong;

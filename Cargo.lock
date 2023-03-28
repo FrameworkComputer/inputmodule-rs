@@ -90,7 +90,7 @@ dependencies = [
  "rp2040-boot2",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
- "st7306-lcd",
+ "st7306",
  "tinybmp",
  "usb-device",
  "usbd-hid",
@@ -546,7 +546,7 @@ dependencies = [
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
- "st7306-lcd",
+ "st7306",
  "tinybmp",
  "usb-device",
  "usbd-hid",
@@ -1474,9 +1474,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "st7306-lcd"
+name = "st7306"
 version = "0.8.2"
-source = "git+ssh://git@github.com/FrameworkComputer/st7306.git#b5148a927071421562eafa4a19c75d3849b11daf"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a352a20201ed2a68dfa45e96625b43e990fb8d8d463e4fc2f6751f2d253bfde"
 dependencies = [
  "embedded-graphics",
  "embedded-hal",
