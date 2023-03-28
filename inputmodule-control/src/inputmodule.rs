@@ -938,12 +938,10 @@ fn gif_cmd(serialdev: &str, image_path: &str) {
 /// Sends one 400px column in a single commands and a flush at the end
 fn generic_img_cmd(serialdev: &str, image_path: &str) {
     let mut serialport = open_serialport(serialdev);
-    let img = ImageReader::open(image_path)
-        .unwrap()
-        .decode()
-        .unwrap()
-        .to_luma8();
-    display_img(&mut serialport, &img);
+    let img = ImageReader::open(image_path).unwrap().decode().unwrap();
+    let img = img.resize(300, 400, image::imageops::FilterType::Gaussian);
+    let grayscale_img = img.to_luma8();
+    display_img(&mut serialport, &grayscale_img);
 }
 
 fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
