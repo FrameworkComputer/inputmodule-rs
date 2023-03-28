@@ -18,7 +18,7 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::*;
 use embedded_hal::blocking::spi;
-use st7306_lcd::{FpsConfig, HpmFps, LpmFps, PowerMode, ST7306};
+use st7306::{FpsConfig, HpmFps, LpmFps, PowerMode, ST7306};
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.

@@ -26,7 +26,7 @@ usbd-serial = "0.1.1"
 usbd-hid = "0.5.1"
 fugit = "0.3.6"
 
-st7306-lcd = { git = "ssh://git@github.com/FrameworkComputer/st7306.git" }
+st7306 = "0.8.2"
 embedded-graphics = "0.7"
 tinybmp = "0.4.0"
 
