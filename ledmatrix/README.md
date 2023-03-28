@@ -64,6 +64,8 @@ Options:
           Paramater for starting the game. Required for some games [possible values: current-matrix, pattern1, blinker, toad, beacon, glider]
       --stop-game
           Stop the currently running game
+      --animation-fps [<ANIMATION_FPS>]
+          Set/get animation FPS
       --panic
           Crash the firmware (TESTING ONLY!)
   -v, --version

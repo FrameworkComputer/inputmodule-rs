@@ -41,6 +41,8 @@ class CommandVals(IntEnum):
     FlushFramebuffer = 0x17
     ClearRam = 0x18
     ScreenSaver = 0x19
+    SetFps = 0x1A
+    SetPowerMode = 0x1B
     Version = 0x20
 
 
@@ -120,6 +122,9 @@ ARG_2RIGHT = 6
 
 RGB_COLORS = ['white', 'black', 'red', 'green',
               'blue', 'cyan', 'yellow', 'purple']
+SCREEN_FPS = ['quarter', 'half', 'one', 'two', 'four', 'eight', 'sixteen', 'thirtytwo']
+HIGH_FPS_MASK = 0b00010000
+LOW_FPS_MASK = 0b00000111
 
 SERIAL_DEV = None
 
@@ -196,6 +201,14 @@ def main():
                         action=argparse.BooleanOptionalAction)
     parser.add_argument("--screen-saver", help="Turn on/off screensaver",
                         action=argparse.BooleanOptionalAction)
+    parser.add_argument("--set-fps", help="Set screen FPS",
+                        choices=SCREEN_FPS)
+    parser.add_argument("--set-power-mode", help="Set screen power mode",
+                        choices=['high', 'low'])
+    parser.add_argument("--get-fps", help="Set screen FPS",
+                        action='store_true')
+    parser.add_argument("--get-power-mode", help="Set screen power mode",
+                        action='store_true')
     parser.add_argument("--b1image", help="On the B1 display, show a PNG or GIF image in black and white only)",
                         type=argparse.FileType('rb'))
 
@@ -282,6 +295,14 @@ def main():
         invert_screen_cmd(args.invert_screen)
     elif args.screen_saver is not None:
         screen_saver_cmd(args.screen_saver)
+    elif args.set_fps is not None:
+        set_fps_cmd(args.set_fps)
+    elif args.set_power_mode is not None:
+        set_power_mode_cmd(args.set_power_mode)
+    elif args.get_fps:
+        get_fps_cmd()
+    elif args.get_power_mode:
+        get_power_mode_cmd()
     elif args.b1image is not None:
         b1image_bl(args.b1image)
     elif args.version:
@@ -1071,6 +1092,92 @@ def invert_screen_cmd(invert):
 
 def screen_saver_cmd(on):
     send_command(CommandVals.ScreenSaver, [on])
+
+
+def set_fps_cmd(mode):
+    res = send_command(CommandVals.SetFps, with_response=True)
+    current_fps = res[0]
+
+    if mode == 'quarter':
+        fps = current_fps & ~LOW_FPS_MASK
+        fps |= 0b000
+        send_command(CommandVals.SetFps, [fps])
+        set_power_mode_cmd('low')
+    elif mode == 'half':
+        fps = current_fps & ~LOW_FPS_MASK
+        fps |= 0b001
+        send_command(CommandVals.SetFps, [fps])
+        set_power_mode_cmd('low')
+    elif mode == 'one':
+        fps = current_fps & ~LOW_FPS_MASK
+        fps |= 0b010
+        send_command(CommandVals.SetFps, [fps])
+        set_power_mode_cmd('low')
+    elif mode == 'two':
+        fps = current_fps & ~LOW_FPS_MASK
+        fps |= 0b011
+        send_command(CommandVals.SetFps, [fps])
+        set_power_mode_cmd('low')
+    elif mode == 'four':
+        fps = current_fps & ~LOW_FPS_MASK
+        fps |= 0b100
+        send_command(CommandVals.SetFps, [fps])
+        set_power_mode_cmd('low')
+    elif mode == 'eight':
+        fps = current_fps & ~LOW_FPS_MASK
+        fps |= 0b101
+        send_command(CommandVals.SetFps, [fps])
+        set_power_mode_cmd('low')
+    elif mode == 'sixteen':
+        fps = current_fps & ~HIGH_FPS_MASK
+        fps |= 0b00000000
+        send_command(CommandVals.SetFps, [fps])
+        set_power_mode_cmd('high')
+    elif mode == 'thirtytwo':
+        fps = current_fps & ~HIGH_FPS_MASK
+        fps |= 0b00010000
+        send_command(CommandVals.SetFps, [fps])
+        set_power_mode_cmd('high')
+
+
+def set_power_mode_cmd(mode):
+    if mode == 'low':
+        send_command(CommandVals.SetPowerMode, [0])
+    elif mode == 'high':
+        send_command(CommandVals.SetPowerMode, [1])
+    else:
+        print("Unsupported power mode")
+        sys.exit(1)
+
+def get_power_mode_cmd():
+    res = send_command(CommandVals.SetPowerMode, with_response=True)
+    current_mode = int(res[0])
+    if current_mode == 0:
+        print(f"Current Power Mode: Low Power")
+    elif current_mode == 1:
+        print(f"Current Power Mode: High Power")
+
+def get_fps_cmd():
+    res = send_command(CommandVals.SetFps, with_response=True)
+    current_fps = res[0]
+    res = send_command(CommandVals.SetPowerMode, with_response=True)
+    current_mode = int(res[0])
+
+    if current_mode == 0:
+        current_fps &= LOW_FPS_MASK
+        if current_fps == 0:
+            fps = 0.25
+        elif current_fps == 1:
+            fps = 0.5
+        else:
+            fps = 2 ** (current_fps - 2)
+    elif current_mode == 1:
+        if current_fps & HIGH_FPS_MASK:
+            fps = 32
+        else:
+            fps = 16
+
+    print(f"Current FPS: {fps}")
 
 
 # 5x6 symbol font. Leaves 2 pixels on each side empty

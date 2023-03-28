@@ -1,5 +1,5 @@
 use crate::control::GameControlArg;
-use crate::matrix::{GameState, Grid, State, HEIGHT, LEDS, WIDTH};
+use crate::matrix::{GameState, Grid, LedmatrixState, HEIGHT, LEDS, WIDTH};
 
 use heapless::Vec;
 
@@ -33,7 +33,7 @@ fn place_food(random: u8) -> Position {
     (x as i8, y as i8)
 }
 
-pub fn start_game(state: &mut State, random: u8) {
+pub fn start_game(state: &mut LedmatrixState, random: u8) {
     state.game = Some(GameState::Snake(SnakeState {
         head: (4, 0),
         direction: HeadDirection::Down,
@@ -42,7 +42,7 @@ pub fn start_game(state: &mut State, random: u8) {
         food: place_food(random),
     }));
 }
-pub fn handle_control(state: &mut State, arg: &GameControlArg) {
+pub fn handle_control(state: &mut LedmatrixState, arg: &GameControlArg) {
     if let Some(GameState::Snake(ref mut snake_state)) = state.game {
         match arg {
             GameControlArg::Up => snake_state.direction = HeadDirection::Up,
@@ -55,7 +55,7 @@ pub fn handle_control(state: &mut State, arg: &GameControlArg) {
     }
 }
 
-pub fn game_step(state: &mut State, random: u8) -> (HeadDirection, bool, usize, Position) {
+pub fn game_step(state: &mut LedmatrixState, random: u8) -> (HeadDirection, bool, usize, Position) {
     if let Some(GameState::Snake(ref mut snake_state)) = state.game {
         if snake_state.game_over {
             return (

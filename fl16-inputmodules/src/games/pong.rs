@@ -1,5 +1,5 @@
 use crate::control::GameControlArg;
-use crate::matrix::{GameState, Grid, State, HEIGHT, WIDTH};
+use crate::matrix::{GameState, Grid, LedmatrixState, HEIGHT, WIDTH};
 
 const PADDLE_WIDTH: usize = 5;
 
@@ -28,7 +28,7 @@ pub struct PongState {
     pub speed: u64,
 }
 
-pub fn start_game(state: &mut State, _random: u8) {
+pub fn start_game(state: &mut LedmatrixState, _random: u8) {
     state.game = Some(GameState::Pong(PongState {
         _score: Score {
             _upper: 0,
@@ -42,7 +42,7 @@ pub fn start_game(state: &mut State, _random: u8) {
         speed: 0,
     }))
 }
-pub fn handle_control(state: &mut State, arg: &GameControlArg) {
+pub fn handle_control(state: &mut LedmatrixState, arg: &GameControlArg) {
     if let Some(GameState::Pong(ref mut pong_state)) = state.game {
         match arg {
             GameControlArg::Left => {
@@ -96,7 +96,7 @@ fn hit_paddle(ball: Position, paddles: (usize, usize)) -> Option<usize> {
     }
 }
 
-pub fn game_step(state: &mut State, _random: u8) {
+pub fn game_step(state: &mut LedmatrixState, _random: u8) {
     if let Some(GameState::Pong(ref mut pong_state)) = state.game {
         pong_state.ball.pos = {
             let (vx, vy) = pong_state.ball.direction;

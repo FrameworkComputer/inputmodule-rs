@@ -44,8 +44,8 @@ use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // Used to demonstrate writing formatted strings
 use core::fmt::Debug;
-//use core::fmt::Write;
-//use heapless::String;
+use core::fmt::Write;
+use heapless::String;
 
 use fl16_inputmodules::control::*;
 use fl16_inputmodules::graphics::*;
@@ -68,7 +68,7 @@ type B1ST7306 = ST7306<
 >;
 
 const DEBUG: bool = false;
-const SCRNS_DELTA: i32 = 10;
+const SCRNS_DELTA: i32 = 5;
 const WIDTH: i32 = 300;
 const HEIGHT: i32 = 400;
 const SIZE: Size = Size::new(WIDTH as u32, HEIGHT as u32);
@@ -146,6 +146,19 @@ fn main() -> ! {
         &embedded_hal::spi::MODE_0,
     );
 
+    let mut state = B1DIsplayState {
+        sleeping: SimpleSleepState::Awake,
+        screen_inverted: false,
+        screen_on: true,
+        screensaver: Some(ScreenSaverState::default()),
+        power_mode: PowerMode::Lpm,
+        fps_config: FpsConfig {
+            hpm: HpmFps::ThirtyTwo,
+            lpm: LpmFps::Two,
+        },
+        animation_period: 1_000_000, // 1000ms = 1Hz
+    };
+
     const INVERTED: bool = false;
     const AUTO_PWRDOWN: bool = true;
     const TE_ENABLE: bool = true;
@@ -159,10 +172,7 @@ fn main() -> ! {
         INVERTED,
         AUTO_PWRDOWN,
         TE_ENABLE,
-        FpsConfig {
-            hpm: HpmFps::ThirtyTwo,
-            lpm: LpmFps::One,
-        },
+        state.fps_config,
         WIDTH as u16,
         HEIGHT as u16,
         COL_START,
@@ -211,15 +221,9 @@ fn main() -> ! {
 
     let sleep = pins.sleep.into_pull_down_input();
 
-    let mut state = B1DIsplayState {
-        sleeping: SimpleSleepState::Awake,
-        screen_inverted: false,
-        screen_on: true,
-        screensaver: Some(ScreenSaverState::default()),
-    };
-
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
+    let mut ticks = 0;
 
     let mut logo_pos = Point::new(LOGO_OFFSET_X, LOGO_OFFSET_Y);
 
@@ -229,10 +233,32 @@ fn main() -> ! {
         handle_sleep(host_sleeping, &mut state, &mut delay, &mut disp);
 
         // Handle period display updates. Don't do it too often
-        if timer.get_counter().ticks() > prev_timer + 500_000 {
+        if timer.get_counter().ticks() > prev_timer + state.animation_period {
             prev_timer = timer.get_counter().ticks();
 
             if let Some(ref mut screensaver) = state.screensaver {
+                let seconds = ticks / (1_000_000 / state.animation_period);
+                #[allow(clippy::modulo_one)]
+                let second_decimals = ticks % (1_000_000 / state.animation_period);
+                Rectangle::new(Point::new(0, 0), Size::new(300, 50))
+                    .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+                    .draw(&mut disp)
+                    .unwrap();
+                let mut text: String<32> = String::new();
+                write!(
+                    &mut text,
+                    "{:>4} Ticks ({:>4}.{} s)",
+                    ticks, seconds, second_decimals
+                )
+                .unwrap();
+                // Uncomment to draw the ticks on the screen
+                //draw_text(
+                //    &mut disp,
+                //    &text,
+                //    Point::new(0, 0),
+                //).unwrap();
+                ticks += 1;
+
                 logo_pos = {
                     let (x, y) = (logo_pos.x, logo_pos.y);
                     let w = logo_rect.size.width as i32;
@@ -286,16 +312,16 @@ fn main() -> ! {
                         (Some(c @ Command::BootloaderReset), _)
                         | (Some(c @ Command::IsSleeping), _) => {
                             if let Some(response) =
-                                handle_command(&c, &mut state, logo_rect, &mut disp)
+                                handle_command(&c, &mut state, logo_rect, &mut disp, &mut delay)
                             {
                                 let _ = serial.write(&response);
                             };
                         }
                         (Some(command), SimpleSleepState::Awake) => {
                             // While sleeping no command is handled, except waking up
-                            if let Some(response) =
-                                handle_command(&command, &mut state, logo_rect, &mut disp)
-                            {
+                            if let Some(response) = handle_command(
+                                &command, &mut state, logo_rect, &mut disp, &mut delay,
+                            ) {
                                 let _ = serial.write(&response);
                             };
                             // Must write AFTER writing response, otherwise the
@@ -352,7 +378,9 @@ fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
             //disp.on_off(true).unwrap();
             disp.sleep_out(delay).unwrap();
             // Sleep-in has to go into HPM first, so we'll be in HPM after wake-up as well
-            disp.switch_mode(delay, PowerMode::Lpm).unwrap();
+            if state.power_mode == PowerMode::Lpm {
+                disp.switch_mode(delay, PowerMode::Lpm).unwrap();
+            }
 
             // Turn screensaver on when resuming from sleep
             // TODO Subject to change, but currently I want to avoid burn-in by default

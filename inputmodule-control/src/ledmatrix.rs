@@ -117,6 +117,10 @@ pub struct LedMatrixSubcommand {
     #[clap(value_enum)]
     pub stop_game: bool,
 
+    /// Set/get animation FPS
+    #[arg(long)]
+    pub animation_fps: Option<Option<u16>>,
+
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]
     pub panic: bool,

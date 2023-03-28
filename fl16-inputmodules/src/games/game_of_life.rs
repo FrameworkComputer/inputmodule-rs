@@ -1,5 +1,5 @@
 use crate::control::{GameControlArg, GameOfLifeStartParam};
-use crate::matrix::{GameState, Grid, State, HEIGHT, WIDTH};
+use crate::matrix::{GameState, Grid, LedmatrixState, HEIGHT, WIDTH};
 
 #[derive(Clone, Copy, num_derive::FromPrimitive)]
 pub enum Cell {
@@ -12,19 +12,19 @@ pub struct GameOfLifeState {
     cells: [[Cell; WIDTH]; HEIGHT],
 }
 
-pub fn start_game(state: &mut State, _random: u8, param: GameOfLifeStartParam) {
+pub fn start_game(state: &mut LedmatrixState, _random: u8, param: GameOfLifeStartParam) {
     let gol = GameOfLifeState::new(param, &state.grid);
     state.grid = gol.draw_matrix();
     state.game = Some(GameState::GameOfLife(gol));
 }
-pub fn handle_control(state: &mut State, arg: &GameControlArg) {
+pub fn handle_control(state: &mut LedmatrixState, arg: &GameControlArg) {
     if let Some(GameState::GameOfLife(ref mut _gol_state)) = state.game {
         if let GameControlArg::Exit = arg {
             state.game = None
         }
     }
 }
-pub fn game_step(state: &mut State, _random: u8) {
+pub fn game_step(state: &mut LedmatrixState, _random: u8) {
     if let Some(GameState::GameOfLife(ref mut gol_state)) = state.game {
         gol_state.tick();
         state.grid = gol_state.draw_matrix();

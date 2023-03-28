@@ -2,11 +2,13 @@ use std::thread;
 use std::time::Duration;
 
 use chrono::Local;
+use image::codecs::gif::GifDecoder;
 use image::{io::Reader as ImageReader, Luma};
+use image::{AnimationDecoder, DynamicImage, ImageBuffer};
 use rand::prelude::*;
 use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
-use crate::b1display::B1Pattern;
+use crate::b1display::{B1Pattern, Fps, PowerMode};
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
 use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
@@ -40,6 +42,9 @@ enum Command {
     FlushFramebuffer = 0x17,
     ClearRam = 0x18,
     ScreenSaver = 0x19,
+    Fps = 0x1A,
+    PowerMode = 0x1B,
+    AnimationPeriod = 0x1C,
     Version = 0x20,
 }
 
@@ -210,6 +215,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     start_game_cmd(serialdev, game, ledmatrix_args.game_param);
                 }
 
+                if let Some(fps) = ledmatrix_args.animation_fps {
+                    animation_fps_cmd(serialdev, fps);
+                }
+
                 if ledmatrix_args.stop_game {
                     simple_cmd(
                         serialdev,
@@ -264,8 +273,20 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 if let Some(screensaver_on) = b1display_args.screen_saver {
                     screensaver_cmd(serialdev, screensaver_on);
                 }
-                if let Some(image_path) = &b1display_args.image_bw {
+                if let Some(fps) = b1display_args.fps {
+                    fps_cmd(serialdev, fps);
+                }
+                if let Some(power_mode) = b1display_args.power_mode {
+                    power_mode_cmd(serialdev, power_mode);
+                }
+                if let Some(fps) = b1display_args.animation_fps {
+                    animation_fps_cmd(serialdev, fps);
+                }
+                if let Some(image_path) = &b1display_args.image {
                     b1display_bw_image_cmd(serialdev, image_path);
+                }
+                if let Some(image_path) = &b1display_args.animated_gif {
+                    gif_cmd(serialdev, image_path);
                 }
                 if b1display_args.clear_ram {
                     simple_cmd(serialdev, Command::ClearRam, &[0x00]);
@@ -763,6 +784,117 @@ fn screensaver_cmd(serialdev: &str, arg: Option<bool>) {
     }
 }
 
+fn fps_cmd(serialdev: &str, arg: Option<Fps>) {
+    const HIGH_FPS_MASK: u8 = 0b00010000;
+    const LOW_FPS_MASK: u8 = 0b00000111;
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::Fps, &[]);
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+    let current_fps = response[0];
+
+    if let Some(fps) = arg {
+        let power_mode = match fps {
+            Fps::Sixteen | Fps::ThirtyTwo => PowerMode::High,
+            _ => PowerMode::Low,
+        };
+        let fps_bits = match fps {
+            Fps::Quarter => current_fps & !LOW_FPS_MASK,
+            Fps::Half => (current_fps & !LOW_FPS_MASK) | 0b001,
+            Fps::One => (current_fps & !LOW_FPS_MASK) | 0b010,
+            Fps::Two => (current_fps & !LOW_FPS_MASK) | 0b011,
+            Fps::Four => (current_fps & !LOW_FPS_MASK) | 0b100,
+            Fps::Eight => (current_fps & !LOW_FPS_MASK) | 0b101,
+            Fps::Sixteen => current_fps & !HIGH_FPS_MASK,
+            Fps::ThirtyTwo => (current_fps & !HIGH_FPS_MASK) | 0b00010000,
+        };
+        set_power_mode(&mut port, power_mode);
+        simple_cmd_port(&mut port, Command::Fps, &[fps_bits]);
+    } else {
+        simple_cmd_port(&mut port, Command::PowerMode, &[]);
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+        let high = response[0] == 1;
+
+        let fps = if high {
+            if current_fps & HIGH_FPS_MASK == 0 {
+                16.0
+            } else {
+                32.0
+            }
+        } else {
+            let current_fps = current_fps & LOW_FPS_MASK;
+            if current_fps == 0 {
+                0.25
+            } else if current_fps == 1 {
+                0.5
+            } else {
+                (1 << (current_fps - 2)) as f32
+            }
+        };
+
+        println!("Current FPS: {fps}");
+    }
+}
+
+fn power_mode_cmd(serialdev: &str, arg: Option<PowerMode>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(mode) = arg {
+        set_power_mode(&mut port, mode);
+    } else {
+        simple_cmd_port(&mut port, Command::PowerMode, &[]);
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+        let high = response[0] == 1;
+
+        if high {
+            println!("Current Power Mode: High");
+        } else {
+            println!("Current Power Mode: Low");
+        }
+    }
+}
+
+fn set_power_mode(port: &mut Box<dyn SerialPort>, mode: PowerMode) {
+    match mode {
+        PowerMode::Low => simple_cmd_port(port, Command::PowerMode, &[0]),
+        PowerMode::High => simple_cmd_port(port, Command::PowerMode, &[1]),
+    }
+}
+
+fn animation_fps_cmd(serialdev: &str, arg: Option<u16>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(fps) = arg {
+        let period = (1000 / fps).to_le_bytes();
+        simple_cmd_port(&mut port, Command::AnimationPeriod, &[period[0], period[1]]);
+    } else {
+        simple_cmd_port(&mut port, Command::AnimationPeriod, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        println!("Response: {:X?}", response);
+        let period = u16::from_le_bytes([response[0], response[1]]);
+        println!("Animation Frequency: {}ms / {}Hz", period, 1_000 / period);
+    }
+}
+
 fn set_color_cmd(serialdev: &str, color: Color) {
     let args = match color {
         Color::White => &[0xFF, 0xFF, 0xFF],
@@ -777,21 +909,65 @@ fn set_color_cmd(serialdev: &str, color: Color) {
     simple_cmd(serialdev, Command::SetColor, args);
 }
 
+fn gif_cmd(serialdev: &str, image_path: &str) {
+    let mut serialport = open_serialport(serialdev);
+
+    loop {
+        let img = std::fs::File::open(image_path).unwrap();
+        let gif = GifDecoder::new(img).unwrap();
+        let frames = gif.into_frames();
+        for (_i, frame) in frames.enumerate() {
+            //println!("Frame {i}");
+            let frame = frame.unwrap();
+            //let delay = frame.delay();
+            //println!("  Delay: {:?}", Duration::from(delay));
+            let frame_img = frame.into_buffer();
+            let frame_img = DynamicImage::from(frame_img);
+            let frame_img = frame_img.resize(300, 400, image::imageops::FilterType::Gaussian);
+            let frame_img = frame_img.into_luma8();
+            display_img(&mut serialport, &frame_img);
+            // Not delaying any further. Current transmission delay is big enough
+            //thread::sleep(delay.into());
+        }
+    }
+}
+
 /// Display an image in black and white
 /// Confirmed working with PNG and GIF.
 /// Must be 300x400 in size.
 /// Sends one 400px column in a single commands and a flush at the end
-fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
+fn generic_img_cmd(serialdev: &str, image_path: &str) {
     let mut serialport = open_serialport(serialdev);
     let img = ImageReader::open(image_path)
         .unwrap()
         .decode()
         .unwrap()
         .to_luma8();
+    display_img(&mut serialport, &img);
+}
+
+fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
+    generic_img_cmd(serialdev, image_path);
+}
+
+fn display_img(serialport: &mut Box<dyn SerialPort>, img: &ImageBuffer<Luma<u8>, Vec<u8>>) {
     let width = img.width();
     let height = img.height();
     assert!(width == 300);
     assert!(height == 400);
+
+    let (brightest, darkest) = img
+        .pixels()
+        .fold((0xFF, 0x00), |(brightest, darkest), pixel| {
+            let br = pixel.0[0];
+            let brightest = if br > brightest { br } else { brightest };
+            let darkest = if br < darkest { br } else { darkest };
+            (brightest, darkest)
+        });
+    let bright_diff = brightest - darkest;
+    // Anything brighter than 90% between darkest and brightest counts as white
+    // Just a heuristic. Don't use greyscale images! Use black and white instead
+    let threshold = darkest + (bright_diff / 10) * 9;
 
     for x in 0..300 {
         let mut vals: [u8; 2 + 50] = [0; 2 + 50];
@@ -803,7 +979,7 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
         for y in 0..400usize {
             let pixel = img.get_pixel(x, y as u32);
             let brightness = pixel.0[0];
-            let black = brightness < 0xFF / 2;
+            let black = brightness < threshold;
 
             let bit = y % 8;
             if bit == 0 {
@@ -817,10 +993,10 @@ fn b1display_bw_image_cmd(serialdev: &str, image_path: &str) {
             }
         }
 
-        simple_open_cmd(&mut serialport, Command::SetPixelColumn, &vals);
+        simple_open_cmd(serialport, Command::SetPixelColumn, &vals);
     }
 
-    simple_open_cmd(&mut serialport, Command::FlushFramebuffer, &[]);
+    simple_open_cmd(serialport, Command::FlushFramebuffer, &[]);
 }
 
 fn b1_display_color(serialdev: &str, black: bool) {

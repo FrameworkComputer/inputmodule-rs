@@ -8,6 +8,8 @@ use crate::graphics::*;
 #[cfg(feature = "b1display")]
 use core::fmt::{Debug, Write};
 #[cfg(feature = "b1display")]
+use cortex_m::delay::Delay;
+#[cfg(feature = "b1display")]
 use embedded_graphics::Pixel;
 #[cfg(feature = "b1display")]
 use embedded_graphics::{
@@ -22,7 +24,7 @@ use embedded_hal::digital::v2::OutputPin;
 #[cfg(feature = "b1display")]
 use heapless::String;
 #[cfg(feature = "b1display")]
-use st7306::ST7306;
+use st7306::{FpsConfig, PowerMode, ST7306};
 
 #[cfg(feature = "ledmatrix")]
 use crate::games::pong;
@@ -59,6 +61,9 @@ pub enum CommandVals {
     FlushFramebuffer = 0x17,
     ClearRam = 0x18,
     ScreenSaver = 0x19,
+    SetFps = 0x1A,
+    SetPowerMode = 0x1B,
+    AnimationPeriod = 0x1C,
     Version = 0x20,
 }
 
@@ -162,6 +167,12 @@ pub enum Command {
     ClearRam,
     ScreenSaver(bool),
     GetScreenSaver,
+    SetFps(u8),
+    GetFps,
+    SetPowerMode(u8),
+    GetPowerMode,
+    SetAnimationPeriod(u16),
+    GetAnimationPeriod,
     _Unknown,
 }
 
@@ -200,6 +211,9 @@ pub struct B1DIsplayState {
     pub screen_inverted: bool,
     pub screen_on: bool,
     pub screensaver: Option<ScreenSaverState>,
+    pub power_mode: PowerMode,
+    pub fps_config: FpsConfig,
+    pub animation_period: u64,
 }
 
 pub fn parse_command(count: usize, buf: &[u8]) -> Option<Command> {
@@ -324,6 +338,14 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                 _ => None,
             },
             Some(CommandVals::GameStatus) => Some(Command::GameStatus),
+            Some(CommandVals::AnimationPeriod) => {
+                if count == 3 + 2 {
+                    let period = u16::from_le_bytes([buf[3], buf[4]]);
+                    Some(Command::SetAnimationPeriod(period))
+                } else {
+                    Some(Command::GetAnimationPeriod)
+                }
+            }
             _ => None,
         }
     } else {
@@ -388,6 +410,24 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             } else {
                 Command::GetScreenSaver
             }),
+            Some(CommandVals::SetFps) => Some(if let Some(fps) = arg {
+                Command::SetFps(fps)
+            } else {
+                Command::GetFps
+            }),
+            Some(CommandVals::SetPowerMode) => Some(if let Some(mode) = arg {
+                Command::SetPowerMode(mode)
+            } else {
+                Command::GetPowerMode
+            }),
+            Some(CommandVals::AnimationPeriod) => {
+                if count == 3 + 2 {
+                    let period = u16::from_le_bytes([buf[3], buf[4]]);
+                    Some(Command::SetAnimationPeriod(period))
+                } else {
+                    Some(Command::GetAnimationPeriod)
+                }
+            }
             _ => None,
         }
     } else {
@@ -423,7 +463,7 @@ pub fn handle_generic_command(command: &Command) -> Option<[u8; 32]> {
 #[cfg(feature = "ledmatrix")]
 pub fn handle_command(
     command: &Command,
-    state: &mut State,
+    state: &mut LedmatrixState,
     matrix: &mut Foo,
     random: u8,
 ) -> Option<[u8; 32]> {
@@ -520,6 +560,17 @@ pub fn handle_command(
             None
         }
         Command::GameStatus => None,
+        Command::SetAnimationPeriod(period) => {
+            state.animation_period = (*period as u64) * 1_000;
+            None
+        }
+        Command::GetAnimationPeriod => {
+            // TODO: Doesn't seem to work when the FPS is 16 or higher
+            let mut response: [u8; 32] = [0; 32];
+            let period_ms = state.animation_period / 1_000;
+            response[0..2].copy_from_slice(&(period_ms as u16).to_le_bytes());
+            Some(response)
+        }
         _ => handle_generic_command(command),
     }
 }
@@ -530,6 +581,7 @@ pub fn handle_command<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
     state: &mut B1DIsplayState,
     logo_rect: Rectangle,
     disp: &mut ST7306<SPI, DC, CS, RST, COLS, ROWS>,
+    delay: &mut Delay,
 ) -> Option<[u8; 32]>
 where
     SPI: spi::Write<u8>,
@@ -639,6 +691,52 @@ where
         Command::GetScreenSaver => {
             let mut response: [u8; 32] = [0; 32];
             response[0] = state.screensaver.is_some() as u8;
+            Some(response)
+        }
+        Command::SetFps(fps) => {
+            if let Some(fps_config) = FpsConfig::from_u8(*fps) {
+                state.fps_config = fps_config;
+                disp.set_fps(state.fps_config).unwrap();
+                // TODO: Need to reinit the display
+            }
+            None
+        }
+        Command::GetFps => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.fps_config.as_u8();
+            Some(response)
+        }
+        Command::SetPowerMode(mode) => {
+            match mode {
+                0 => {
+                    state.power_mode = PowerMode::Lpm;
+                    disp.switch_mode(delay, state.power_mode).unwrap();
+                }
+                1 => {
+                    state.power_mode = PowerMode::Hpm;
+                    disp.switch_mode(delay, state.power_mode).unwrap();
+                }
+                _ => {}
+            }
+            None
+        }
+        Command::GetPowerMode => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = match state.power_mode {
+                PowerMode::Lpm => 0,
+                PowerMode::Hpm => 1,
+            };
+            Some(response)
+        }
+        Command::SetAnimationPeriod(period) => {
+            state.animation_period = (*period as u64) * 1_000;
+            None
+        }
+        Command::GetAnimationPeriod => {
+            // TODO: Doesn't seem to work when the FPS is 16 or higher
+            let mut response: [u8; 32] = [0; 32];
+            let period_ms = state.animation_period / 1_000;
+            response[0..2].copy_from_slice(&(period_ms as u16).to_le_bytes());
             Some(response)
         }
         _ => handle_generic_command(command),

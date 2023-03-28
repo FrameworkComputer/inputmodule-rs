@@ -189,13 +189,14 @@ fn main() -> ! {
         &clocks.peripheral_clock,
     );
 
-    let mut state = State {
+    let mut state = LedmatrixState {
         grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
         brightness: 120,
         sleeping: SleepState::Awake,
         game: None,
+        animation_period: 31_250, // 32 FPS
     };
 
     let mut matrix = LedMatrix::configure(i2c);
@@ -228,7 +229,7 @@ fn main() -> ! {
         //);
 
         // Handle period display updates. Don't do it too often
-        if timer.get_counter().ticks() > prev_timer + 20_000 {
+        if timer.get_counter().ticks() > prev_timer + state.animation_period {
             // On startup slowly turn the screen on - it's a pretty effect :)
             match startup_percentage {
                 Some(p) if p <= 100 => {
@@ -357,7 +358,7 @@ fn get_random_byte(rosc: &RingOscillator<Enabled>) -> u8 {
 
 fn handle_sleep(
     go_sleeping: bool,
-    state: &mut State,
+    state: &mut LedmatrixState,
     matrix: &mut Foo,
     delay: &mut Delay,
     led_enable: &mut gpio::Pin<Gpio29, gpio::Output<gpio::PushPull>>,

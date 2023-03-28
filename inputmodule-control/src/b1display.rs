@@ -7,6 +7,24 @@ pub enum B1Pattern {
     //Checkerboard,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
+pub enum Fps {
+    Quarter,
+    Half,
+    One,
+    Two,
+    Four,
+    Eight,
+    Sixteen,
+    ThirtyTwo,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
+pub enum PowerMode {
+    Low,
+    High,
+}
+
 /// B1 Display
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -45,9 +63,26 @@ pub struct B1DisplaySubcommand {
     #[arg(long)]
     pub screen_saver: Option<Option<bool>>,
 
-    /// Display black&white image (300x400px)
+    /// Set/get FPS
     #[arg(long)]
-    pub image_bw: Option<String>,
+    #[clap(value_enum)]
+    pub fps: Option<Option<Fps>>,
+
+    /// Set/get power mode
+    #[arg(long)]
+    pub power_mode: Option<Option<PowerMode>>,
+
+    /// Set/get animation FPS
+    #[arg(long)]
+    pub animation_fps: Option<Option<u16>>,
+
+    /// Display a black&white image (300x400px)
+    #[arg(long)]
+    pub image: Option<String>,
+
+    /// Display an animated black&white GIF (300x400px)
+    #[arg(long)]
+    pub animated_gif: Option<String>,
 
     /// Clear display RAM
     #[arg(long)]
