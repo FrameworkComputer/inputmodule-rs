@@ -11,3 +11,5 @@ serialport = "4.2.0"
 image = "0.24.5"
 rand = "0.8.5"
 chrono = "0.4.23"
+
+vis-core = { git = "https://github.com/Rahix/visualizer2.git" }

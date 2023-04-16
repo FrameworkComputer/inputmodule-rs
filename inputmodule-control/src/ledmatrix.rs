@@ -86,6 +86,10 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub random_eq: bool,
 
+    /// Input EQ
+    #[arg(long)]
+    pub input_eq: bool,
+
     /// EQ with custom values
     #[arg(long, num_args(9))]
     pub eq: Option<Vec<u8>>,
