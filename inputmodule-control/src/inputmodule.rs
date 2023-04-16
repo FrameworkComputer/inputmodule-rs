@@ -621,22 +621,80 @@ fn display_gray_image_cmd(serialdev: &str, image_path: &str) {
     commit_cols(&mut port);
 }
 
+// The data-type for storing analyzer results
+#[derive(Debug, Clone)]
+pub struct AnalyzerResult {
+    spectrum: vis_core::analyzer::Spectrum<Vec<f32>>,
+    volume: f32,
+    beat: f32,
+}
+
 /// Display an equlizer looking animation with random values.
 fn random_eq_cmd(serialdevs: &Vec<String>) {
-    loop {
-        // Lower values more likely, makes it look nicer
-        //weights = [i*i for i in range(33, 0, -1)]
-        let population: Vec<u8> = (1..34).collect();
-        let mut rng = thread_rng();
-        let vals = population
-            .choose_multiple_weighted(&mut rng, 9, |item| (34 - item) ^ 2)
-            .unwrap()
-            .copied()
-            .collect::<Vec<_>>();
-        for serialdev in serialdevs {
-            eq_cmd(serialdev, vals.as_slice());
-        }
-        thread::sleep(Duration::from_millis(200));
+    // Example from https://github.com/Rahix/visualizer2/blob/canon/README.md
+
+    // Initialize the logger.  Take a look at the sources if you want to customize
+    // the logger.
+    vis_core::default_log();
+
+    // Load the default config source.  More about config later on.  You can also
+    // do this manually if you have special requirements.
+    vis_core::default_config();
+
+    // Initialize some analyzer-tools.  These will be moved into the analyzer closure
+    // later on.
+    let mut analyzer = vis_core::analyzer::FourierBuilder::new()
+        .length(512)
+        .window(vis_core::analyzer::window::nuttall)
+        .plan();
+
+    let spectrum = vis_core::analyzer::Spectrum::new(vec![0.0; analyzer.buckets()], 0.0, 1.0);
+
+    let mut frames = vis_core::Visualizer::new(
+        AnalyzerResult {
+            spectrum,
+            volume: 0.0,
+            beat: 0.0,
+        },
+        // This closure is the "analyzer".  It will be executed in a loop to always
+        // have the latest data available.
+        move |info, samples| {
+            analyzer.analyze(samples);
+
+            info.spectrum.fill_from(&analyzer.average());
+            info.volume = samples.volume(0.3) * 400.0;
+            info.beat = info.spectrum.slice(50.0, 100.0).max() * 0.01;
+            info
+        },
+    )
+    // Build the frame iterator which is the base of your loop later on
+    .frames();
+
+    for frame in frames.iter() {
+        // This is just a primitive example, your vis core belongs here
+
+        frame.info(|info| {
+            // for n in 0..info.volume as usize {
+            //     print!("{}",n);
+            // }
+            for serialdev in serialdevs {
+                eq_cmd(
+                    serialdev,
+                    &[
+                        info.volume as u8,
+                        info.volume as u8,
+                        info.volume as u8,
+                        info.volume as u8,
+                        info.volume as u8,
+                        info.volume as u8,
+                        info.volume as u8,
+                        info.volume as u8,
+                        info.volume as u8,
+                    ],
+                )
+            }
+        });
+        thread::sleep(Duration::from_millis(30));
     }
 }
 
