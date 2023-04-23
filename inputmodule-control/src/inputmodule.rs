@@ -681,11 +681,8 @@ fn input_eq_cmd(serialdevs: &Vec<String>) {
         move |info, samples| {
             analyzer.analyze(samples);
 
-            let sampled_volume = samples.volume(0.3) * 400.0;
-            let display_max_width = 34.0;
-
             info.spectrum.fill_from(&analyzer.average());
-            info.volume = if sampled_volume < 34.0 { sampled_volume } else { display_max_width};
+            info.volume = samples.volume(0.3) * 400.0;
             info.beat = info.spectrum.slice(50.0, 100.0).max() * 0.01;
             info
         },
@@ -697,14 +694,26 @@ fn input_eq_cmd(serialdevs: &Vec<String>) {
         // This is just a primitive example, your vis core belongs here
 
         frame.info(|info| {
+
+            let sampled_volume = info.volume;
+            let limited_volume = if sampled_volume < 34.0 { sampled_volume } else { 34.0 };
+
+            let display_max_widths = [10.0, 14.0, 20.0, 28.0, 34.0, 28.0, 20.0, 14.0, 10.0];
+
+            let volumes_to_display = display_max_widths.iter().map(|x| {
+                let computed_width = (limited_volume / 34.0) * x;
+                let next_lowest_odd = computed_width - (computed_width % 2.0) - 1.0;
+                next_lowest_odd as u8
+            }).collect::<Vec<_>>();
+
             for serialdev in serialdevs {
                 eq_cmd(
                     serialdev,
-                    &[info.volume as u8; 9]
+                    volumes_to_display.as_slice()
                 )
             }
         });
-        thread::sleep(Duration::from_millis(15));
+        thread::sleep(Duration::from_millis(30));
     }
 }
 
