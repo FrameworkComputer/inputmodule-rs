@@ -681,8 +681,11 @@ fn input_eq_cmd(serialdevs: &Vec<String>) {
         move |info, samples| {
             analyzer.analyze(samples);
 
+            let sampled_volume = samples.volume(0.3) * 400.0;
+            let display_max_width = 34.0;
+
             info.spectrum.fill_from(&analyzer.average());
-            info.volume = samples.volume(0.3) * 400.0;
+            info.volume = if sampled_volume < 34.0 { sampled_volume } else { display_max_width};
             info.beat = info.spectrum.slice(50.0, 100.0).max() * 0.01;
             info
         },
@@ -697,21 +700,11 @@ fn input_eq_cmd(serialdevs: &Vec<String>) {
             for serialdev in serialdevs {
                 eq_cmd(
                     serialdev,
-                    &[
-                        info.volume as u8,
-                        info.volume as u8,
-                        info.volume as u8,
-                        info.volume as u8,
-                        info.volume as u8,
-                        info.volume as u8,
-                        info.volume as u8,
-                        info.volume as u8,
-                        info.volume as u8,
-                    ],
+                    &[info.volume as u8; 9]
                 )
             }
         });
-        thread::sleep(Duration::from_millis(30));
+        thread::sleep(Duration::from_millis(15));
     }
 }
 
