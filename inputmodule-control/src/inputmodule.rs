@@ -5,7 +5,6 @@ use chrono::Local;
 use image::codecs::gif::GifDecoder;
 use image::{io::Reader as ImageReader, Luma};
 use image::{AnimationDecoder, DynamicImage, ImageBuffer};
-use rand::prelude::*;
 use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
 use crate::b1display::{B1Pattern, Fps, PowerMode};
@@ -621,7 +620,7 @@ fn display_gray_image_cmd(serialdev: &str, image_path: &str) {
     commit_cols(&mut port);
 }
 
-// The data-type for storing analyzer results
+/// The data-type for storing analyzer results
 #[derive(Debug, Clone)]
 pub struct AnalyzerResult {
     spectrum: vis_core::analyzer::Spectrum<Vec<f32>>,
@@ -696,14 +695,6 @@ fn random_eq_cmd(serialdevs: &Vec<String>) {
         });
         thread::sleep(Duration::from_millis(30));
     }
-}
-
-// The data-type for storing analyzer results
-#[derive(Debug, Clone)]
-pub struct AnalyzerResult {
-    spectrum: vis_core::analyzer::Spectrum<Vec<f32>>,
-    volume: f32,
-    beat: f32,
 }
 
 // Equalizer-like animation that expands as volume goes up and retracts as it goes down
