@@ -451,6 +451,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
+name = "embedded-dma"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "994f7e5b5cb23521c22304927195f236813053eb9c065dd2226a32ba64695446"
+dependencies = [
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "embedded-graphics"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1278,12 +1287,13 @@ dependencies = [
 
 [[package]]
 name = "rp2040-hal"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ecf1b975581f0cac465247c464e7d2b8d93c7a5fceb4eb13b7b8517f4f85f6d"
+checksum = "bd64ea14218eaa350e5cf1023b7a84c267f092e4a64b69129dc460e53412bed8"
 dependencies = [
  "cortex-m",
  "critical-section",
+ "embedded-dma",
  "embedded-hal",
  "fugit",
  "itertools",
@@ -1323,8 +1333,9 @@ dependencies = [
 
 [[package]]
 name = "rp2040-panic-usb-boot"
-version = "0.3.0"
-source = "git+https://github.com/rwalkr/rp2040-panic-usb-boot#0c828ed6800635c8e6b50dd10dbeffcb78510bbd"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b311d2a72e5a63d5511345b61fe7dd02ce0990bd093ba3dc94b3e80b0a0e373"
 dependencies = [
  "cortex-m",
  "rp2040-hal",
@@ -1818,9 +1829,9 @@ checksum = "447660ad36a13288b1db4d4248e857b510e8c3a225c822ba4fb748c0aafecffd"
 
 [[package]]
 name = "ws2812-pio"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3adb47d7fe2fc0590cb0a3d202abc50272105ddd3bebcca68d24d18ef3cab2fb"
+checksum = "7d219e3b43c1e14305b36363060c0348d560314e235d999cf492bbbab1f38e8d"
 dependencies = [
  "cortex-m",
  "embedded-hal",
