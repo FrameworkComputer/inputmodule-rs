@@ -86,7 +86,7 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub random_eq: bool,
 
-    /// Input EQ
+    /// Display EQ of microphone input
     #[arg(long)]
     pub input_eq: bool,
 
