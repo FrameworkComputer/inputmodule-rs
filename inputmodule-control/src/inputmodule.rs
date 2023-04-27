@@ -640,7 +640,6 @@ fn random_eq_cmd(serialdevs: &Vec<String>) {
     }
 }
 
-
 /// The data-type for storing analyzer results
 #[derive(Debug, Clone)]
 pub struct AnalyzerResult {
@@ -695,11 +694,7 @@ fn input_eq_cmd(serialdevs: &Vec<String>) {
 
         frame.info(|info| {
             let sampled_volume = info.volume;
-            let limited_volume = if sampled_volume < 34.0 {
-                sampled_volume
-            } else {
-                34.0
-            };
+            let limited_volume = sampled_volume.min(34.0);
 
             let display_max_widths = [10.0, 14.0, 20.0, 28.0, 34.0, 28.0, 20.0, 14.0, 10.0];
 
