@@ -39,11 +39,13 @@ overflow-checks = true
 
 # cargo build/run --release
 [profile.release]
+codegen-units = 1
 debug = 2
-incremental = true
-lto = 'thin'
-opt-level = 0
-split-debuginfo = "packed"
+debug-assertions = false
+incremental = false
+lto = 'fat'
+opt-level = 3
+overflow-checks = false
 
 # do not optimize proc-macro crates = faster builds from scratch
 [profile.dev.build-override]
