@@ -242,6 +242,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 random_eq_cmd(&serialdevs);
             }
 
+            #[cfg(feature = "audio-visualizations")]
             if ledmatrix_args.input_eq {
                 input_eq_cmd(&serialdevs);
             }
@@ -640,6 +641,7 @@ fn random_eq_cmd(serialdevs: &Vec<String>) {
     }
 }
 
+#[cfg(feature = "audio-visualizations")]
 /// The data-type for storing analyzer results
 #[derive(Debug, Clone)]
 pub struct AnalyzerResult {
@@ -648,6 +650,7 @@ pub struct AnalyzerResult {
     beat: f32,
 }
 
+#[cfg(feature = "audio-visualizations")]
 // Equalizer-like animation that expands as volume goes up and retracts as it goes down
 fn input_eq_cmd(serialdevs: &Vec<String>) {
     // Example from https://github.com/Rahix/visualizer2/blob/canon/README.md

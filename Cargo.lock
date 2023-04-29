@@ -203,7 +203,7 @@ dependencies = [
  "fugit",
  "heapless",
  "rp2040-boot2",
- "rp2040-hal 0.7.0",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
  "st7306",
  "tinybmp",
@@ -311,7 +311,7 @@ dependencies = [
  "fugit",
  "heapless",
  "rp2040-boot2",
- "rp2040-hal 0.7.0",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
  "usb-device",
@@ -887,7 +887,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "rp2040-boot2",
- "rp2040-hal 0.7.0",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
  "st7306",
@@ -1276,7 +1276,7 @@ dependencies = [
  "heapless",
  "is31fl3741",
  "rp2040-boot2",
- "rp2040-hal 0.7.0",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
  "usb-device",
  "usbd-hid",
@@ -2092,28 +2092,6 @@ dependencies = [
 
 [[package]]
 name = "rp2040-hal"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ecf1b975581f0cac465247c464e7d2b8d93c7a5fceb4eb13b7b8517f4f85f6d"
-dependencies = [
- "cortex-m",
- "critical-section",
- "embedded-hal",
- "fugit",
- "itertools",
- "nb 1.1.0",
- "paste",
- "pio",
- "rand_core 0.6.4",
- "rp2040-hal-macros",
- "rp2040-pac",
- "usb-device",
- "vcell",
- "void",
-]
-
-[[package]]
-name = "rp2040-hal"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd64ea14218eaa350e5cf1023b7a84c267f092e4a64b69129dc460e53412bed8"
@@ -2160,11 +2138,12 @@ dependencies = [
 
 [[package]]
 name = "rp2040-panic-usb-boot"
-version = "0.3.0"
-source = "git+https://github.com/rwalkr/rp2040-panic-usb-boot#d93e15bd3d618e7c2cc659a9634514db4a14889c"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b311d2a72e5a63d5511345b61fe7dd02ce0990bd093ba3dc94b3e80b0a0e373"
 dependencies = [
  "cortex-m",
- "rp2040-hal 0.8.0",
+ "rp2040-hal",
 ]
 
 [[package]]
@@ -2636,7 +2615,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "vis-core"
 version = "0.1.0"
-source = "git+https://github.com/Rahix/visualizer2.git#1fe908012a9c156695921f3b6bb47178e1332b92"
+source = "git+https://github.com/Rahix/visualizer2.git?rev=1fe908012a9c156695921f3b6bb47178e1332b92#1fe908012a9c156695921f3b6bb47178e1332b92"
 dependencies = [
  "apodize",
  "color-backtrace",
@@ -2960,16 +2939,16 @@ dependencies = [
 
 [[package]]
 name = "ws2812-pio"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3adb47d7fe2fc0590cb0a3d202abc50272105ddd3bebcca68d24d18ef3cab2fb"
+checksum = "7d219e3b43c1e14305b36363060c0348d560314e235d999cf492bbbab1f38e8d"
 dependencies = [
  "cortex-m",
  "embedded-hal",
  "fugit",
  "nb 1.1.0",
  "pio",
- "rp2040-hal 0.7.0",
+ "rp2040-hal",
  "smart-leds-trait",
 ]
 
