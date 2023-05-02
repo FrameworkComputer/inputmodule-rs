@@ -8,11 +8,11 @@ clap = { version = "4.0", features = ["derive"] }
 serialport = "4.2.0"
 
 # For ledmatrix
+chrono = "0.4.23"
 image = "0.24.5"
 rand = "0.8.5"
-chrono = "0.4.23"
 
 # For audio visualizations
-vis-core = {git = 'https://github.com/Rahix/visualizer2.git', rev = '1fe908012a9c156695921f3b6bb47178e1332b92', optional = true}
+vis-core = { git = 'https://github.com/Rahix/visualizer2.git', rev = '1fe908012a9c156695921f3b6bb47178e1332b92', optional = true }
 [features]
 audio-visualizations = ["vis-core"]
