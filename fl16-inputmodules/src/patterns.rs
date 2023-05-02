@@ -272,7 +272,7 @@ pub fn _fill_grid(grid: &Grid, matrix: &mut Foo) {
 
 /// Just sends two I2C commands for the entire grid
 pub fn fill_grid_pixels(grid: &Grid, matrix: &mut Foo) {
-    // B4 LEDs on the first page, 0xAB on the second page
+    // 0xB4 LEDs on the first page, 0xAB on the second page
     let mut brightnesses = [0x00; 0xB4 + 0xAB];
     for y in 0..HEIGHT {
         for x in 0..WIDTH {

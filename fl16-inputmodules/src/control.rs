@@ -1,3 +1,4 @@
+//! Firmware API - Commands
 use num::FromPrimitive;
 use rp2040_hal::rom_data::reset_to_usb_boot;
 
@@ -40,6 +41,7 @@ use smart_leds::{SmartLedsWrite, RGB8};
 
 #[repr(u8)]
 #[derive(num_derive::FromPrimitive)]
+/// All available commands
 pub enum CommandVals {
     Brightness = 0x00,
     Pattern = 0x01,

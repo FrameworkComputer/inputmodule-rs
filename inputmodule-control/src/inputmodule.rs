@@ -18,6 +18,8 @@ pub const FRAMEWORK_VID: u16 = 0x32AC;
 pub const LED_MATRIX_PID: u16 = 0x0020;
 pub const B1_LCD_PID: u16 = 0x0021;
 
+type Brightness = u8;
+
 // TODO: Use a shared enum with the firmware code
 #[derive(Clone, Copy)]
 #[repr(u8)]
@@ -722,7 +724,7 @@ fn input_eq_cmd(serialdevs: &Vec<String>) {
 /// TODO: Implement a commandline parameter for this
 fn eq_cmd(serialdev: &str, vals: &[u8]) {
     assert!(vals.len() <= WIDTH);
-    let mut matrix: [[u8; 34]; 9] = [[0; 34]; 9];
+    let mut matrix: [[Brightness; 34]; 9] = [[0; 34]; 9];
 
     for (col, val) in vals[..9].iter().enumerate() {
         let row: usize = 34 / 2;
@@ -730,10 +732,10 @@ fn eq_cmd(serialdev: &str, vals: &[u8]) {
         let below = (*val as usize) - above;
 
         for i in 0..above {
-            matrix[col][row + i] = 0xFF;
+            matrix[col][row + i] = 0xFF; // Set this LED to full brightness
         }
         for i in 0..below {
-            matrix[col][row - 1 - i] = 0xFF;
+            matrix[col][row - 1 - i] = 0xFF; // Set this LED to full brightness
         }
     }
 
@@ -743,6 +745,8 @@ fn eq_cmd(serialdev: &str, vals: &[u8]) {
 /// Show a black/white matrix
 /// Send everything in a single command
 fn render_matrix(serialdev: &str, matrix: &[[u8; 34]; 9]) {
+    // One bit for each LED, on or off
+    // 39 = ceil(34 * 9 / 8)
     let mut vals: [u8; 39] = [0x00; 39];
 
     for x in 0..9 {
