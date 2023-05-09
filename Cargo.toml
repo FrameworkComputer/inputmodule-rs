@@ -9,7 +9,7 @@ members = [
     "c1minimal",
     "ledmatrix",
     "fl16-inputmodules",
-    "inputmodule-control"
+    "inputmodule-control",
 ]
 # Don't build all of them by default.
 # Because that'll lead to all features enabled in `fl16-inputmodules` and it
@@ -17,9 +17,7 @@ members = [
 # time.
 # Can't add `inputmodule-control` because it must be built with the host system
 # target. But we set the default target to thumbv6m-none-eabi
-default-members = [
-    "fl16-inputmodules",
-]
+default-members = ["fl16-inputmodules"]
 
 #[patch.'https://github.com/rp-rs/rp-hal.git']
 #rp2040-hal = { path = "./rp2040-hal" }
