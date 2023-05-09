@@ -119,7 +119,8 @@ inputmodule-control led-matrix --eq 1 2 3 4 5 4 3 2 1
 
 ###### Input equalizer
 
-This command generates an equalizer-like visualization of the current audio input. It has only been tested on Linux-based systems running `alsa` or equivalent.
+This command generates an equalizer-like visualization of the current audio input.
+It supports most platforms - for details, see [documentation of the cpal crate](https://github.com/RustAudio/cpal).
 
 You must compile the `inputmodule-control` binary with the `audio-visualization` feature on:
 `cargo build --features audio-visualizations --target x86_64-unknown-linux-gnu -p inputmodule-control`
