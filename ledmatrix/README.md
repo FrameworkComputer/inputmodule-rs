@@ -122,7 +122,7 @@ inputmodule-control led-matrix --eq 1 2 3 4 5 4 3 2 1
 This command generates an equalizer-like visualization of the current audio input. It has only been tested on Linux-based systems running `alsa` or equivalent.
 
 You must compile the `inputmodule-control` binary with the `audio-visualization` feature on:
-`cargo clean && cargo build --features audio-visualizations --target x86_64-unknown-linux-gnu -p inputmodule-control`
+`cargo build --features audio-visualizations --target x86_64-unknown-linux-gnu -p inputmodule-control`
 
 Once compiled, you can use the `--input-eq` arg to try the visualizer:
 ```sh
