@@ -18,6 +18,8 @@ pub const FRAMEWORK_VID: u16 = 0x32AC;
 pub const LED_MATRIX_PID: u16 = 0x0020;
 pub const B1_LCD_PID: u16 = 0x0021;
 
+type Brightness = u8;
+
 // TODO: Use a shared enum with the firmware code
 #[derive(Clone, Copy)]
 #[repr(u8)]
@@ -240,6 +242,11 @@ pub fn serial_commands(args: &crate::ClapCli) {
 
             if ledmatrix_args.random_eq {
                 random_eq_cmd(&serialdevs);
+            }
+
+            #[cfg(feature = "audio-visualizations")]
+            if ledmatrix_args.input_eq {
+                input_eq_cmd(&serialdevs);
             }
 
             if ledmatrix_args.clock {
@@ -636,11 +643,88 @@ fn random_eq_cmd(serialdevs: &Vec<String>) {
     }
 }
 
+#[cfg(feature = "audio-visualizations")]
+/// The data-type for storing analyzer results
+#[derive(Debug, Clone)]
+pub struct AnalyzerResult {
+    spectrum: vis_core::analyzer::Spectrum<Vec<f32>>,
+    volume: f32,
+    beat: f32,
+}
+
+#[cfg(feature = "audio-visualizations")]
+// Equalizer-like animation that expands as volume goes up and retracts as it goes down
+fn input_eq_cmd(serialdevs: &Vec<String>) {
+    // Example from https://github.com/Rahix/visualizer2/blob/canon/README.md
+
+    // Initialize the logger.  Take a look at the sources if you want to customize
+    // the logger.
+    vis_core::default_log();
+
+    // Load the default config source.  More about config later on.  You can also
+    // do this manually if you have special requirements.
+    vis_core::default_config();
+
+    // Initialize some analyzer-tools.  These will be moved into the analyzer closure
+    // later on.
+    let mut analyzer = vis_core::analyzer::FourierBuilder::new()
+        .length(512)
+        .window(vis_core::analyzer::window::nuttall)
+        .plan();
+
+    let spectrum = vis_core::analyzer::Spectrum::new(vec![0.0; analyzer.buckets()], 0.0, 1.0);
+
+    let mut frames = vis_core::Visualizer::new(
+        AnalyzerResult {
+            spectrum,
+            volume: 0.0,
+            beat: 0.0,
+        },
+        // This closure is the "analyzer".  It will be executed in a loop to always
+        // have the latest data available.
+        move |info, samples| {
+            analyzer.analyze(samples);
+
+            info.spectrum.fill_from(&analyzer.average());
+            info.volume = samples.volume(0.3) * 400.0;
+            info.beat = info.spectrum.slice(50.0, 100.0).max() * 0.01;
+            info
+        },
+    )
+    // Build the frame iterator which is the base of your loop later on
+    .frames();
+
+    for frame in frames.iter() {
+        // This is just a primitive example, your vis core belongs here
+
+        frame.info(|info| {
+            let sampled_volume = info.volume;
+            let limited_volume = sampled_volume.min(34.0);
+
+            let display_max_widths = [10.0, 14.0, 20.0, 28.0, 34.0, 28.0, 20.0, 14.0, 10.0];
+
+            let volumes_to_display = display_max_widths
+                .iter()
+                .map(|x| {
+                    let computed_width = (limited_volume / 34.0) * x;
+                    let next_lowest_odd = computed_width - (computed_width % 2.0) - 1.0;
+                    next_lowest_odd as u8
+                })
+                .collect::<Vec<_>>();
+
+            for serialdev in serialdevs {
+                eq_cmd(serialdev, volumes_to_display.as_slice())
+            }
+        });
+        thread::sleep(Duration::from_millis(30));
+    }
+}
+
 /// Display 9 values in equalizer diagram starting from the middle, going up and down
 /// TODO: Implement a commandline parameter for this
 fn eq_cmd(serialdev: &str, vals: &[u8]) {
     assert!(vals.len() <= WIDTH);
-    let mut matrix: [[u8; 34]; 9] = [[0; 34]; 9];
+    let mut matrix: [[Brightness; 34]; 9] = [[0; 34]; 9];
 
     for (col, val) in vals[..9].iter().enumerate() {
         let row: usize = 34 / 2;
@@ -648,10 +732,10 @@ fn eq_cmd(serialdev: &str, vals: &[u8]) {
         let below = (*val as usize) - above;
 
         for i in 0..above {
-            matrix[col][row + i] = 0xFF;
+            matrix[col][row + i] = 0xFF; // Set this LED to full brightness
         }
         for i in 0..below {
-            matrix[col][row - 1 - i] = 0xFF;
+            matrix[col][row - 1 - i] = 0xFF; // Set this LED to full brightness
         }
     }
 
@@ -661,6 +745,8 @@ fn eq_cmd(serialdev: &str, vals: &[u8]) {
 /// Show a black/white matrix
 /// Send everything in a single command
 fn render_matrix(serialdev: &str, matrix: &[[u8; 34]; 9]) {
+    // One bit for each LED, on or off
+    // 39 = ceil(34 * 9 / 8)
     let mut vals: [u8; 39] = [0x00; 39];
 
     for x in 0..9 {
