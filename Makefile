@@ -43,6 +43,14 @@ release: $(RELEASE_BIN)
 # Build release binary
 # Need to remap paths to avoid local absolute paths being embedded in the binary
 $(RELEASE_BIN):
-	env \
-		RUSTFLAGS="--remap-path-prefix=$$PWD=. --remap-path-prefix=$$CARGO_HOME=home --remap-path-prefix=$$HOME=home" \
-		cargo build --release -p $(PLATFORM)
+	cargo build --release -p $(PLATFORM)
+
+	# TODO: Doesn't work, produces a 416B binary, instead of the 46KB binary without this
+	#env \
+	#	RUSTFLAGS="--remap-path-prefix=$$PWD=. --remap-path-prefix=$$CARGO_HOME=home --remap-path-prefix=$$HOME=home" \
+	#	cargo build --release -p $(PLATFORM)
+	# Manually remap
+	./remap-path-prefix.py $(RELEASE_BIN)
+
+	ls -lh $(RELEASE_BIN)
+	sha256sum $(RELEASE_BIN)

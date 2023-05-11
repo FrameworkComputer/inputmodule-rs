@@ -44,6 +44,7 @@ incremental = false
 lto = 'fat'
 opt-level = 3
 overflow-checks = false
+strip = true
 
 # do not optimize proc-macro crates = faster builds from scratch
 [profile.dev.build-override]
