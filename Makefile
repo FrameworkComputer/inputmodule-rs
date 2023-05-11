@@ -51,12 +51,11 @@ uf2: $(RELEASE_BIN)
 $(RELEASE_BIN):
 	cargo build --release -p $(PLATFORM)
 
-	# TODO: Doesn't work, produces a 416B binary, instead of the 46KB binary without this
-	#env \
-	#	RUSTFLAGS="--remap-path-prefix=$$PWD=. --remap-path-prefix=$$CARGO_HOME=home --remap-path-prefix=$$HOME=home" \
-	#	cargo build --release -p $(PLATFORM)
-	# Manually remap
-	./remap-path-prefix.py $(RELEASE_BIN)
+	# Need to provide the rustflags defined in .cargo/config.toml again because
+	# setting the environment variable overrides them
+	env \
+		RUSTFLAGS="--remap-path-prefix=$$PWD=. --remap-path-prefix=$$CARGO_HOME=home --remap-path-prefix=$$HOME=home -C link-arg=--nmagic -C link-arg=-Tlink.x -C link-arg=-Tdefmt.x -C linker=flip-link -C inline-threshold=5 -C no-vectorize-loops" \
+		cargo build --release -p $(PLATFORM)
 
 	ls -lh $(RELEASE_BIN)
 	sha256sum $(RELEASE_BIN)
