@@ -10,16 +10,7 @@ env:
 jobs:
   building:
     name: Building
-    continue-on-error: ${{ matrix.experimental || false }}
-    strategy:
-      matrix:
-        #os:
-        #  # Check compilation works on common OSes
-        #  # (i.e. no path issues)
-        #  # - macOS-latest
-        #  - ubuntu-latest
-        #  - windows-latest
-    runs-on: [ubuntu-latest] #${{ matrix.os }}
+    runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v3
 
