@@ -16,7 +16,7 @@ jobs:
         # TODO: Also test nightly
         #rust: [nightly, stable]
         rust: [stable]
-        target: [debug, release]
+        target: ['debug', 'release']
         platform: [b1display, c1minimal, ledmatrix]
         #include:
         #  # Nightly is only for reference and allowed to fail
