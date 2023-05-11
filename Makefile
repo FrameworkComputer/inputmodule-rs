@@ -1,6 +1,6 @@
 # Makefile to build releases and check build reproducibility
 
-.PHONY: repro
+.PHONY: repro release uf2 repro_check
 PLATFORM:=ledmatrix
 RELEASE_BIN:=target/thumbv6m-none-eabi/release/$(PLATFORM)
 TARGET_FOLDER:=target/thumbv6m-none-eabi/release
@@ -39,6 +39,10 @@ repro_check:
 	cmp $(RELEASE_BIN) $(TARGET_FOLDER)/$(FIRST_BIN)
 
 release: $(RELEASE_BIN)
+
+uf2: $(RELEASE_BIN)
+	elf2uf2-rs target/thumbv6m-none-eabi/release/$(PLATFORM) $(PLATFORM).uf2
+
 
 # Build release binary
 # Need to remap paths to avoid local absolute paths being embedded in the binary
