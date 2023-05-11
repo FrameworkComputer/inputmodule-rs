@@ -1,5 +1,4 @@
 name: Firmware CI Checks
-
 on:
   push
 
@@ -39,7 +38,7 @@ jobs:
       - run: cargo install flip-link
 
       - run: |
-        cargo build --${{ matrix.target }} -p ${{ matrix.platform }}
+            cargo build --${{ matrix.target }} -p ${{ matrix.platform }}
 
       - name: Convert to UF2 file
         run: |
