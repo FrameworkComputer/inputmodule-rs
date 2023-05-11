@@ -9,7 +9,7 @@ env:
 
 jobs:
   building:
-    name: Building
+    name: Building ${{ matrix.platform }}
     continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       matrix:
@@ -17,6 +17,8 @@ jobs:
         # TODO: Also test nightly
         #rust: [nightly, stable]
         rust: [stable]
+        target: [debug, release]
+        platform: [b1display, c1minimal, ledmatrix]
         #include:
         #  # Nightly is only for reference and allowed to fail
         #  - rust: nightly
@@ -35,28 +37,28 @@ jobs:
           toolchain: ${{ matrix.rust }}
           target: thumbv6m-none-eabi
       - run: cargo install flip-link
-      - run: cargo build -p ledmatrix
-      - run: cargo build -p b1display
-      - run: cargo build -p c1minimal
-      # TODO: Also build release versions
-      #- run: cargo build --all --release
 
       - run: |
+        cargo build --${{ matrix.target }} -p ${{ matrix.platform }}
+
+      - name: Convert to UF2 file
+        run: |
             sudo apt-get update
             sudo apt-get install -y libudev-dev
             cargo install elf2uf2-rs
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1display.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/c1minimal c1minimal.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }} ${{ matrix.platform }}.uf2
+
+      - name; Show hash of firmare
+      - run: |
+            sha256sum target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }}
+            sha256sum target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }}.uf2
 
       - name: Upload Linux tool
         uses: actions/upload-artifact@v3
         with:
-          name: inputmodule_fw
+          name: ${{matrix.platform}.uf2
           path: |
-            b1display.uf2
-            c1minimal.uf2
-            ledmatrix.uf2
+            ${{matrix.platform}.uf2
 
   linting:
     name: Linting
