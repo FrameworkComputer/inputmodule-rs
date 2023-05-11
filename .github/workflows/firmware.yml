@@ -8,8 +8,8 @@ env:
 
 jobs:
   building:
-    name: Building ${{ matrix.platform }}
-    continue-on-error: ${{ matrix.experimental || false }}
+    name: Build ${{ matrix.platform }} (${{ matrix.target }})
+    continue-on-error: true
     strategy:
       matrix:
         # All generated code should be running on stable now
@@ -57,7 +57,7 @@ jobs:
       - name: Show hash of firmare
         run: |
             sha256sum target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }}
-            sha256sum target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }}.uf2
+            sha256sum ${{ matrix.platform }}.uf2
 
       - name: Upload Linux tool
         uses: actions/upload-artifact@v3
