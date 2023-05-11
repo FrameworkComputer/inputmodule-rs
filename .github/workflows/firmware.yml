@@ -9,6 +9,10 @@ env:
 jobs:
   building:
     name: Build ${{ matrix.platform }} (${{ matrix.target }})
+    strategy:
+      matrix:
+        target: ['debug', 'release']
+        platform: [b1display, c1minimal, ledmatrix]
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v3
