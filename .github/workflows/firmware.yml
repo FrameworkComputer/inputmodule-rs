@@ -55,9 +55,9 @@ jobs:
       - name: Upload Linux tool
         uses: actions/upload-artifact@v3
         with:
-          name: ${{matrix.platform}.uf2
+          name: ${{ matrix.platform }}.uf2
           path: |
-            ${{matrix.platform}.uf2
+            ${{ matrix.platform }}.uf2
 
   linting:
     name: Linting
