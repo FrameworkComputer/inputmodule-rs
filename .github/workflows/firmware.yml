@@ -37,8 +37,15 @@ jobs:
           target: thumbv6m-none-eabi
       - run: cargo install flip-link
 
-      - run: |
-            cargo build --${{ matrix.target }} -p ${{ matrix.platform }}
+      - name: Build release firmware
+        if: ${{ matrix.target }} == 'release'
+        run: |
+            cargo build --release -p ${{ matrix.platform }}
+
+      - name: Build debug firmware
+        if: ${{ matrix.target }} == 'debug'
+        run: |
+            cargo build -p ${{ matrix.platform }}
 
       - name: Convert to UF2 file
         run: |
