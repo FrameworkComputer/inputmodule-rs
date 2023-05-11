@@ -42,6 +42,8 @@ release: $(RELEASE_BIN)
 
 uf2: $(RELEASE_BIN)
 	elf2uf2-rs target/thumbv6m-none-eabi/release/$(PLATFORM) $(PLATFORM).uf2
+	ls -lh $(PLATFORM).uf2
+	sha256sum $(PLATFORM).uf2
 
 
 # Build release binary
