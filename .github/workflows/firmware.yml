@@ -1,5 +1,4 @@
 name: Firmware CI Checks
-
 on:
   push
 
@@ -9,54 +8,48 @@ env:
 
 jobs:
   building:
-    name: Building
-    continue-on-error: ${{ matrix.experimental || false }}
+    name: Build ${{ matrix.platform }} (${{ matrix.target }})
     strategy:
       matrix:
-        # All generated code should be running on stable now
-        # TODO: Also test nightly
-        #rust: [nightly, stable]
-        rust: [stable]
-        #include:
-        #  # Nightly is only for reference and allowed to fail
-        #  - rust: nightly
-        #    experimental: true
-        #os:
-        #  # Check compilation works on common OSes
-        #  # (i.e. no path issues)
-        #  # - macOS-latest
-        #  - ubuntu-latest
-        #  - windows-latest
-    runs-on: [ubuntu-latest] #${{ matrix.os }}
+        target: ['debug', 'release']
+        platform: [b1display, c1minimal, ledmatrix]
+    runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
-          target: thumbv6m-none-eabi
-      - run: cargo install flip-link
-      - run: cargo build -p ledmatrix
-      - run: cargo build -p b1display
-      - run: cargo build -p c1minimal
-      # TODO: Also build release versions
-      #- run: cargo build --all --release
 
-      - run: |
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - run: cargo install flip-link
+
+      - name: Build release firmware
+        if: ${{ matrix.target }} == 'release'
+        run: |
+            make PLATFORM=${{ matrix.platform }} release
+
+      - name: Build debug firmware
+        if: ${{ matrix.target }} == 'debug'
+        run: |
+            cargo build -p ${{ matrix.platform }}
+
+      - name: Convert to UF2 file
+        run: |
             sudo apt-get update
             sudo apt-get install -y libudev-dev
             cargo install elf2uf2-rs
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1display.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/c1minimal c1minimal.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }} ${{ matrix.platform }}.uf2
+
+      - name: Show hash of firmare
+        run: |
+            sha256sum target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }}
+            sha256sum ${{ matrix.platform }}.uf2
 
       - name: Upload Linux tool
         uses: actions/upload-artifact@v3
         with:
-          name: inputmodule_fw
+          name: ${{ matrix.platform }}.uf2
           path: |
-            b1display.uf2
-            c1minimal.uf2
-            ledmatrix.uf2
+            ${{ matrix.platform }}.uf2
 
   linting:
     name: Linting
@@ -65,10 +58,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-          target: thumbv6m-none-eabi
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
       - run: |
           cargo clippy -p b1display -- --deny=warnings
           cargo clippy -p c1minimal -- --deny=warnings
@@ -81,8 +74,8 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-          target: thumbv6m-none-eabi
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
       - run: cargo fmt --all -- --check
