@@ -40,7 +40,7 @@ jobs:
       - name: Build release firmware
         if: ${{ matrix.target }} == 'release'
         run: |
-            cargo build --release -p ${{ matrix.platform }}
+            make PLATFORM=${{ matrix.platform }} release
 
       - name: Build debug firmware
         if: ${{ matrix.target }} == 'debug'
