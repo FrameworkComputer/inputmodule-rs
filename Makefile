@@ -49,8 +49,6 @@ uf2: $(RELEASE_BIN)
 # Build release binary
 # Need to remap paths to avoid local absolute paths being embedded in the binary
 $(RELEASE_BIN):
-	cargo build --release -p $(PLATFORM)
-
 	# Need to provide the rustflags defined in .cargo/config.toml again because
 	# setting the environment variable overrides them
 	env \
