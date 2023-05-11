@@ -13,14 +13,6 @@ jobs:
     continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       matrix:
-        # All generated code should be running on stable now
-        # TODO: Also test nightly
-        #rust: [nightly, stable]
-        rust: [stable]
-        #include:
-        #  # Nightly is only for reference and allowed to fail
-        #  - rust: nightly
-        #    experimental: true
         #os:
         #  # Check compilation works on common OSes
         #  # (i.e. no path issues)
@@ -30,10 +22,10 @@ jobs:
     runs-on: [ubuntu-latest] #${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
-          target: thumbv6m-none-eabi
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
       - run: cargo install flip-link
       - run: cargo build -p ledmatrix
       - run: cargo build -p b1display
@@ -65,10 +57,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-          target: thumbv6m-none-eabi
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
       - run: |
           cargo clippy -p b1display -- --deny=warnings
           cargo clippy -p c1minimal -- --deny=warnings
@@ -81,8 +73,8 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-          target: thumbv6m-none-eabi
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
       - run: cargo fmt --all -- --check
