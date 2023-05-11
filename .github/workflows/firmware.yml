@@ -47,8 +47,8 @@ jobs:
             cargo install elf2uf2-rs
             elf2uf2-rs target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }} ${{ matrix.platform }}.uf2
 
-      - name; Show hash of firmare
-      - run: |
+      - name: Show hash of firmare
+        run: |
             sha256sum target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }}
             sha256sum target/thumbv6m-none-eabi/${{ matrix.target }}/${{ matrix.platform }}.uf2
 
