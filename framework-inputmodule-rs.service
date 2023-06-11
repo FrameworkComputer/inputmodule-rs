@@ -1,0 +1,8 @@
+[Unit]
+Description=framework-inputmodule-rs runs Framework Laptop 16 input modules and keeps their firmware up to date
+
+[Service]
+ExecStart=/usr/bin/framework-inputmodule-rs led-matrix --clock
+
+[Install]
+WantedBy=multi-user.target
