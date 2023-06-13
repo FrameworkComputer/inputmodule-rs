@@ -19,10 +19,10 @@ Connection to the host system is via USB 2.0 and currently there is a USB Serial
 
 To ensure that the input module's port is accessible, install the `udev` rule for it located in the `50-framework.rules` file.
 
-1. Copy it to your udev rules directory. On Ubuntu, this is located at `/etc/udev/rules.d/`
-2. Reload the rules with `sudo udevadm control --reload`
+1. Copy it to your udev rules directory, which is usually at: `/etc/udev/rules.d/`
+2. Reload and apply the rules with `sudo udevadm control --reload && sudo udevadm trigger`
 
-You can debug issues using the `udevadm monitor --environment` command. Ensure that the device's `idVendor` and `idProduct` match when you plug in the device.
+You can debug issues using the `udevadm monitor --environment` command.
 
 ## Controlling
 

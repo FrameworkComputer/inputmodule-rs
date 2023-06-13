@@ -395,7 +395,7 @@ fn simple_cmd(serialdev: &str, command: Command, args: &[u8]) {
     match port_result {
         Ok(mut port) => simple_cmd_port(&mut port, command, args),
         Err(error) => match error.kind {
-            serialport::ErrorKind::Io(std::io::ErrorKind::PermissionDenied) => panic!("Permission denied, couldn't access input module port. Ensure that udev rule is installed or the port the module is on is otherwise accessible."),
+            serialport::ErrorKind::Io(std::io::ErrorKind::PermissionDenied) => panic!("Permission denied, couldn't access inputmodule serialport. Ensure that you have permission, for example using a udev rule or sudo."),
             other_error => panic!("Couldn't open port: {:?}", other_error)
         }
     };
