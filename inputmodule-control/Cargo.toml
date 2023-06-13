@@ -4,11 +4,11 @@ name = "inputmodule-control"
 version = "0.1.4"
 
 [dependencies]
-clap = { version = "4.2", features = ["derive"] }
-serialport = "4.2.0"
+clap = { version = "4.3", features = ["derive"] }
+serialport = "4.2.1"
 
 # For ledmatrix
-chrono = "0.4.24"
+chrono = "0.4.26"
 image = { version = "0.24.6", default-features = false, features = [
     "ico",
     "gif",
@@ -16,6 +16,7 @@ image = { version = "0.24.6", default-features = false, features = [
 rand = "0.8.5"
 
 # For audio visualizations
+# Depending on an experimental crate, therefore optional dependency
 vis-core = { git = 'https://github.com/Rahix/visualizer2.git', rev = '1fe908012a9c156695921f3b6bb47178e1332b92', optional = true }
 [features]
 audio-visualizations = ["vis-core"]

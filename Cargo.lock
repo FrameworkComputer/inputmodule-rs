@@ -656,9 +656,9 @@ dependencies = [
 
 [[package]]
 name = "embedded-graphics"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "750082c65094fbcc4baf9ba31583ce9a8bb7f52cadfb96f6164b1bc7f922f32b"
+checksum = "cd2a8e0250a7e1212828166b01eed0219e488ebb2599f44624a29c9bd249f397"
 dependencies = [
  "az",
  "byteorder",
@@ -669,9 +669,9 @@ dependencies = [
 
 [[package]]
 name = "embedded-graphics-core"
-version = "0.3.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8b1239db5f3eeb7e33e35bd10bd014e7b2537b17e071f726a09351431337cfa"
+checksum = "ba9ecd261f991856250d2207f6d8376946cd9f412a2165d3b75bc87a0bc7a044"
 dependencies = [
  "az",
  "byteorder",
@@ -797,9 +797,9 @@ dependencies = [
 
 [[package]]
 name = "float-cmp"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1267f4ac4f343772758f7b1bdcbe767c218bbab93bb432acbf5162bbf85a6c4"
+checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
 dependencies = [
  "num-traits",
 ]
@@ -1005,7 +1005,7 @@ dependencies = [
 [[package]]
 name = "is31fl3741"
 version = "0.2.1"
-source = "git+https://github.com/JohnAZoidberg/is31fl3741?branch=all-at-once#db3e82a00111a009ff5c2f63b0cb74aea182283a"
+source = "git+https://github.com/JohnAZoidberg/is31fl3741?branch=all-at-once-update-deps#52ae4d277fd5decb148683d6aa5665c1153c8768"
 dependencies = [
  "embedded-graphics-core",
  "embedded-hal",
@@ -1204,9 +1204,9 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
 name = "micromath"
-version = "1.1.1"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc4010833aea396656c2f91ee704d51a6f1329ec2ab56ffd00bfd56f7481ea94"
+checksum = "39617bc909d64b068dcffd0e3e31679195b5576d0c83fadc52690268cc2b2b55"
 
 [[package]]
 name = "minimal-lexical"
@@ -2072,8 +2072,7 @@ dependencies = [
 [[package]]
 name = "st7306"
 version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a352a20201ed2a68dfa45e96625b43e990fb8d8d463e4fc2f6751f2d253bfde"
+source = "git+https://github.com/FrameworkComputer/st7306-rs?branch=update-deps#8283fcdb91a559fe3a12cb01bc6523d737c28be8"
 dependencies = [
  "embedded-graphics",
  "embedded-hal",
@@ -2177,9 +2176,9 @@ dependencies = [
 
 [[package]]
 name = "tinybmp"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e959c507975d768a226a08227d56791f6e60bddcf714ad7ef67ae2d20bae743"
+checksum = "197cc000e382175ff15abd9c54c694ef80ef20cb07e7f956c71e3ea97fc8dc60"
 dependencies = [
  "embedded-graphics",
 ]
