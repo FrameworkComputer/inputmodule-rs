@@ -1,0 +1,38 @@
+name: Create Releases
+on:
+  push:
+    # Eventually run this only on release branches
+    # branches:
+    #  - 'releases/**'
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+jobs:
+  release-linux:
+    name: Release Linux
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev libasound2-dev
+
+    - name: Setup Rust toolchain
+      run: rustup show
+
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1'
+
+    - name: Build Linux tool and create deb
+      run: ./release/release.sh
+
+    - name: Upload Linux deb
+      uses: actions/upload-artifact@v3
+      with:
+        name: framework-inputmodule-rs-0.0.1.deb
+        path: release/framework-inputmodule-rs-0.0.1.deb
