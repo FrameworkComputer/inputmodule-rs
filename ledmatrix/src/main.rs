@@ -217,16 +217,15 @@ fn main() -> ! {
     let mut startup_percentage = Some(0);
 
     loop {
-        // TODO: Current hardware revision does not have the sleep pin wired up :(
         // Go to sleep if the host is sleeping
-        let _host_sleeping = sleep.is_low().unwrap();
-        //handle_sleep(
-        //    host_sleeping,
-        //    &mut state,
-        //    &mut matrix,
-        //    &mut delay,
-        //    &mut led_enable,
-        //);
+        let host_sleeping = sleep.is_low().unwrap();
+        handle_sleep(
+            host_sleeping,
+            &mut state,
+            &mut matrix,
+            &mut delay,
+            &mut led_enable,
+        );
 
         // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + state.animation_period {
