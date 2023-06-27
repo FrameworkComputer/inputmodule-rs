@@ -28,7 +28,7 @@ pub struct LedmatrixState {
 #[derive(Clone)]
 pub enum SleepState {
     Awake,
-    Sleeping(Grid),
+    Sleeping((Grid, u8)),
 }
 
 #[allow(clippy::large_enum_variant)]

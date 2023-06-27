@@ -20,6 +20,7 @@ where
         self.device.i2c
     }
 
+    // TODO: Maybe make this private and set it once in the constructor
     pub fn set_scaling(&mut self, scale: u8) -> Result<(), I2cError> {
         self.device.set_scaling(scale)
     }

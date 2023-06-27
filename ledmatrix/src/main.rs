@@ -16,6 +16,16 @@ use rp2040_hal::{
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
 
+/// Static configuration whether sleep shohld instantly turn all LEDs on/off or
+/// slowly fade themm on/off
+const INSTANT_SLEEP: bool = false;
+
+const MAX_CURRENT: usize = 500;
+
+/// Maximum brightness out of 255
+/// Set to 94 because that results in just below 500mA current draw.
+const MAX_BRIGHTNESS: u8 = 94;
+
 // TODO: Doesn't work yet, unless I panic right at the beginning of main
 //#[cfg(not(debug_assertions))]
 //use core::panic::PanicInfo;
@@ -65,9 +75,9 @@ use rp2040_panic_usb_boot as _;
 //        .setup(&mut delay)
 //        .expect("failed to setup rgb controller");
 //
-//    matrix.set_scaling(100).expect("failed to set scaling");
+//    set_brightness(state, 255, &mut matrix);
 //    let grid = display_panic();
-//    fill_grid_pixels(grid, &mut matrix);
+//    fill_grid_pixels(state, &mut matrix);
 //
 //    loop {}
 //}
@@ -166,7 +176,7 @@ fn main() -> ! {
         .manufacturer("Framework Computer Inc")
         .product("LED Matrix Input Module")
         .serial_number(serialnum)
-        .max_power(200) // Device uses roughly 164mW when all LEDs are at full brightness
+        .max_power(MAX_CURRENT)
         .device_release(device_release())
         .device_class(USB_CLASS_CDC)
         .build();
@@ -193,22 +203,22 @@ fn main() -> ! {
         grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
-        brightness: 120,
+        brightness: 51, // Default to 51/255 = 20% brightness
         sleeping: SleepState::Awake,
         game: None,
-        animation_period: 31_250, // 32 FPS
+        animation_period: 31_250, // 31,250 us = 32 FPS
     };
 
     let mut matrix = LedMatrix::configure(i2c);
     matrix
         .setup(&mut delay)
-        .expect("failed to setup rgb controller");
+        .expect("failed to setup RGB controller");
 
     matrix
-        .set_scaling(state.brightness)
+        .set_scaling(MAX_BRIGHTNESS)
         .expect("failed to set scaling");
 
-    fill_grid_pixels(&state.grid, &mut matrix);
+    fill_grid_pixels(&state, &mut matrix);
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
@@ -239,7 +249,7 @@ fn main() -> ! {
                 _ => {}
             }
 
-            fill_grid_pixels(&state.grid, &mut matrix);
+            fill_grid_pixels(&state, &mut matrix);
             if state.animate {
                 for x in 0..WIDTH {
                     state.grid.0[x].rotate_right(1);
@@ -297,7 +307,7 @@ fn main() -> ! {
                                 buf[0], buf[1], buf[2], buf[3]
                             )
                             .unwrap();
-                            fill_grid_pixels(&state.grid, &mut matrix);
+                            fill_grid_pixels(&state, &mut matrix);
                         }
                         _ => {}
                     }
@@ -366,21 +376,23 @@ fn handle_sleep(
     match (state.sleeping.clone(), go_sleeping) {
         (SleepState::Awake, false) => (),
         (SleepState::Awake, true) => {
-            state.sleeping = SleepState::Sleeping(state.grid.clone());
-            //state.grid = display_sleep();
-            fill_grid_pixels(&state.grid, matrix);
+            state.sleeping = SleepState::Sleeping((state.grid.clone(), state.brightness));
+            // Perhaps we could have a sleep pattern. Probbaly not Or maybe
+            // just for the first couple of minutes?
+            // state.grid = display_sleep();
+            // fill_grid_pixels(&state, matrix);
 
             // Slowly decrease brightness
-            delay.delay_ms(1000);
-            let mut brightness = state.brightness;
-            loop {
-                delay.delay_ms(100);
-                brightness = if brightness <= 5 { 0 } else { brightness - 5 };
-                matrix
-                    .set_scaling(brightness)
-                    .expect("failed to set scaling");
-                if brightness == 0 {
-                    break;
+            if !INSTANT_SLEEP {
+                delay.delay_ms(1000);
+                let mut brightness = state.brightness;
+                loop {
+                    delay.delay_ms(100);
+                    brightness = if brightness <= 5 { 0 } else { brightness - 5 };
+                    set_brightness(state, brightness, matrix);
+                    if brightness == 0 {
+                        break;
+                    }
                 }
             }
 
@@ -391,30 +403,30 @@ fn handle_sleep(
             //cortex_m::asm::wfi();
         }
         (SleepState::Sleeping(_), true) => (),
-        (SleepState::Sleeping(old_grid), false) => {
+        (SleepState::Sleeping((old_grid, old_brightness)), false) => {
             // Restore back grid before sleeping
             state.sleeping = SleepState::Awake;
             state.grid = old_grid;
-            fill_grid_pixels(&state.grid, matrix);
+            fill_grid_pixels(state, matrix);
 
             // Power LED controller back on
             led_enable.set_high().unwrap();
 
             // Slowly increase brightness
-            delay.delay_ms(1000);
-            let mut brightness = 0;
-            loop {
-                delay.delay_ms(100);
-                brightness = if brightness >= state.brightness - 5 {
-                    state.brightness
-                } else {
-                    brightness + 5
-                };
-                matrix
-                    .set_scaling(brightness)
-                    .expect("failed to set scaling");
-                if brightness == state.brightness {
-                    break;
+            if !INSTANT_SLEEP {
+                delay.delay_ms(1000);
+                let mut brightness = 0;
+                loop {
+                    delay.delay_ms(100);
+                    brightness = if brightness >= old_brightness - 5 {
+                        old_brightness
+                    } else {
+                        brightness + 5
+                    };
+                    set_brightness(state, brightness, matrix);
+                    if brightness == old_brightness {
+                        break;
+                    }
                 }
             }
         }

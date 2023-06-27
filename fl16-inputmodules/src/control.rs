@@ -479,10 +479,7 @@ pub fn handle_command(
         }
         Command::SetBrightness(br) => {
             //let _ = serial.write("Brightness".as_bytes());
-            state.brightness = *br;
-            matrix
-                .set_scaling(state.brightness)
-                .expect("failed to set scaling");
+            set_brightness(state, *br, matrix);
             None
         }
         Command::Percentage(p) => {
@@ -499,10 +496,7 @@ pub fn handle_command(
                 PatternVals::ZigZag => state.grid = zigzag(),
                 PatternVals::FullBrightness => {
                     state.grid = percentage(100);
-                    state.brightness = 0xFF;
-                    matrix
-                        .set_scaling(state.brightness)
-                        .expect("failed to set scaling");
+                    set_brightness(state, BRIGHTNESS_LEVELS, matrix);
                 }
                 PatternVals::DisplayPanic => state.grid = display_panic(),
                 PatternVals::DisplayLotus2 => state.grid = display_lotus2(),

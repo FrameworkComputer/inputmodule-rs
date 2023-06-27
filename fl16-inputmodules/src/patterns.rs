@@ -12,6 +12,9 @@ use crate::matrix::*;
 /// math.ceil(WIDTH * HEIGHT / 8)
 pub const DRAW_BYTES: usize = 39;
 
+/// Maximum number of brightneses levels
+pub const BRIGHTNESS_LEVELS: u8 = 255;
+
 pub type Foo = LedMatrix<
     bsp::hal::I2C<
         I2C1,
@@ -270,14 +273,21 @@ pub fn _fill_grid(grid: &Grid, matrix: &mut Foo) {
     }
 }
 
+pub fn set_brightness(state: &mut LedmatrixState, brightness: u8, matrix: &mut Foo) {
+    state.brightness = brightness;
+    fill_grid_pixels(state, matrix);
+}
+
 /// Just sends two I2C commands for the entire grid
-pub fn fill_grid_pixels(grid: &Grid, matrix: &mut Foo) {
+pub fn fill_grid_pixels(state: &LedmatrixState, matrix: &mut Foo) {
     // 0xB4 LEDs on the first page, 0xAB on the second page
     let mut brightnesses = [0x00; 0xB4 + 0xAB];
     for y in 0..HEIGHT {
         for x in 0..WIDTH {
             let (register, page) = (matrix.device.calc_pixel)(x as u8, y as u8);
-            brightnesses[(page as usize) * 0xB4 + (register as usize)] = grid.0[x][y];
+            brightnesses[(page as usize) * 0xB4 + (register as usize)] =
+                ((state.grid.0[x][y] as u64) * (state.brightness as u64)
+                    / (BRIGHTNESS_LEVELS as u64)) as u8;
         }
     }
     matrix.device.fill_matrix(&brightnesses).unwrap();
