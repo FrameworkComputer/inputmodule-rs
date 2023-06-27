@@ -178,8 +178,6 @@ fn main() -> ! {
     // INTB. Currently ignoring
     pins.intb.into_floating_input();
 
-    let sleep = pins.sleep.into_pull_down_input();
-
     let i2c = bsp::hal::I2C::i2c1(
         pac.I2C1,
         pins.gpio26.into_mode::<gpio::FunctionI2C>(),
@@ -216,16 +214,31 @@ fn main() -> ! {
 
     let mut startup_percentage = Some(0);
 
+    // Detect whether the sleep pin is connected
+    // Early revisions of the hardware didn't have it wired up, if that is the
+    // case we have to ignore its state.
+    let mut sleep_present = false;
+    let sleep = pins.sleep.into_pull_up_input();
+    if sleep.is_low().unwrap() {
+        sleep_present = true;
+    }
+    let sleep = sleep.into_pull_down_input();
+    if sleep.is_high().unwrap() {
+        sleep_present = true;
+    }
+
     loop {
-        // Go to sleep if the host is sleeping
-        let host_sleeping = sleep.is_low().unwrap();
-        handle_sleep(
-            host_sleeping,
-            &mut state,
-            &mut matrix,
-            &mut delay,
-            &mut led_enable,
-        );
+        if sleep_present {
+            // Go to sleep if the host is sleeping
+            let host_sleeping = sleep.is_low().unwrap();
+            handle_sleep(
+                host_sleeping,
+                &mut state,
+                &mut matrix,
+                &mut delay,
+                &mut led_enable,
+            );
+        }
 
         // Handle period display updates. Don't do it too often
         if timer.get_counter().ticks() > prev_timer + state.animation_period {
