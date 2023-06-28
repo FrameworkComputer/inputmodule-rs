@@ -20,3 +20,6 @@ rand = "0.8.5"
 vis-core = { git = 'https://github.com/Rahix/visualizer2.git', rev = '1fe908012a9c156695921f3b6bb47178e1332b92', optional = true }
 [features]
 audio-visualizations = ["vis-core"]
+
+[build-dependencies]
+static_vcruntime = "2.0"
