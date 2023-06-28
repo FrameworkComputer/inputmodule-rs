@@ -44,16 +44,16 @@ jobs:
       run: rustup show
 
     - name: Build Linux tool
-      run: cargo build --target x86_64-unknown-linux-gnu -p inputmodule-control
+      run: cargo build --release --target x86_64-unknown-linux-gnu -p inputmodule-control
 
     - name: Check if Linux tool can start
-      run: cargo run --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help
+      run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help
 
     - name: Upload Linux tool
       uses: actions/upload-artifact@v3
       with:
         name: inputmodule-control
-        path: target/x86_64-unknown-linux-gnu/debug/inputmodule-control
+        path: target/x86_64-unknown-linux-gnu/release/inputmodule-control
 
   build-windows:
     name: Build Windows
@@ -65,16 +65,16 @@ jobs:
       run: rustup show
 
     - name: Build Windows tool
-      run: cargo build --target x86_64-pc-windows-msvc -p inputmodule-control
+      run: cargo build --release --target x86_64-pc-windows-msvc -p inputmodule-control
 
     - name: Check if Windows tool can start
-      run: cargo run --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
+      run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
 
     - name: Upload Windows App
       uses: actions/upload-artifact@v3
       with:
         name: inputmodule-control.exe
-        path: target/x86_64-pc-windows-msvc/debug/inputmodule-control.exe
+        path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
 
   lints:
     name: Lints
