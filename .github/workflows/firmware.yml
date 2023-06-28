@@ -21,16 +21,17 @@ jobs:
       - run: cargo build -p ledmatrix
       - run: cargo build -p b1display
       - run: cargo build -p c1minimal
-      # TODO: Also build release versions
-      #- run: cargo build --all --release
+      - run: cargo build -p ledmatrix --release
+      - run: cargo build -p b1display --release
+      - run: cargo build -p c1minimal --release
 
       - run: |
             sudo apt-get update
             sudo apt-get install -y libudev-dev
             cargo install elf2uf2-rs
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1display.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/c1minimal c1minimal.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/release/b1display b1display.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/release/c1minimal c1minimal.uf2
+            elf2uf2-rs target/thumbv6m-none-eabi/release/ledmatrix ledmatrix.uf2
 
       - name: Upload Linux tool
         uses: actions/upload-artifact@v3
