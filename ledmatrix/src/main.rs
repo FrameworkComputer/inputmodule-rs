@@ -174,7 +174,7 @@ fn main() -> ! {
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0020))
         .manufacturer("Framework Computer Inc")
-        .product("LED Matrix Input Module")
+        .product("LED Matrix Input Module (LLVM BIN)")
         .serial_number(serialnum)
         .max_power(MAX_CURRENT)
         .device_release(device_release())
