@@ -84,7 +84,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Create Executable
-      uses: Martin005/pyinstaller@main
+      uses: Martin005/pyinstaller-action@main
       with:
         python_ver: '3.11'
         spec: ledmatrix_control.py #'src/build.spec'
