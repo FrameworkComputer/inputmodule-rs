@@ -83,14 +83,25 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Create Executable
-      uses: Martin005/pyinstaller-action@main
+    - uses: Nuitka/Nuitka-Action@main
       with:
-        python_ver: '3.11'
-        spec: ledmatrix_control.py #'src/build.spec'
-        requirements: 'requirements.txt'
-        upload_exe_with_name: 'ledmatrix_control.py'
-        options: --onefile, --name "LED Matrix Control", --windowed,
+        nuitka-version: main
+        script-name: ledmatrix_control.py
+
+    - name: Upload Windows GUI App
+      uses: actions/upload-artifact@v3
+      with:
+        name: ledmatrix_control.exe
+        path: ledmatrix_control.exe
+
+#   - name: Create Executable
+#     uses: Martin005/pyinstaller-action@main
+#     with:
+#       python_ver: '3.11'
+#       spec: ledmatrix_control.py #'src/build.spec'
+#       requirements: 'requirements.txt'
+#       upload_exe_with_name: 'ledmatrix_control.exe'
+#       options: --onefile, --name "LED Matrix Control", --windowed,
 
   lints:
     name: Lints
