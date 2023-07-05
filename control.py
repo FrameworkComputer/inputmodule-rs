@@ -12,13 +12,16 @@ from enum import IntEnum
 
 # Need to install
 import serial
+from serial.tools import list_ports
 
 # Optional dependencies:
 # from PIL import Image
 # import PySimpleGUI as sg
 
 FWK_MAGIC = [0x32, 0xAC]
-
+FWK_VID = 0x32AC
+LED_MATRIX_PID = 0x20
+INPUTMODULE_PIDS = [LED_MATRIX_PID]
 
 class CommandVals(IntEnum):
     Brightness = 0x00
@@ -133,6 +136,7 @@ STOP_THREAD = False
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("-l", "--list", help="List all compatible devices", action="store_true")
     parser.add_argument("--bootloader", help="Jump to the bootloader to flash new firmware",
                         action="store_true")
     parser.add_argument('--sleep', help='Simulate the host going to sleep or waking up',
@@ -190,8 +194,7 @@ def main():
         "--get-color", help="Get RGB color (C1 Minimal Input Module)", action="store_true")
     parser.add_argument("-v", "--version",
                         help="Get device version", action="store_true")
-    parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
-                        default='/dev/ttyACM0')
+    parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows")
 
     parser.add_argument(
         "--disp-str", help="Display a string on the LCD Display", type=str)
@@ -214,9 +217,31 @@ def main():
 
     args = parser.parse_args()
 
-    if args.serial_dev is not None:
-        global SERIAL_DEV
+    global SERIAL_DEV
+    ports = find_devs()
+
+    if args.list:
+        print_devs(ports)
+        sys.exit(0)
+
+    if not ports:
+        print("No device found")
+        sys.exit(1)
+
+    if len(ports) == 1:
+        SERIAL_DEV = ports[0].device
+    elif args.serial_dev is not None:
         SERIAL_DEV = args.serial_dev
+    elif len(ports) >= 1:
+        print("More than 1 compatible device found. Please choose with --serial-dev ...")
+        print("Example on Windows: --serial-dev COM3")
+        print("Example on Linux:   --serial-dev /dev/ttyACM0")
+        print_devs(ports)
+        sys.exit(1)
+
+    if SERIAL_DEV is None:
+        print("No device selected")
+        sys.exit(1)
 
     if args.bootloader:
         bootloader()
@@ -312,6 +337,17 @@ def main():
         parser.print_help(sys.stderr)
         sys.exit(1)
 
+def find_devs():
+    ports = list_ports.comports() # Same result as python -m serial.tools.list_ports
+    return [port for port in ports if port.vid == 0x32AC and port.pid in INPUTMODULE_PIDS]
+
+def print_devs(ports):
+    for port in ports:
+        print(f"{port.device}")
+        print(f"  VID:     0x{port.vid:04X}")
+        print(f"  PID:     0x{port.pid:04X}")
+        print(f"  SN:      {port.serial_number}")
+        print(f"  Product: {port.product}")
 
 def bootloader():
     """Reboot into the bootloader to flash new firmware"""
@@ -949,8 +985,11 @@ def send_serial(s, command):
 
 def gui():
     import PySimpleGUI as sg
+    global SERIAL_DEV
 
     layout = [
+        [sg.Text("Device:"), sg.Text(SERIAL_DEV)],
+
         [sg.Text("Bootloader")],
         [sg.Button("Bootloader")],
 
