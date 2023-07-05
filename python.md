@@ -2,7 +2,7 @@
 
 Requirements: Python, pyserial, [PySimpleGUI](https://www.pysimplegui.org) and optionally [pillow](https://pillow.readthedocs.io/en/stable/index.html)
 For convenience install dependencies via: `python3 -m pip install -r requirements.txt`.
-Use `control.py`. Either the commandline, see `control.py --help` or the graphical version: `control.py --gui`
+Use `ledmatrix_control.py`. Either the commandline, see `ledmatrix_control.py --help` or the graphical version: `ledmatrix_control.py --gui`
 
 ```
 options:
@@ -44,15 +44,15 @@ Examples
 
 ```sh
 # Launch graphical application
-./control.py --gui
+./ledmatrix_control.py --gui
 
 # Show current time and keep updating it
-./control.py --clock
+./ledmatrix_control.py --clock
 
 # Draw PNG or GIF
-./control.py --image stripe.gif
-./control.py --image stripe.png
+./ledmatrix_control.py --image stripe.gif
+./ledmatrix_control.py --image stripe.png
 
 # Change brightness (0-255)
-./control.py --brightness 50
+./ledmatrix_control.py --brightness 50
 ```
