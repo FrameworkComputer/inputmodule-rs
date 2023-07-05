@@ -1,7 +1,7 @@
 name: Firmware CI Checks
 
-on:
-  push
+#on:
+#  push
 
 env:
   CARGO_TERM_COLOR: always

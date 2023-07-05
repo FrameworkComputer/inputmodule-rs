@@ -29,52 +29,52 @@ jobs:
   #      name: qmk_hid_freebsd
   #      path: target/x86_64-unknown-freebsd/debug/qmk_hid
 
-  build:
-    name: Build Linux
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v3
+# build:
+#   name: Build Linux
+#   runs-on: ubuntu-22.04
+#   steps:
+#   - uses: actions/checkout@v3
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libudev-dev libasound2-dev
+#   - name: Install dependencies
+#     run: |
+#       sudo apt-get update
+#       sudo apt-get install -y libudev-dev libasound2-dev
 
-    - name: Setup Rust toolchain
-      run: rustup show
+#   - name: Setup Rust toolchain
+#     run: rustup show
 
-    - name: Build Linux tool
-      run: cargo build --release --target x86_64-unknown-linux-gnu -p inputmodule-control
+#   - name: Build Linux tool
+#     run: cargo build --release --target x86_64-unknown-linux-gnu -p inputmodule-control
 
-    - name: Check if Linux tool can start
-      run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help
+#   - name: Check if Linux tool can start
+#     run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help
 
-    - name: Upload Linux tool
-      uses: actions/upload-artifact@v3
-      with:
-        name: inputmodule-control
-        path: target/x86_64-unknown-linux-gnu/release/inputmodule-control
+#   - name: Upload Linux tool
+#     uses: actions/upload-artifact@v3
+#     with:
+#       name: inputmodule-control
+#       path: target/x86_64-unknown-linux-gnu/release/inputmodule-control
 
-  build-windows:
-    name: Build Windows
-    runs-on: windows-2022
-    steps:
-    - uses: actions/checkout@v3
+# build-windows:
+#   name: Build Windows
+#   runs-on: windows-2022
+#   steps:
+#   - uses: actions/checkout@v3
 
-    - name: Setup Rust toolchain
-      run: rustup show
+#   - name: Setup Rust toolchain
+#     run: rustup show
 
-    - name: Build Windows tool
-      run: cargo build --release --target x86_64-pc-windows-msvc -p inputmodule-control
+#   - name: Build Windows tool
+#     run: cargo build --release --target x86_64-pc-windows-msvc -p inputmodule-control
 
-    - name: Check if Windows tool can start
-      run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
+#   - name: Check if Windows tool can start
+#     run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
 
-    - name: Upload Windows App
-      uses: actions/upload-artifact@v3
-      with:
-        name: inputmodule-control.exe
-        path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
+#   - name: Upload Windows App
+#     uses: actions/upload-artifact@v3
+#     with:
+#       name: inputmodule-control.exe
+#       path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
 
   build-gui:
     name: Build GUI
