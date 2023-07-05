@@ -76,7 +76,7 @@ jobs:
         name: inputmodule-control.exe
         path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
 
-  build:
+  build-gui:
     name: Build GUI
     runs-on: ubuntu-22.04
     steps:
