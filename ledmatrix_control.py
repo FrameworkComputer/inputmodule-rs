@@ -228,20 +228,26 @@ def main():
         print_devs(ports)
         sys.exit(0)
 
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        # Force GUI in pyinstaller bundled app
+        args.gui = True
+
     if not ports:
         print("No device found")
         sys.exit(1)
-
-    if len(ports) == 1:
+    elif len(ports) == 1:
         SERIAL_DEV = ports[0].device
     elif args.serial_dev is not None:
         SERIAL_DEV = args.serial_dev
-    elif len(ports) >= 1:
+    elif len(ports) >= 1 and not args.gui:
         print("More than 1 compatible device found. Please choose with --serial-dev ...")
         print("Example on Windows: --serial-dev COM3")
         print("Example on Linux:   --serial-dev /dev/ttyACM0")
         print_devs(ports)
         sys.exit(1)
+    elif args.gui:
+        # TODO: Allow selection in GUI
+        print("Select in GUI")
 
     if SERIAL_DEV is None:
         print("No device selected")
