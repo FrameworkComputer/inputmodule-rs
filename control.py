@@ -597,7 +597,11 @@ def countdown(seconds):
 def blinking():
     """Blink brightness high/off every second.
     Keeps currently displayed grid"""
+    global STOP_THREAD
     while True:
+        if STOP_THREAD:
+            STOP_THREAD = False
+            return
         brightness(0)
         time.sleep(0.5)
         brightness(200)
