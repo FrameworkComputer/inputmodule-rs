@@ -29,7 +29,7 @@ enum SleepMode {
 
 /// Static configuration whether sleep shohld instantly turn all LEDs on/off or
 /// slowly fade themm on/off
-const SLEEP_MODE: SleepMode = SleepMode::Fading;
+const SLEEP_MODE: SleepMode = SleepMode::Debug;
 
 const MAX_CURRENT: usize = 500;
 
