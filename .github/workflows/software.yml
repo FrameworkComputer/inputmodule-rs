@@ -85,7 +85,7 @@ jobs:
     - name: Package Application
       uses: JackMcKew/pyinstaller-action-windows@main
       with:
-        path: ledmatrix_control/control.py
+        path: ledmatrix_control.py
 
     - uses: actions/upload-artifact@v3
       with:
