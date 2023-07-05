@@ -23,6 +23,7 @@ FWK_VID = 0x32AC
 LED_MATRIX_PID = 0x20
 INPUTMODULE_PIDS = [LED_MATRIX_PID]
 
+
 class CommandVals(IntEnum):
     Brightness = 0x00
     Pattern = 0x01
@@ -125,7 +126,8 @@ ARG_2RIGHT = 6
 
 RGB_COLORS = ['white', 'black', 'red', 'green',
               'blue', 'cyan', 'yellow', 'purple']
-SCREEN_FPS = ['quarter', 'half', 'one', 'two', 'four', 'eight', 'sixteen', 'thirtytwo']
+SCREEN_FPS = ['quarter', 'half', 'one', 'two',
+              'four', 'eight', 'sixteen', 'thirtytwo']
 HIGH_FPS_MASK = 0b00010000
 LOW_FPS_MASK = 0b00000111
 
@@ -136,7 +138,8 @@ STOP_THREAD = False
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-l", "--list", help="List all compatible devices", action="store_true")
+    parser.add_argument(
+        "-l", "--list", help="List all compatible devices", action="store_true")
     parser.add_argument("--bootloader", help="Jump to the bootloader to flash new firmware",
                         action="store_true")
     parser.add_argument('--sleep', help='Simulate the host going to sleep or waking up',
@@ -194,7 +197,8 @@ def main():
         "--get-color", help="Get RGB color (C1 Minimal Input Module)", action="store_true")
     parser.add_argument("-v", "--version",
                         help="Get device version", action="store_true")
-    parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows")
+    parser.add_argument(
+        "--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows")
 
     parser.add_argument(
         "--disp-str", help="Display a string on the LCD Display", type=str)
@@ -337,9 +341,11 @@ def main():
         parser.print_help(sys.stderr)
         sys.exit(1)
 
+
 def find_devs():
-    ports = list_ports.comports() # Same result as python -m serial.tools.list_ports
+    ports = list_ports.comports()
     return [port for port in ports if port.vid == 0x32AC and port.pid in INPUTMODULE_PIDS]
+
 
 def print_devs(ports):
     for port in ports:
@@ -348,6 +354,7 @@ def print_devs(ports):
         print(f"  PID:     0x{port.pid:04X}")
         print(f"  SN:      {port.serial_number}")
         print(f"  Product: {port.product}")
+
 
 def bootloader():
     """Reboot into the bootloader to flash new firmware"""
@@ -1192,6 +1199,7 @@ def set_power_mode_cmd(mode):
         print("Unsupported power mode")
         sys.exit(1)
 
+
 def get_power_mode_cmd():
     res = send_command(CommandVals.SetPowerMode, with_response=True)
     current_mode = int(res[0])
@@ -1199,6 +1207,7 @@ def get_power_mode_cmd():
         print(f"Current Power Mode: Low Power")
     elif current_mode == 1:
         print(f"Current Power Mode: High Power")
+
 
 def get_fps_cmd():
     res = send_command(CommandVals.SetFps, with_response=True)
