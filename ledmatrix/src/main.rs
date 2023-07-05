@@ -262,7 +262,8 @@ fn main() -> ! {
         }
 
         // Handle period display updates. Don't do it too often
-        if timer.get_counter().ticks() > prev_timer + state.animation_period {
+        let render_again = timer.get_counter().ticks() > prev_timer + state.animation_period;
+        if matches!(state.sleeping, SleepState::Awake) && render_again {
             // On startup slowly turn the screen on - it's a pretty effect :)
             match startup_percentage {
                 Some(p) if p <= 100 => {
