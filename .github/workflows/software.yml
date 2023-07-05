@@ -76,6 +76,22 @@ jobs:
         name: inputmodule-control.exe
         path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
 
+  build:
+    name: Build GUI
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Package Application
+      uses: JackMcKew/pyinstaller-action-windows@main
+      with:
+        path: ledmatrix_control/control.py
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: ledmatrix_control.exe
+        path: dist/ledmatrix_control.exe
+
   lints:
     name: Lints
     runs-on: ubuntu-22.04
