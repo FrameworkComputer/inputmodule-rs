@@ -1,0 +1,22 @@
+[env]
+TARGET_TRIPLE = "thumbv6m-none-eabi"
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+FEATURES = ""
+
+[tasks.build]
+args = [
+    "build",
+    "@@remove-empty(BUILD_TYPE)",
+    "--target",
+    "${TARGET_TRIPLE}",
+    "--features",
+    "${FEATURES}",
+]
+
+[tasks.build-release]
+clear = true
+env.BUILD_TYPE = "--release"
+run_task = "build"
+
+[tasks.test]
+disabled = true
