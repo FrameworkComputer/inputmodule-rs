@@ -1,0 +1,4 @@
+extend = "../Makefile.toml"
+
+[env]
+TARGET_TRIPLE = "x86_64-unknown-linux-gnu"
