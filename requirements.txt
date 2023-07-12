@@ -1,0 +1,4 @@
+get-key==1.60.0
+Pillow==10.0.0
+pyserial==3.5
+PySimpleGUI==4.60.5

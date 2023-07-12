@@ -1,7 +1,7 @@
 # Python script to control Framework Laptop 16 Input Modules
 
-Requirements: Python, [PySimpleGUI](https://www.pysimplegui.org) and optionally [pillow](https://pillow.readthedocs.io/en/stable/index.html)
-
+Requirements: Python, pyserial, [PySimpleGUI](https://www.pysimplegui.org) and optionally [pillow](https://pillow.readthedocs.io/en/stable/index.html)
+For convenience install dependencies via: `python3 -m pip install -r requirements.txt`.
 Use `control.py`. Either the commandline, see `control.py --help` or the graphical version: `control.py --gui`
 
 ```

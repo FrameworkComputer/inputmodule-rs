@@ -12,12 +12,16 @@ from enum import IntEnum
 
 # Need to install
 import serial
+from serial.tools import list_ports
 
 # Optional dependencies:
 # from PIL import Image
 # import PySimpleGUI as sg
 
 FWK_MAGIC = [0x32, 0xAC]
+FWK_VID = 0x32AC
+LED_MATRIX_PID = 0x20
+INPUTMODULE_PIDS = [LED_MATRIX_PID]
 
 
 class CommandVals(IntEnum):
@@ -122,7 +126,8 @@ ARG_2RIGHT = 6
 
 RGB_COLORS = ['white', 'black', 'red', 'green',
               'blue', 'cyan', 'yellow', 'purple']
-SCREEN_FPS = ['quarter', 'half', 'one', 'two', 'four', 'eight', 'sixteen', 'thirtytwo']
+SCREEN_FPS = ['quarter', 'half', 'one', 'two',
+              'four', 'eight', 'sixteen', 'thirtytwo']
 HIGH_FPS_MASK = 0b00010000
 LOW_FPS_MASK = 0b00000111
 
@@ -133,6 +138,8 @@ STOP_THREAD = False
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-l", "--list", help="List all compatible devices", action="store_true")
     parser.add_argument("--bootloader", help="Jump to the bootloader to flash new firmware",
                         action="store_true")
     parser.add_argument('--sleep', help='Simulate the host going to sleep or waking up',
@@ -190,8 +197,8 @@ def main():
         "--get-color", help="Get RGB color (C1 Minimal Input Module)", action="store_true")
     parser.add_argument("-v", "--version",
                         help="Get device version", action="store_true")
-    parser.add_argument("--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows",
-                        default='/dev/ttyACM0')
+    parser.add_argument(
+        "--serial-dev", help="Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows")
 
     parser.add_argument(
         "--disp-str", help="Display a string on the LCD Display", type=str)
@@ -214,9 +221,31 @@ def main():
 
     args = parser.parse_args()
 
-    if args.serial_dev is not None:
-        global SERIAL_DEV
+    global SERIAL_DEV
+    ports = find_devs()
+
+    if args.list:
+        print_devs(ports)
+        sys.exit(0)
+
+    if not ports:
+        print("No device found")
+        sys.exit(1)
+
+    if len(ports) == 1:
+        SERIAL_DEV = ports[0].device
+    elif args.serial_dev is not None:
         SERIAL_DEV = args.serial_dev
+    elif len(ports) >= 1:
+        print("More than 1 compatible device found. Please choose with --serial-dev ...")
+        print("Example on Windows: --serial-dev COM3")
+        print("Example on Linux:   --serial-dev /dev/ttyACM0")
+        print_devs(ports)
+        sys.exit(1)
+
+    if SERIAL_DEV is None:
+        print("No device selected")
+        sys.exit(1)
 
     if args.bootloader:
         bootloader()
@@ -311,6 +340,20 @@ def main():
     else:
         parser.print_help(sys.stderr)
         sys.exit(1)
+
+
+def find_devs():
+    ports = list_ports.comports()
+    return [port for port in ports if port.vid == 0x32AC and port.pid in INPUTMODULE_PIDS]
+
+
+def print_devs(ports):
+    for port in ports:
+        print(f"{port.device}")
+        print(f"  VID:     0x{port.vid:04X}")
+        print(f"  PID:     0x{port.pid:04X}")
+        print(f"  SN:      {port.serial_number}")
+        print(f"  Product: {port.product}")
 
 
 def bootloader():
@@ -561,7 +604,11 @@ def countdown(seconds):
 def blinking():
     """Blink brightness high/off every second.
     Keeps currently displayed grid"""
+    global STOP_THREAD
     while True:
+        if STOP_THREAD:
+            STOP_THREAD = False
+            return
         brightness(0)
         time.sleep(0.5)
         brightness(200)
@@ -949,8 +996,11 @@ def send_serial(s, command):
 
 def gui():
     import PySimpleGUI as sg
+    global SERIAL_DEV
 
     layout = [
+        [sg.Text("Device:"), sg.Text(SERIAL_DEV)],
+
         [sg.Text("Bootloader")],
         [sg.Button("Bootloader")],
 
@@ -989,6 +1039,9 @@ def gui():
             sg.Button("Start", k='-START-TIME-'),
             sg.Button("Stop", k='-STOP-TIME-')
         ],
+
+        [sg.Text("Custom Text")],
+        [sg.Input(k='-CUSTOM-TEXT-', s=7), sg.Button("Show", k='SEND-CUSTOM-TEXT')],
 
         [sg.Text("Display Text with Symbols")],
         [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
@@ -1058,6 +1111,9 @@ def gui():
 
         if event == '-SEND-TEXT-':
             show_symbols(['2', '5', 'degC', ' ', 'thunder'])
+
+        if event == 'SEND-CUSTOM-TEXT':
+            show_string(values['-CUSTOM-TEXT-'].upper())
 
         if event == '-PLAY-SNAKE-':
             snake()
@@ -1149,6 +1205,7 @@ def set_power_mode_cmd(mode):
         print("Unsupported power mode")
         sys.exit(1)
 
+
 def get_power_mode_cmd():
     res = send_command(CommandVals.SetPowerMode, with_response=True)
     current_mode = int(res[0])
@@ -1156,6 +1213,7 @@ def get_power_mode_cmd():
         print(f"Current Power Mode: Low Power")
     elif current_mode == 1:
         print(f"Current Power Mode: High Power")
+
 
 def get_fps_cmd():
     res = send_command(CommandVals.SetFps, with_response=True)
@@ -1187,20 +1245,20 @@ def get_fps_cmd():
 def convert_symbol(symbol):
     symbols = {
         'degC': [
-            0, 0, 0, 1, 1,
-            0, 0, 0, 1, 1,
-            1, 1, 1, 0, 0,
-            1, 0, 0, 0, 0,
-            1, 0, 0, 0, 0,
-            1, 1, 1, 0, 0,
+            1, 1, 0, 0, 0,
+            1, 1, 0, 0, 0,
+            0, 0, 1, 1, 1,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 1, 1,
         ],
         'degF': [
-            0, 0, 0, 1, 1,
-            0, 0, 0, 1, 1,
-            1, 1, 1, 0, 0,
-            1, 0, 0, 0, 0,
-            1, 1, 1, 0, 0,
-            1, 0, 0, 0, 0,
+            1, 1, 0, 0, 0,
+            1, 1, 0, 0, 0,
+            0, 0, 1, 1, 1,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 1, 1,
+            0, 0, 1, 0, 0,
         ],
         'snow': [
             0, 0, 0, 0, 0,
@@ -1530,6 +1588,22 @@ def convert_font(num):
             1, 0, 0, 0, 1,
             1, 0, 0, 0, 1,
         ],
+        'B': [
+            1, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            1, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 1, 1, 1, 0,
+        ],
+        'C': [
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+        ],
         'D': [
             1, 1, 1, 1, 0,
             1, 0, 0, 0, 1,
@@ -1537,22 +1611,6 @@ def convert_font(num):
             1, 0, 0, 0, 1,
             1, 0, 0, 0, 1,
             1, 1, 1, 1, 0,
-        ],
-        'O': [
-            0, 1, 1, 1, 0,
-            1, 0, 0, 0, 1,
-            1, 0, 0, 0, 1,
-            1, 0, 0, 0, 1,
-            1, 0, 0, 0, 1,
-            0, 1, 1, 1, 0,
-        ],
-        'V': [
-            1, 0, 0, 0, 1,
-            1, 0, 0, 0, 1,
-            0, 1, 0, 1, 1,
-            0, 1, 0, 1, 1,
-            0, 0, 1, 0, 0,
-            0, 0, 1, 0, 0,
         ],
         'E': [
             1, 1, 1, 1, 1,
@@ -1562,13 +1620,13 @@ def convert_font(num):
             1, 0, 0, 0, 0,
             1, 1, 1, 1, 1,
         ],
-        'R': [
-            1, 1, 1, 1, 0,
-            1, 0, 0, 1, 0,
-            1, 1, 1, 1, 0,
-            1, 1, 0, 0, 0,
-            1, 0, 1, 0, 0,
-            1, 0, 0, 1, 0,
+        'F': [
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
         ],
         'G': [
             0, 1, 1, 1, 0,
@@ -1578,6 +1636,46 @@ def convert_font(num):
             1, 0, 0, 0, 1,
             0, 1, 1, 1, 0,
         ],
+        'H': [
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+        ],
+        'I': [
+            0, 1, 1, 1, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 1, 1, 1, 0,
+        ],
+        'J': [
+            0, 1, 1, 1, 1,
+            0, 0, 0, 0, 1,
+            0, 0, 0, 0, 1,
+            0, 0, 0, 0, 1,
+            0, 1, 0, 0, 1,
+            0, 0, 1, 1, 0,
+        ],
+        'K': [
+            1, 0, 0, 1, 0,
+            1, 0, 1, 0, 0,
+            1, 1, 0, 0, 0,
+            1, 0, 1, 0, 0,
+            1, 0, 0, 1, 0,
+            1, 0, 0, 0, 1,
+        ],
+        'L': [
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+        ],
         'M': [
             0, 0, 0, 0, 0,
             0, 1, 0, 1, 0,
@@ -1586,6 +1684,22 @@ def convert_font(num):
             1, 0, 1, 0, 1,
             1, 0, 1, 0, 1,
         ],
+        'N': [
+            1, 0, 0, 0, 1,
+            1, 1, 0, 0, 1,
+            1, 0, 1, 0, 1,
+            1, 0, 1, 0, 1,
+            1, 0, 1, 0, 1,
+            1, 0, 0, 1, 1,
+        ],
+        'O': [
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 1, 1, 0,
+        ],
         'P': [
             1, 1, 1, 0, 0,
             1, 0, 0, 1, 0,
@@ -1593,6 +1707,78 @@ def convert_font(num):
             1, 1, 1, 0, 0,
             1, 0, 0, 0, 0,
             1, 0, 0, 0, 0,
+        ],
+        'Q': [
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 1, 0, 1,
+            1, 0, 0, 1, 0,
+            0, 1, 1, 0, 1,
+        ],
+        'R': [
+            1, 1, 1, 1, 0,
+            1, 0, 0, 1, 0,
+            1, 1, 1, 1, 0,
+            1, 1, 0, 0, 0,
+            1, 0, 1, 0, 0,
+            1, 0, 0, 1, 0,
+        ],
+        'S': [
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 0,
+            0, 1, 1, 1, 0,
+            0, 0, 0, 0, 1,
+            0, 0, 0, 0, 1,
+            1, 1, 1, 1, 0,
+        ],
+        'T': [
+            1, 1, 1, 1, 1,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+        ],
+        'U': [
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 1, 1, 1, 1,
+        ],
+        'V': [
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 0, 1, 1,
+            0, 1, 0, 1, 1,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+        ],
+        'W': [
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 1, 0, 1,
+            1, 0, 1, 0, 1,
+            0, 1, 0, 1, 0,
+            0, 1, 0, 1, 0,
+        ],
+        'Y': [
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 0, 1, 0,
+            0, 1, 0, 1, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+        ],
+        'Z': [
+            1, 1, 1, 1, 1,
+            0, 0, 0, 1, 0,
+            0, 0, 1, 0, 0,
+            0, 1, 0, 0, 0,
+            1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
         ],
     }
     if num in font:
