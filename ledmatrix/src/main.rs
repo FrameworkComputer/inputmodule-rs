@@ -16,9 +16,20 @@ use rp2040_hal::{
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
 
+#[derive(PartialEq, Eq)]
+#[allow(dead_code)]
+enum SleepMode {
+    /// Instantly go to sleep ant
+    Instant,
+    /// Fade brightness out and in slowly when sleeping/waking-up
+    Fading,
+    // Display "SLEEP" when sleeping, instead of turning LEDs off
+    Debug,
+}
+
 /// Static configuration whether sleep shohld instantly turn all LEDs on/off or
 /// slowly fade themm on/off
-const INSTANT_SLEEP: bool = false;
+const SLEEP_MODE: SleepMode = SleepMode::Fading;
 
 const MAX_CURRENT: usize = 500;
 
@@ -251,7 +262,8 @@ fn main() -> ! {
         }
 
         // Handle period display updates. Don't do it too often
-        if timer.get_counter().ticks() > prev_timer + state.animation_period {
+        let render_again = timer.get_counter().ticks() > prev_timer + state.animation_period;
+        if matches!(state.sleeping, SleepState::Awake) && render_again {
             // On startup slowly turn the screen on - it's a pretty effect :)
             match startup_percentage {
                 Some(p) if p <= 100 => {
@@ -395,8 +407,7 @@ fn handle_sleep(
             // fill_grid_pixels(&state, matrix);
 
             // Slowly decrease brightness
-            if !INSTANT_SLEEP {
-                delay.delay_ms(1000);
+            if SLEEP_MODE == SleepMode::Fading {
                 let mut brightness = state.brightness;
                 loop {
                     delay.delay_ms(100);
@@ -409,7 +420,12 @@ fn handle_sleep(
             }
 
             // Turn LED controller off to save power
-            led_enable.set_low().unwrap();
+            if SLEEP_MODE == SleepMode::Debug {
+                state.grid = display_sleep();
+                fill_grid_pixels(state, matrix);
+            } else {
+                led_enable.set_low().unwrap();
+            }
 
             // TODO: Set up SLEEP# pin as interrupt and wfi
             //cortex_m::asm::wfi();
@@ -422,11 +438,12 @@ fn handle_sleep(
             fill_grid_pixels(state, matrix);
 
             // Power LED controller back on
-            led_enable.set_high().unwrap();
+            if SLEEP_MODE != SleepMode::Debug {
+                led_enable.set_high().unwrap();
+            }
 
             // Slowly increase brightness
-            if !INSTANT_SLEEP {
-                delay.delay_ms(1000);
+            if SLEEP_MODE == SleepMode::Fading {
                 let mut brightness = 0;
                 loop {
                     delay.delay_ms(100);
