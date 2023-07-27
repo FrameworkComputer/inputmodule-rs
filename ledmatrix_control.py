@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 import argparse
+import math
+import os
+import random
 import sys
 import threading
 import time
 from datetime import datetime, timedelta
-import random
-import math
-import sys
 from enum import IntEnum
-
 
 # Need to install
 import serial
@@ -131,9 +130,9 @@ SCREEN_FPS = ['quarter', 'half', 'one', 'two',
 HIGH_FPS_MASK = 0b00010000
 LOW_FPS_MASK = 0b00000111
 
-SERIAL_DEV = None
-
+# Global variables
 STOP_THREAD = False
+DISCONNECTED_DEVS = []
 
 
 def main():
@@ -221,12 +220,12 @@ def main():
 
     args = parser.parse_args()
 
-    global SERIAL_DEV
+    # Selected device
+    dev = None
     ports = find_devs()
 
     if args.list:
         print_devs(ports)
-        sys.exit(0)
 
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         # Force GUI in pyinstaller bundled app
@@ -234,12 +233,14 @@ def main():
 
     if not ports:
         print("No device found")
+        popup(args.gui, "No device found")
         sys.exit(1)
-    elif len(ports) == 1:
-        SERIAL_DEV = ports[0].device
     elif args.serial_dev is not None:
-        SERIAL_DEV = args.serial_dev
+        dev = [x for x in ports if ports.name == args.serial_dev]
+    elif len(ports) == 1:
+        dev = ports[0]
     elif len(ports) >= 1 and not args.gui:
+        popup(args.gui, "More than 1 compatibles devices found. Please choose from the commandline with --serial-dev COMX.\nConnected ports:\n- {}".format("\n- ".join([port.device for port in ports])))
         print("More than 1 compatible device found. Please choose with --serial-dev ...")
         print("Example on Windows: --serial-dev COM3")
         print("Example on Linux:   --serial-dev /dev/ttyACM0")
@@ -249,103 +250,117 @@ def main():
         # TODO: Allow selection in GUI
         print("Select in GUI")
 
-    if SERIAL_DEV is None:
+    if not args.gui and dev is None:
         print("No device selected")
+        popup(args.gui, "No device selected")
         sys.exit(1)
 
     if args.bootloader:
-        bootloader()
+        bootloader(dev)
     elif args.sleep is not None:
-        send_command(CommandVals.Sleep, [args.sleep])
+        send_command(dev, CommandVals.Sleep, [args.sleep])
     elif args.is_sleeping:
-        res = send_command(CommandVals.Sleep, with_response=True)
+        res = send_command(dev, CommandVals.Sleep, with_response=True)
         sleeping = bool(res[0])
         print(f"Currently sleeping: {sleeping}")
     elif args.brightness is not None:
         if args.brightness > 255 or args.brightness < 0:
             print("Brightness must be 0-255")
             sys.exit(1)
-        brightness(args.brightness)
+        brightness(dev, args.brightness)
     elif args.get_brightness:
-        br = get_brightness()
+        br = get_brightness(dev)
         print(f"Current brightness: {br}")
     elif args.percentage is not None:
         if args.percentage > 100 or args.percentage < 0:
             print("Percentage must be 0-100")
             sys.exit(1)
-        percentage(args.percentage)
+        percentage(dev, args.percentage)
     elif args.pattern is not None:
-        pattern(args.pattern)
+        pattern(dev, args.pattern)
     elif args.animate is not None:
-        animate(args.animate)
+        animate(dev, args.animate)
     elif args.get_animate:
-        animating = get_animate()
+        animating = get_animate(dev)
         print(f"Currently animating: {animating}")
     elif args.panic:
-        send_command(CommandVals.Panic, [0x00])
+        send_command(dev, CommandVals.Panic, [0x00])
     elif args.image is not None:
-        image_bl(args.image)
+        image_bl(dev, args.image)
     elif args.image_grey is not None:
-        image_greyscale(args.image_grey)
+        image_greyscale(dev, args.image_grey)
     elif args.all_brightnesses:
-        all_brightnesses()
+        all_brightnesses(dev)
     elif args.set_color:
-        set_color(args.set_color)
+        set_color(dev, args.set_color)
     elif args.get_color:
-        (red, green, blue) = get_color()
+        (red, green, blue) = get_color(dev)
         print(f"Current color: RGB:({red}, {green}, {blue})")
     elif args.gui:
-        gui()
+        devices = find_devs()#show=False, verbose=False)
+        print("Found {} devices".format(len(devices)))
+        gui(devices)
     elif args.blink:
-        blinking()
+        blinking(dev)
     elif args.breathing:
-        breathing()
+        breathing(dev)
     elif args.wpm:
-        wpm_demo()
+        wpm_demo(dev)
     elif args.snake:
-        snake()
+        snake(dev)
     elif args.snake_embedded:
-        snake_embedded()
+        snake_embedded(dev)
     elif args.game_of_life_embedded is not None:
-        game_of_life_embedded(args.game_of_life_embedded)
+        game_of_life_embedded(dev, args.game_of_life_embedded)
     elif args.quit_embedded_game:
-        send_command(CommandVals.GameControl, [GameControlVal.Quit])
+        send_command(dev, CommandVals.GameControl, [GameControlVal.Quit])
     elif args.pong_embedded:
-        pong_embedded()
+        pong_embedded(dev)
     elif args.eq is not None:
-        eq(args.eq)
+        eq(dev, args.eq)
     elif args.random_eq:
-        random_eq()
+        random_eq(dev)
     elif args.clock:
-        clock()
+        clock(dev)
     elif args.string is not None:
-        show_string(args.string)
+        show_string(dev, args.string)
     elif args.symbols is not None:
-        show_symbols(args.symbols)
+        show_symbols(dev, args.symbols)
     elif args.disp_str is not None:
-        display_string(args.disp_str)
+        display_string(dev, args.disp_str)
     elif args.display_on is not None:
-        display_on_cmd(args.display_on)
+        display_on_cmd(dev, args.display_on)
     elif args.invert_screen is not None:
-        invert_screen_cmd(args.invert_screen)
+        invert_screen_cmd(dev, args.invert_screen)
     elif args.screen_saver is not None:
-        screen_saver_cmd(args.screen_saver)
+        screen_saver_cmd(dev, args.screen_saver)
     elif args.set_fps is not None:
-        set_fps_cmd(args.set_fps)
+        set_fps_cmd(dev, args.set_fps)
     elif args.set_power_mode is not None:
-        set_power_mode_cmd(args.set_power_mode)
+        set_power_mode_cmd(dev, args.set_power_mode)
     elif args.get_fps:
-        get_fps_cmd()
+        get_fps_cmd(dev)
     elif args.get_power_mode:
-        get_power_mode_cmd()
+        get_power_mode_cmd(dev)
     elif args.b1image is not None:
-        b1image_bl(args.b1image)
+        b1image_bl(dev, args.b1image)
     elif args.version:
-        version = get_version()
+        version = get_version(dev)
         print(f"Device version: {version}")
     else:
         parser.print_help(sys.stderr)
         sys.exit(1)
+
+
+def resource_path():
+    """ Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return base_path
 
 
 def find_devs():
@@ -362,32 +377,32 @@ def print_devs(ports):
         print(f"  Product: {port.product}")
 
 
-def bootloader():
+def bootloader(dev):
     """Reboot into the bootloader to flash new firmware"""
-    send_command(CommandVals.BootloaderReset, [0x00])
+    send_command(dev, CommandVals.BootloaderReset, [0x00])
 
 
-def percentage(p):
+def percentage(dev, p):
     """Fill a percentage of the screen. Bottom to top"""
-    send_command(CommandVals.Pattern, [PatternVals.Percentage, p])
+    send_command(dev, CommandVals.Pattern, [PatternVals.Percentage, p])
 
 
-def brightness(b: int):
+def brightness(dev, b: int):
     """Adjust the brightness scaling of the entire screen.
     """
-    send_command(CommandVals.Brightness, [b])
+    send_command(dev, CommandVals.Brightness, [b])
 
 
-def get_brightness():
+def get_brightness(dev):
     """Adjust the brightness scaling of the entire screen.
     """
-    res = send_command(CommandVals.Brightness, with_response=True)
+    res = send_command(dev, CommandVals.Brightness, with_response=True)
     return int(res[0])
 
 
-def get_version():
+def get_version(dev):
     """Get the device's firmware version"""
-    res = send_command(CommandVals.Version, with_response=True)
+    res = send_command(dev, CommandVals.Version, with_response=True)
     major = res[0]
     minor = (res[1] & 0xF0) >> 4
     patch = res[1] & 0xF
@@ -399,20 +414,20 @@ def get_version():
     return version
 
 
-def animate(b: bool):
+def animate(dev, b: bool):
     """Tell the firmware to start/stop animation.
     Scrolls the currently saved grid vertically down."""
-    send_command(CommandVals.Animate, [b])
+    send_command(dev, CommandVals.Animate, [b])
 
 
-def get_animate():
+def get_animate(dev):
     """Tell the firmware to start/stop animation.
     Scrolls the currently saved grid vertically down."""
-    res = send_command(CommandVals.Animate, with_response=True)
+    res = send_command(dev, CommandVals.Animate, with_response=True)
     return bool(res[0])
 
 
-def b1image_bl(image_file):
+def b1image_bl(dev, image_file):
     """ Display an image in black and white
     Confirmed working with PNG and GIF.
     Must be 300x400 in size.
@@ -447,14 +462,14 @@ def b1image_bl(image_file):
 
         column_le = list((x).to_bytes(2, 'little'))
         command = FWK_MAGIC + [0x16] + column_le + vals
-        send_command(command)
+        send_command(dev, command)
 
     # Flush
     command = FWK_MAGIC + [0x17]
-    send_command(command)
+    send_command(dev, command)
 
 
-def image_bl(image_file):
+def image_bl(dev, image_file):
     """Display an image in black and white
     Confirmed working with PNG and GIF.
     Must be 9x34 in size.
@@ -473,7 +488,7 @@ def image_bl(image_file):
         if brightness > 0xFF/2:
             vals[int(i/8)] |= (1 << i % 8)
 
-    send_command(CommandVals.Draw, vals)
+    send_command(dev, CommandVals.Draw, vals)
 
 
 def pixel_to_brightness(pixel):
@@ -497,11 +512,11 @@ def pixel_to_brightness(pixel):
     return int(brightness)
 
 
-def image_greyscale(image_file):
+def image_greyscale(dev, image_file):
     """Display an image in greyscale
     Sends each 1x34 column and then commits => 10 commands
     """
-    with serial.Serial(SERIAL_DEV, 115200) as s:
+    with serial.Serial(dev.device, 115200) as s:
         from PIL import Image
         im = Image.open(image_file).convert("RGB")
         width, height = im.size
@@ -532,7 +547,7 @@ def commit_cols(s):
 
 
 def get_color():
-    res = send_command(CommandVals.SetColor, with_response=True)
+    res = send_command(dev, CommandVals.SetColor, with_response=True)
     return (int(res[0]), int(res[1]), int(res[2]))
 
 
@@ -559,13 +574,13 @@ def set_color(color):
         return
 
     if rgb:
-        send_command(CommandVals.SetColor, rgb)
+        send_command(dev, CommandVals.SetColor, rgb)
 
 
-def all_brightnesses():
+def all_brightnesses(dev):
     """Increase the brightness with each pixel.
     Only 0-255 available, so it can't fill all 306 LEDs"""
-    with serial.Serial(SERIAL_DEV, 115200) as s:
+    with serial.Serial(dev.device, 115200) as s:
         for x in range(0, WIDTH):
             vals = [0 for _ in range(HEIGHT)]
 
@@ -580,14 +595,14 @@ def all_brightnesses():
         commit_cols(s)
 
 
-def countdown(seconds):
+def countdown(dev, seconds):
     """ Run a countdown timer. Lighting more LEDs every 100th of a seconds.
     Until the timer runs out and every LED is lit"""
     start = datetime.now()
     target = seconds * 1_000_000
     global STOP_THREAD
     while True:
-        if STOP_THREAD:
+        if STOP_THREAD or dev.device in DISCONNECTED_DEVS:
             STOP_THREAD = False
             return
         now = datetime.now()
@@ -598,30 +613,30 @@ def countdown(seconds):
             break
 
         leds = int(306 * ratio)
-        light_leds(leds)
+        light_leds(dev, leds)
 
         time.sleep(0.01)
 
-    light_leds(306)
-    # breathing()
-    blinking()
+    light_leds(dev, 306)
+    breathing(dev)
+    #blinking(dev)
 
 
-def blinking():
+def blinking(dev):
     """Blink brightness high/off every second.
     Keeps currently displayed grid"""
     global STOP_THREAD
     while True:
-        if STOP_THREAD:
+        if STOP_THREAD or dev.device in DISCONNECTED_DEVS:
             STOP_THREAD = False
             return
-        brightness(0)
+        brightness(dev, 0)
         time.sleep(0.5)
-        brightness(200)
+        brightness(dev, 200)
         time.sleep(0.5)
 
 
-def breathing():
+def breathing(dev):
     """Animate breathing brightness.
     Keeps currently displayed grid"""
     # Bright ranges appear similar, so we have to go through those faster
@@ -629,22 +644,22 @@ def breathing():
         # Go quickly from 250 to 50
         for i in range(10):
             time.sleep(0.03)
-            brightness(250 - i*20)
+            brightness(dev, 250 - i*20)
 
         # Go slowly from 50 to 0
         for i in range(10):
             time.sleep(0.06)
-            brightness(50 - i*5)
+            brightness(dev, 50 - i*5)
 
         # Go slowly from 0 to 50
         for i in range(10):
             time.sleep(0.06)
-            brightness(i*5)
+            brightness(dev, i*5)
 
         # Go quickly from 50 to 250
         for i in range(10):
             time.sleep(0.03)
-            brightness(50 + i*20)
+            brightness(dev, 50 + i*20)
 
 
 direction = None
@@ -697,7 +712,7 @@ def snake_embedded_keyscan():
             # Quit
             key_arg = GameControlVal.Quit
         if key_arg is not None:
-            send_command(CommandVals.GameControl, [key_arg])
+            send_command(dev, CommandVals.GameControl, [key_arg])
 
 
 def game_over():
@@ -714,7 +729,7 @@ def game_over():
 
 def pong_embedded():
     # Start game
-    send_command(CommandVals.StartGame, [Game.Pong])
+    send_command(dev, CommandVals.StartGame, [Game.Pong])
 
     from getkey import getkey, keys
 
@@ -733,19 +748,19 @@ def pong_embedded():
             # Quit
             key_arg = ARG_QUIT
         if key_arg is not None:
-            send_command(CommandVals.GameControl, [key_arg])
+            send_command(dev, CommandVals.GameControl, [key_arg])
 
 
 def game_of_life_embedded(arg):
     # Start game
     # TODO: Add a way to stop it
     print("Game", int(arg))
-    send_command(CommandVals.StartGame, [Game.GameOfLife, int(arg)])
+    send_command(dev, CommandVals.StartGame, [Game.GameOfLife, int(arg)])
 
 
 def snake_embedded():
     # Start game
-    send_command(CommandVals.StartGame, [Game.Snake])
+    send_command(dev, CommandVals.StartGame, [Game.Snake])
 
     snake_embedded_keyscan()
 
@@ -847,23 +862,23 @@ def wpm_demo():
         show_string(' ' + str(int(wpm)))
 
 
-def random_eq():
+def random_eq(dev):
     """Display an equlizer looking animation with random values.
     """
     global STOP_THREAD
     while True:
-        if STOP_THREAD:
+        if STOP_THREAD or dev.device in DISCONNECTED_DEVS:
             STOP_THREAD = False
             return
         # Lower values more likely, makes it look nicer
         weights = [i*i for i in range(33, 0, -1)]
         population = list(range(1, 34))
         vals = random.choices(population, weights=weights, k=9)
-        eq(vals)
+        eq(dev, vals)
         time.sleep(0.2)
 
 
-def eq(vals):
+def eq(dev, vals):
     """Display 9 values in equalizer diagram starting from the middle, going up and down"""
     matrix = [[0 for _ in range(34)] for _ in range(9)]
 
@@ -877,10 +892,10 @@ def eq(vals):
         for i in range(below):
             matrix[col][row-1-i] = 0xFF
 
-    render_matrix(matrix)
+    render_matrix(dev, matrix)
 
 
-def render_matrix(matrix):
+def render_matrix(dev, matrix):
     """Show a black/white matrix
     Send everything in a single command"""
     vals = [0x00 for _ in range(39)]
@@ -891,47 +906,47 @@ def render_matrix(matrix):
             if matrix[x][y]:
                 vals[int(i/8)] = vals[int(i/8)] | (1 << i % 8)
 
-    send_command(CommandVals.Draw, vals)
+    send_command(dev, CommandVals.Draw, vals)
 
 
-def light_leds(leds):
+def light_leds(dev, leds):
     """ Light a specific number of LEDs """
     vals = [0x00 for _ in range(39)]
     for byte in range(int(leds / 8)):
         vals[byte] = 0xFF
     for i in range(leds % 8):
         vals[int(leds / 8)] += 1 << i
-    send_command(CommandVals.Draw, vals)
+    send_command(dev, CommandVals.Draw, vals)
 
 
-def pattern(p):
+def pattern(dev, p):
     """Display a pattern that's already programmed into the firmware"""
     if p == 'All LEDs on':
-        send_command(CommandVals.Pattern, [PatternVals.FullBrightness])
+        send_command(dev, CommandVals.Pattern, [PatternVals.FullBrightness])
     elif p == 'Gradient (0-13% Brightness)':
-        send_command(CommandVals.Pattern, [PatternVals.Gradient])
+        send_command(dev, CommandVals.Pattern, [PatternVals.Gradient])
     elif p == 'Double Gradient (0-7-0% Brightness)':
-        send_command(CommandVals.Pattern, [PatternVals.DoubleGradient])
+        send_command(dev, CommandVals.Pattern, [PatternVals.DoubleGradient])
     elif p == '"LOTUS" sideways':
-        send_command(CommandVals.Pattern, [PatternVals.DisplayLotus])
+        send_command(dev, CommandVals.Pattern, [PatternVals.DisplayLotus])
     elif p == 'Zigzag':
-        send_command(CommandVals.Pattern, [PatternVals.ZigZag])
+        send_command(dev, CommandVals.Pattern, [PatternVals.ZigZag])
     elif p == '"PANIC"':
-        send_command(CommandVals.Pattern, [PatternVals.DisplayPanic])
+        send_command(dev, CommandVals.Pattern, [PatternVals.DisplayPanic])
     elif p == '"LOTUS" Top Down':
-        send_command(CommandVals.Pattern, [PatternVals.DisplayLotus2])
+        send_command(dev, CommandVals.Pattern, [PatternVals.DisplayLotus2])
     elif p == 'All brightness levels (1 LED each)':
-        all_brightnesses()
+        all_brightnesses(dev)
     else:
         print("Invalid pattern")
 
 
-def show_string(s):
+def show_string(dev, s):
     """Render a string with up to five letters"""
-    show_font([convert_font(letter) for letter in str(s)[:5]])
+    show_font(dev, [convert_font(letter) for letter in str(s)[:5]])
 
 
-def show_font(font_items):
+def show_font(dev, font_items):
     """Render up to five 5x6 pixel font items"""
     vals = [0x00 for _ in range(39)]
 
@@ -944,10 +959,10 @@ def show_font(font_items):
                 if pixel_value:
                     vals[int(i/8)] = vals[int(i/8)] | (1 << i % 8)
 
-    send_command(CommandVals.Draw, vals)
+    send_command(dev, CommandVals.Draw, vals)
 
 
-def show_symbols(symbols):
+def show_symbols(dev, symbols):
     """Render a list of up to five symbols
     Can use letters/numbers or symbol names, like 'sun', ':)'"""
     font_items = []
@@ -957,74 +972,100 @@ def show_symbols(symbols):
             s = convert_font(symbol)
         font_items.append(s)
 
-    show_font(font_items)
+    show_font(dev, font_items)
 
 
-def clock():
+def clock(dev):
     """Render the current time and display.
     Loops forever, updating every second"""
     global STOP_THREAD
     while True:
-        if STOP_THREAD:
+        if STOP_THREAD or dev.device in DISCONNECTED_DEVS:
             STOP_THREAD = False
             return
         now = datetime.now()
         current_time = now.strftime("%H:%M")
         print("Current Time =", current_time)
 
-        show_string(current_time)
+        show_string(dev, current_time)
         time.sleep(1)
 
 
-def send_command(command, parameters=[], with_response=False):
-    return send_command_raw(FWK_MAGIC + [command] + parameters, with_response)
+def send_command(dev, command, parameters=[], with_response=False):
+    return send_command_raw(dev, FWK_MAGIC + [command] + parameters, with_response)
 
 
-def send_command_raw(command, with_response=False):
+def send_command_raw(dev, command, with_response=False):
     """Send a command to the device.
     Opens new serial connection every time"""
     # print(f"Sending command: {command}")
-    global SERIAL_DEV
-    with serial.Serial(SERIAL_DEV, 115200) as s:
-        s.write(command)
+    try:
+        with serial.Serial(dev.device, 115200) as s:
+            s.write(command)
 
-        if with_response:
-            res = s.read(RESPONSE_SIZE)
-            # print(f"Received: {res}")
-            return res
+            if with_response:
+                res = s.read(RESPONSE_SIZE)
+                # print(f"Received: {res}")
+                return res
+    except (IOError, OSError) as ex:
+        global DISCONNECTED_DEVS
+        DISCONNECTED_DEVS.append(dev.device)
+        #print("Error: ", ex)
 
 
 def send_serial(s, command):
     """Send serial command by using existing serial connection"""
-    global SERIAL_DEV
-    s.write(command)
+    try:
+        s.write(command)
+    except (IOError, OSError) as ex:
+        global DISCONNECTED_DEVS
+        DISCONNECTED_DEVS.append(dev.device)
+        #print("Error: ", ex)
 
 
-def gui():
+def popup(gui, message):
+    if not gui:
+        return
     import PySimpleGUI as sg
-    global SERIAL_DEV
+    sg.Popup(message, title="Framework Laptop 16 LED Matrix")
+
+
+def gui(devices):
+    import PySimpleGUI as sg
+
+    device_checkboxes = []
+    for dev in devices:
+        device_info = f"{dev.name}\nSerial No: {dev.serial_number}"
+        checkbox = sg.Checkbox(device_info, default=True, key=f'-CHECKBOX-{dev.name}-', enable_events=True)
+        device_checkboxes.append([checkbox])
 
     layout = [
-        [sg.Text("Device:"), sg.Text(SERIAL_DEV)],
-
+        [sg.Text("Detected Devices")],
+    ] + device_checkboxes + [
+        [sg.HorizontalSeparator()],
         [sg.Text("Bootloader")],
         [sg.Button("Bootloader")],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Brightness")],
         # TODO: Get default from device
         [sg.Slider((0, 255), orientation='h', default_value=120,
                    k='-BRIGHTNESS-', enable_events=True)],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Animation")],
         [sg.Button("Start Animation"), sg.Button("Stop Animation")],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Pattern")],
         [sg.Combo(PATTERNS, k='-PATTERN-', enable_events=True)],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Fill screen X% (could be volume indicator)")],
         [sg.Slider((0, 100), orientation='h',
                    k='-PERCENTAGE-', enable_events=True)],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Countdown Timer")],
         [
             sg.Spin([i for i in range(1, 60)],
@@ -1034,18 +1075,21 @@ def gui():
             sg.Button("Stop", k='-STOP-COUNTDOWN-'),
         ],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Black&White Image")],
         [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')],
 
         [sg.Text("Greyscale Image")],
         [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Display Current Time")],
         [
             sg.Button("Start", k='-START-TIME-'),
             sg.Button("Stop", k='-STOP-TIME-')
         ],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Custom Text")],
         [sg.Input(k='-CUSTOM-TEXT-', s=7), sg.Button("Show", k='SEND-CUSTOM-TEXT')],
 
@@ -1056,87 +1100,110 @@ def gui():
         # [sg.Text("Play Snake")],
         # [sg.Button("Start Game", k='-PLAY-SNAKE-')],
 
+        [sg.HorizontalSeparator()],
         [sg.Text("Equalizer")],
         [
             sg.Button("Start random equalizer", k='-RANDOM-EQ-'),
             sg.Button("Stop", k='-STOP-EQ-')
         ],
 
-        [sg.Text("Sleep")],
-        [sg.Button("Sleep"), sg.Button("Wake")],
+        # Recent hardware sleeps based on sleep pin, not command
+        #[sg.Text("Sleep")],
+        #[sg.Button("Sleep"), sg.Button("Wake")],
         # [sg.Button("Panic")]
-
-        [sg.Button("Quit")]
     ]
     window = sg.Window("LED Matrix Control", layout)
+    selected_devices = []
     global STOP_THREAD
-    while True:
-        event, values = window.read()
-        # print('Event', event)
-        # print('Values', values)
+    global DISCONNECTED_DEVS
+    try:
+        while True:
+            event, values = window.read()
+            # print('Event', event)
+            # print('Values', values)
 
-        if event == "Quit" or event == sg.WIN_CLOSED:
-            break
+            # TODO
+            for dev in devices:
+                #print("Dev {} disconnected? {}".format(dev.name, dev.device in DISCONNECTED_DEVS))
+                if dev.device in DISCONNECTED_DEVS:
+                    window['-CHECKBOX-{}-'.format(dev.name)].update(False, disabled=True)
 
-        if event == "Bootloader":
-            bootloader()
+            selected_devices = [
+                dev for dev in devices if
+                values and values['-CHECKBOX-{}-'.format(dev.name)]
+            ]
+            # print("Selected {} devices".format(len(selected_devices)))
 
-        if event == '-PATTERN-':
-            pattern(values['-PATTERN-'])
+            if event == sg.WIN_CLOSED:
+                break
+            if len(selected_devices) == 1:
+                dev = selected_devices[0]
+                if event == '-START-COUNTDOWN-':
+                    thread = threading.Thread(target=countdown, args=(dev,
+                        int(values['-COUNTDOWN-']),), daemon=True)
+                    thread.start()
 
-        if event == 'Start Animation':
-            animate(True)
+                if event == '-START-TIME-':
+                    thread = threading.Thread(target=clock, args=(dev,), daemon=True)
+                    thread.start()
 
-        if event == 'Stop Animation':
-            animate(False)
+                if event == '-PLAY-SNAKE-':
+                    snake()
 
-        if event == '-BRIGHTNESS-':
-            brightness(int(values['-BRIGHTNESS-']))
+                if event == '-RANDOM-EQ-':
+                    thread = threading.Thread(target=random_eq, args=(dev,), daemon=True)
+                    thread.start()
+            else:
+                if event in ['-START-COUNTDOWN-', '-PLAY-SNAKE-', '-RANDOM-EQ-']:
+                    sg.Popup('Select exactly 1 device for this action')
+            if event in ['-STOP-COUNTDOWN-', '-STOP-EQ-', '-STOP-TIME-']:
+                STOP_THREAD = True
 
-        if event == '-PERCENTAGE-':
-            percentage(int(values['-PERCENTAGE-']))
+            for dev in selected_devices:
+                if event == "Bootloader":
+                    bootloader(dev)
 
-        if event == '-START-COUNTDOWN-':
-            thread = threading.Thread(target=countdown, args=(
-                int(values['-COUNTDOWN-']),), daemon=True)
-            thread.start()
-        if event == '-STOP-COUNTDOWN-':
-            STOP_THREAD = True
+                if event == '-PATTERN-':
+                    pattern(dev, values['-PATTERN-'])
 
-        if event == '-SEND-BL-IMAGE-':
-            image_bl('stripe.gif')
+                if event == 'Start Animation':
+                    animate(dev, True)
 
-        if event == '-SEND-GREY-IMAGE-':
-            image_greyscale('greyscale.gif')
+                if event == 'Stop Animation':
+                    animate(dev, False)
 
-        if event == '-START-TIME-':
-            thread = threading.Thread(target=clock, args=(), daemon=True)
-            thread.start()
-        if event == '-STOP-TIME-':
-            STOP_THREAD = True
+                if event == '-BRIGHTNESS-':
+                    brightness(dev, int(values['-BRIGHTNESS-']))
 
-        if event == '-SEND-TEXT-':
-            show_symbols(['2', '5', 'degC', ' ', 'thunder'])
+                if event == '-PERCENTAGE-':
+                    percentage(dev, int(values['-PERCENTAGE-']))
 
-        if event == 'SEND-CUSTOM-TEXT':
-            show_string(values['-CUSTOM-TEXT-'].upper())
+                if event == '-SEND-BL-IMAGE-':
+                    path = os.path.join(resource_path(), 'res', 'stripe.gif')
+                    image_bl(dev, path)
 
-        if event == '-PLAY-SNAKE-':
-            snake()
+                if event == '-SEND-GREY-IMAGE-':
+                    path = os.path.join(resource_path(), 'res', 'greyscale.gif')
+                    image_greyscale(dev, path)
 
-        if event == '-RANDOM-EQ-':
-            thread = threading.Thread(target=random_eq, args=(), daemon=True)
-            thread.start()
-        if event == '-STOP-EQ-':
-            STOP_THREAD = True
+                if event == '-SEND-TEXT-':
+                    show_symbols(dev, ['2', '5', 'degC', ' ', 'thunder'])
 
-        if event == 'Sleep':
-            send_command(CommandVals.Sleep, [True])
+                if event == 'SEND-CUSTOM-TEXT':
+                    show_string(dev, values['-CUSTOM-TEXT-'].upper())
 
-        if event == 'Wake':
-            send_command(CommandVals.Sleep, [False])
+                if event == 'Sleep':
+                    send_command(dev, CommandVals.Sleep, [True])
 
-    window.close()
+                if event == 'Wake':
+                    send_command(dev, CommandVals.Sleep, [False])
+
+        window.close()
+    except Exception as e:
+        print(e)
+        raise e
+        pass
+        #sg.popup_error_with_traceback(f'An error happened.  Here is the info:', e)
 
 
 def display_string(disp_str):
