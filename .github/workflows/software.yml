@@ -76,6 +76,8 @@ jobs:
         name: inputmodule-control.exe
         path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
 
+  # Or manually with
+  # pyinstaller --onefile --windowed --add-data 'res;res' ledmatrix_control.py
   build-gui:
     name: Build GUI
     runs-on: windows-latest
@@ -90,7 +92,7 @@ jobs:
         spec: ledmatrix_control.py #'src/build.spec'
         requirements: 'requirements.txt'
         upload_exe_with_name: 'ledmatrix_control.py'
-        options: --onefile, --name "ledmatrix_control", --windowed,
+        options: --onefile, --windowed, --add-data 'res;res'
 
   lints:
     name: Lints
