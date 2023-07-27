@@ -226,6 +226,7 @@ def main():
 
     if args.list:
         print_devs(ports)
+        sys.exit(0)
 
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         # Force GUI in pyinstaller bundled app
