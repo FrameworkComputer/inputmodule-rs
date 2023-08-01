@@ -98,7 +98,7 @@ const MAX_BRIGHTNESS: u8 = 94;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
-use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
+use fl16_inputmodules::{games::game_of_life, led_hal as bsp, mapping::*};
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -308,6 +308,15 @@ fn main() -> ! {
                 UsbDeviceState::Configured => {
                     usb_initialized = true;
                     usb_suspended = false;
+                    let mut grid = Grid::default();
+                    display_letter(26, &mut grid, CAP_C);
+                    display_letter(20, &mut grid, CAP_O);
+                    display_letter(12, &mut grid, CAP_N);
+                    display_letter(5, &mut grid, CAP_F);
+                    display_letter(0, &mut grid, CAP_T);
+
+                    state.grid = grid;
+                    fill_grid_pixels(&state, &mut matrix);
                 }
                 // Never occurs here. Only if poll() returns false
                 UsbDeviceState::Suspend => {
@@ -377,9 +386,25 @@ fn main() -> ! {
                 UsbDeviceState::Configured => {
                     usb_initialized = true;
                     usb_suspended = false;
+                    let mut grid = Grid::default();
+                    display_letter(26, &mut grid, CAP_C);
+                    display_letter(20, &mut grid, CAP_O);
+                    display_letter(12, &mut grid, CAP_N);
+                    display_letter(5, &mut grid, CAP_F);
+                    display_letter(0, &mut grid, CAP_F);
+
+                    state.grid = grid;
+                    fill_grid_pixels(&state, &mut matrix);
                 }
                 UsbDeviceState::Suspend => {
                     usb_suspended = true;
+                    let mut grid = Grid::default();
+                    display_letter(26, &mut grid, CAP_S);
+                    display_letter(18, &mut grid, CAP_U);
+                    display_letter(8, &mut grid, CAP_S);
+
+                    state.grid = grid;
+                    fill_grid_pixels(&state, &mut matrix);
                 }
             }
         }
