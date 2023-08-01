@@ -253,10 +253,17 @@ fn main() -> ! {
         sleep_present = true;
     }
 
+    let mut usb_initialized = false;
+    let mut usb_suspended = true;
+
     loop {
         if sleep_present {
             // Go to sleep if the host is sleeping
-            let host_sleeping = sleep.is_low().unwrap();
+            // Or if USB is suspended. Only if it was previously initialized,
+            // since the OS puts the device into suspend before it's fully
+            // initialized for the first time. But we don't want to show the
+            // sleep animation during startup.
+            let host_sleeping = sleep.is_low().unwrap() || (usb_suspended && usb_initialized);
             handle_sleep(
                 host_sleeping,
                 &mut state,
@@ -289,6 +296,24 @@ fn main() -> ! {
 
         // Check for new data
         if usb_dev.poll(&mut [&mut serial]) {
+            match usb_dev.state() {
+                // Default: Device has just been created or reset
+                // Addressed: Device has received an address for the host
+                UsbDeviceState::Default | UsbDeviceState::Addressed => {
+                    usb_initialized = false;
+                    usb_suspended = false;
+                    // Must not display anything or windows cannot enumerate properly
+                }
+                // Configured and is fully operational
+                UsbDeviceState::Configured => {
+                    usb_initialized = true;
+                    usb_suspended = false;
+                }
+                // Never occurs here. Only if poll() returns false
+                UsbDeviceState::Suspend => {
+                    panic!("Never occurs here. Only if poll() returns false")
+                }
+            }
             let mut buf = [0u8; 64];
             match serial.read(&mut buf) {
                 Err(_e) => {
@@ -340,6 +365,21 @@ fn main() -> ! {
                         }
                         _ => {}
                     }
+                }
+            }
+        } else {
+            match usb_dev.state() {
+                // No new data
+                UsbDeviceState::Default | UsbDeviceState::Addressed => {
+                    usb_initialized = false;
+                    usb_suspended = false;
+                }
+                UsbDeviceState::Configured => {
+                    usb_initialized = true;
+                    usb_suspended = false;
+                }
+                UsbDeviceState::Suspend => {
+                    usb_suspended = true;
                 }
             }
         }
