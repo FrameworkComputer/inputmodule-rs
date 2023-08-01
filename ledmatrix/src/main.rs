@@ -31,6 +31,8 @@ enum SleepMode {
 /// slowly fade themm on/off
 const SLEEP_MODE: SleepMode = SleepMode::Fading;
 
+const STARTUP_ANIMATION: bool = true;
+
 const MAX_CURRENT: usize = 500;
 
 /// Maximum brightness out of 255
@@ -234,6 +236,9 @@ fn main() -> ! {
     let mut game_timer = timer.get_counter().ticks();
 
     let mut startup_percentage = Some(0);
+    if !STARTUP_ANIMATION {
+        state.grid = percentage(100);
+    }
 
     // Detect whether the sleep pin is connected
     // Early revisions of the hardware didn't have it wired up, if that is the
@@ -266,7 +271,7 @@ fn main() -> ! {
         if matches!(state.sleeping, SleepState::Awake) && render_again {
             // On startup slowly turn the screen on - it's a pretty effect :)
             match startup_percentage {
-                Some(p) if p <= 100 => {
+                Some(p) if p <= 100 && STARTUP_ANIMATION => {
                     state.grid = percentage(p);
                     startup_percentage = Some(p + 5);
                 }
