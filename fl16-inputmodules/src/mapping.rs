@@ -250,7 +250,7 @@ pub const CAP_V: SingleDisplayData = [
 /// Capital letter W
 pub const CAP_W: SingleDisplayData = [
     0b10000010,
-    0b10000010,
+    0b10010010,
     0b11010110,
     0b01010100,
     0b01111100,
@@ -260,7 +260,7 @@ pub const CAP_W: SingleDisplayData = [
 ];
 /// Capital letter X
 pub const CAP_X: SingleDisplayData = [
-    0100000001,
+    0b00000000,
     0b10000010,
     0b01000100,
     0b00101000,
