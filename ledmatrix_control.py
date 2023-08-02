@@ -1233,7 +1233,7 @@ def gui(devices):
                     thread = threading.Thread(target=random_eq, args=(dev,), daemon=True)
                     thread.start()
             else:
-                if event in ['-START-COUNTDOWN-', '-PLAY-SNAKE-', '-RANDOM-EQ-']:
+                if event in ['-START-COUNTDOWN-', '-PLAY-SNAKE-', '-RANDOM-EQ-', '-START-TIME-']:
                     sg.Popup('Select exactly 1 device for this action')
             if event in ['-STOP-COUNTDOWN-', '-STOP-EQ-', '-STOP-TIME-']:
                 STOP_THREAD = True
