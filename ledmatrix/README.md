@@ -212,4 +212,5 @@ Same for the `SLEEP#` pin.
 
 The sleep/wake command always changes the state. But it can't be received when USB is suspended.
 
-The idle timer will send the device to sleep after a configured timeout.
+The idle timer will send the device to sleep after a configured timeout (default 60 seconds).
+The idle timer is reset once the device wakes up or once it receives a command.
