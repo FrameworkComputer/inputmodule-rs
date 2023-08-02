@@ -361,6 +361,7 @@ fn main() -> ! {
                 Ok(count) => {
                     let random = get_random_byte(&rosc);
                     match (parse_command(count, &buf), &state.sleeping) {
+                        // While sleeping no command is handled, except waking up
                         (Some(Command::Sleep(go_sleeping)), _) => {
                             sleeping = go_sleeping;
                             handle_sleep(
@@ -383,7 +384,9 @@ fn main() -> ! {
                             // If there's a very early command, cancel the startup animation
                             startup_percentage = None;
 
-                            // While sleeping no command is handled, except waking up
+                            // Reset sleep timer when interacting with the device
+                            sleep_timer = timer.get_counter().ticks();
+
                             if let Some(response) =
                                 handle_command(&command, &mut state, &mut matrix, random)
                             {
