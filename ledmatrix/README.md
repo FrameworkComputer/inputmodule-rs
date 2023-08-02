@@ -155,10 +155,10 @@ Instead try out the [Python script](../python.md):
 
 ```sh
 # Snake
-./control.py --snake
+./ledmatrix_control.py --snake
 
 # Pong (Seems broken at the moment)
-./control.py --pong-embedded
+./ledmatrix_control.py --pong-embedded
 ```
 
 ###### Game of Life
