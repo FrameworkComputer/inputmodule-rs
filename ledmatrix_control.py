@@ -1113,8 +1113,8 @@ def gui(devices):
         [sg.Text("Detected Devices")],
     ] + device_checkboxes + [
         [sg.HorizontalSeparator()],
-        [sg.Text("Bootloader")],
-        [sg.Button("Bootloader")],
+        [sg.Text("Device Control")],
+        [sg.Button("Bootloader"), sg.Button("Sleep"), sg.Button("Wake")],
 
         [sg.HorizontalSeparator()],
         [sg.Text("Brightness")],
@@ -1146,11 +1146,17 @@ def gui(devices):
         ],
 
         [sg.HorizontalSeparator()],
-        [sg.Text("Black&White Image")],
-        [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')],
-
-        [sg.Text("Greyscale Image")],
-        [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')],
+        [
+            sg.Column([
+            [sg.Text("Black&White Image")],
+            [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')]
+            ]),
+            sg.VSeperator(),
+            sg.Column([
+            [sg.Text("Greyscale Image")],
+            [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')]
+            ])
+        ],
 
         [sg.HorizontalSeparator()],
         [sg.Text("Display Current Time")],
@@ -1160,11 +1166,18 @@ def gui(devices):
         ],
 
         [sg.HorizontalSeparator()],
-        [sg.Text("Custom Text")],
-        [sg.Input(k='-CUSTOM-TEXT-', s=7), sg.Button("Show", k='SEND-CUSTOM-TEXT')],
+        [
+            sg.Column([
+                [sg.Text("Custom Text")],
+                [sg.Input(k='-CUSTOM-TEXT-', s=7), sg.Button("Show", k='SEND-CUSTOM-TEXT')],
+            ]),
+            sg.VSeperator(),
+            sg.Column([
+                [sg.Text("Display Text with Symbols")],
+                [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
+            ])
+        ],
 
-        [sg.Text("Display Text with Symbols")],
-        [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
 
         # TODO
         # [sg.Text("Play Snake")],
@@ -1176,9 +1189,6 @@ def gui(devices):
             sg.Button("Start random equalizer", k='-RANDOM-EQ-'),
             sg.Button("Stop", k='-STOP-EQ-')
         ],
-
-        [sg.Text("Sleep")],
-        [sg.Button("Sleep"), sg.Button("Wake")],
         # [sg.Button("Panic")]
     ]
     window = sg.Window("LED Matrix Control", layout)
