@@ -33,6 +33,10 @@ const SLEEP_MODE: SleepMode = SleepMode::Fading;
 
 const STARTUP_ANIMATION: bool = true;
 
+/// Go to sleep after 60s awake
+const SLEEP_TIMEOUT: u64 = 60_000_000;
+
+/// List maximum current as 500mA in the USB descriptor
 const MAX_CURRENT: usize = 500;
 
 /// Maximum brightness out of 255
@@ -232,8 +236,9 @@ fn main() -> ! {
     fill_grid_pixels(&state, &mut matrix);
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
-    let mut prev_timer = timer.get_counter().ticks();
+    let mut animation_timer = timer.get_counter().ticks();
     let mut game_timer = timer.get_counter().ticks();
+    let mut sleep_timer = timer.get_counter().ticks();
 
     let mut startup_percentage = Some(0);
     if !STARTUP_ANIMATION {
@@ -286,6 +291,16 @@ fn main() -> ! {
         }
         last_usb_suspended = usb_suspended;
 
+        // Go to sleep after the timer has run out
+        if timer.get_counter().ticks() > sleep_timer + SLEEP_TIMEOUT {
+            sleeping = true;
+        }
+        // Constantly resetting timer during sleep is same as reset it once on waking up.
+        // This means the timer ends up counting the time spent awake.
+        if sleeping {
+            sleep_timer = timer.get_counter().ticks();
+        }
+
         handle_sleep(
             sleeping,
             &mut state,
@@ -295,7 +310,7 @@ fn main() -> ! {
         );
 
         // Handle period display updates. Don't do it too often
-        let render_again = timer.get_counter().ticks() > prev_timer + state.animation_period;
+        let render_again = timer.get_counter().ticks() > animation_timer + state.animation_period;
         if matches!(state.sleeping, SleepState::Awake) && render_again {
             // On startup slowly turn the screen on - it's a pretty effect :)
             match startup_percentage {
@@ -312,7 +327,7 @@ fn main() -> ! {
                     state.grid.0[x].rotate_right(1);
                 }
             }
-            prev_timer = timer.get_counter().ticks();
+            animation_timer = timer.get_counter().ticks();
         }
 
         // Check for new data
