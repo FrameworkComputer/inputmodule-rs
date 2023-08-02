@@ -184,3 +184,29 @@ run the stop command.
 ```sh
 inputmodule-control led-amtrix --stop-game
 ```
+
+## Sleep Behavior
+
+Currently sleeping means all LEDs and the LED controller are turned off.
+Transitions of sleep state slowly fade the LEDs on or off.
+
+Optionally the firmware can be configured, at build-time, to turn the LEDs
+on/off immediately. Or display "SLEEP" instead of turning the LEDs off, which
+is useful for debugging whether the device is sleeping or not powered.
+
+
+###### Changing Sleep State
+
+What can change the sleep state
+
+- Hardware triggers
+  - `SLEEP#` pin
+  - USB Suspend
+- Software Triggers
+  - Sleep/Wake Command via USB Serial
+
+Both of the hardware triggers change the sleep state if the transition from one state to another.
+For example, if USB suspends, the LED matrix turns off. If it resumes, the LEDs come back on.
+Same for the `SLEEP#` pin.
+
+The sleep/wake command always changes the state. But it can't be received when USB is suspended.

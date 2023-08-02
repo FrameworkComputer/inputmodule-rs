@@ -254,24 +254,45 @@ fn main() -> ! {
     }
 
     let mut usb_initialized = false;
-    let mut usb_suspended = true;
+    let mut usb_suspended = false;
+    let mut last_usb_suspended = usb_suspended;
+    let mut sleeping = false;
+    let mut last_host_sleep = sleep.is_low().unwrap();
 
     loop {
         if sleep_present {
             // Go to sleep if the host is sleeping
-            // Or if USB is suspended. Only if it was previously initialized,
-            // since the OS puts the device into suspend before it's fully
-            // initialized for the first time. But we don't want to show the
-            // sleep animation during startup.
-            let host_sleeping = sleep.is_low().unwrap() || (usb_suspended && usb_initialized);
-            handle_sleep(
-                host_sleeping,
-                &mut state,
-                &mut matrix,
-                &mut delay,
-                &mut led_enable,
-            );
+            let host_sleeping = sleep.is_low().unwrap();
+            let host_sleep_changed = host_sleeping != last_host_sleep;
+            // Change sleep state either if SLEEP# has changed
+            // Or if it currently sleeping. Don't change if not sleeping
+            // because then sleep is controlled by timing or by API.
+            if host_sleep_changed || host_sleeping {
+                sleeping = host_sleeping;
+            }
+            last_host_sleep = host_sleeping;
         }
+
+        // Change sleep state either if SLEEP# has changed
+        // Or if it currently sleeping. Don't change if not sleeping
+        // because then sleep is controlled by timing or by API.
+        let usb_suspended_changed = usb_suspended != last_usb_suspended;
+        // Only if USB was previously initialized,
+        // since the OS puts the device into suspend before it's fully
+        // initialized for the first time. But we don't want to show the
+        // sleep animation during startup.
+        if usb_initialized && (usb_suspended_changed || usb_suspended) {
+            sleeping = usb_suspended;
+        }
+        last_usb_suspended = usb_suspended;
+
+        handle_sleep(
+            sleeping,
+            &mut state,
+            &mut matrix,
+            &mut delay,
+            &mut led_enable,
+        );
 
         // Handle period display updates. Don't do it too often
         let render_again = timer.get_counter().ticks() > prev_timer + state.animation_period;
@@ -326,6 +347,7 @@ fn main() -> ! {
                     let random = get_random_byte(&rosc);
                     match (parse_command(count, &buf), &state.sleeping) {
                         (Some(Command::Sleep(go_sleeping)), _) => {
+                            sleeping = go_sleeping;
                             handle_sleep(
                                 go_sleeping,
                                 &mut state,
