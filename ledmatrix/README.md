@@ -199,14 +199,14 @@ is useful for debugging whether the device is sleeping or not powered.
 
 What can change the sleep state
 
-- Hardware triggers
+- Hardware/OS triggers
   - `SLEEP#` pin
   - USB Suspend
-- Software Triggers
+- Software/Firmware Triggers
   - Sleep/Wake Command via USB Serial
   - Idle timer
 
-Both of the hardware triggers change the sleep state if the transition from one state to another.
+Both of the hardware/OS triggers change the sleep state if the transition from one state to another.
 For example, if USB suspends, the LED matrix turns off. If it resumes, the LEDs come back on.
 Same for the `SLEEP#` pin.
 
