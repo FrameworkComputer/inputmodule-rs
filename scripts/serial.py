@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 import zlib
 
-ledmatrix_1 = b'FRAKDEAM1100000000' # POC 1
-ledmatrix_2 = b'FRAKDEBZ4100000000' # EVT 1, config 1
-ledmatrix_3 = b'FRAKDEBZ4200000000' # EVT 1, config 2 (27k resistor)
+ledmatrix_1    = b'FRAKDEAM1100000000' # POC 1
+ledmatrix_2    = b'FRAKDEBZ4100000000' # EVT 1, config 1
+ledmatrix_3    = b'FRAKDEBZ4200000000' # EVT 1, config 2 (27k resistor)
+ansi_keyboard  = b'FRAKDWEN4100000000' # EVT 1, config 1 (US ANSI)
+rgb_keyboard   = b'FRAKDKEN4100000000' # EVT 1, config 1 (US ANSI)
+iso_keyboard   = b'FRAKDWEN4200000000' # EVT 1, config 2 (UK ISO)
+jis_keyboard   = b'FRAKDWEN4J00000000' # EVT 1, config J (JIS)
+numpad         = b'FRAKDMEN4100000000' # EVT 1, config 1
+macropad       = b'FRAKDNEN4100000000' # EVT 1, config 1
 
 # This section is for modifying
 selected   = ledmatrix_2

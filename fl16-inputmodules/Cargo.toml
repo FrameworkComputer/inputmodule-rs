@@ -4,6 +4,7 @@ name = "fl16-inputmodules"
 version = "0.1.5"
 
 [dependencies]
+crc = "3.0"
 cortex-m = "0.7"
 cortex-m-rt = "0.7.3"
 embedded-hal = { version = "0.2.7", features = ["unproven"] }
@@ -15,7 +16,7 @@ defmt-rtt = "0.4"
 rp2040-panic-usb-boot = "0.5.0"
 
 # Not using an external BSP, we've got the Framework Laptop 16 BSPs locally in this crate
-rp2040-hal = { version="0.8", features=["rt", "critical-section-impl"] }
+rp2040-hal = { version = "0.8", features = ["rt", "critical-section-impl"] }
 rp2040-boot2 = "0.3"
 
 # USB Serial
@@ -43,6 +44,6 @@ ws2812-pio = { version = "0.6.0", optional = true }
 
 [features]
 default = []
-ledmatrix = [ "is31fl3741" ]
-b1display = [ "st7306", "embedded-graphics", "tinybmp" ]
-c1minimal = ["smart-leds", "ws2812-pio" ]
+ledmatrix = ["is31fl3741"]
+b1display = ["st7306", "embedded-graphics", "tinybmp"]
+c1minimal = ["smart-leds", "ws2812-pio"]
