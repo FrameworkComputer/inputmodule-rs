@@ -126,6 +126,9 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub animation_fps: Option<Option<u16>>,
 
+    #[arg(long)]
+    pub save: bool,
+
     /// Set/get PWM Frequency in Hz
     #[arg(long)]
     #[clap(value_enum)]

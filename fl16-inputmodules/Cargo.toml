@@ -42,6 +42,20 @@ tinybmp = { workspace = true, optional = true }
 smart-leds = { workspace = true, optional = true }
 ws2812-pio = { workspace = true, optional = true }
 
+# Persistent configuration
+rp2040-flash = "0.3.1"
+#serde = { version = "1.0.183", default-features = false, features = ["derive"]}
+serde = { default-features = false, features = [
+    "derive",
+], version = "1.0" } ##it = "file:///home/zoid/clone/reference/serde", branch = "array-34-100" }
+#serde_derive = { default-features = false, features = [
+#], git = "file:///home/zoid/clone/reference/serde", branch = "array-34" }
+#serde-big-array = "0.5.1"
+#serde_arrays = { version = "0.1.0", default-features = false, git = "https://github.com/jaredwolff/serde_arrays.git", features = [
+#    "no-std",
+#] }
+postcard = "1.0.0"
+
 [features]
 default = []
 ledmatrix = ["is31fl3741"]

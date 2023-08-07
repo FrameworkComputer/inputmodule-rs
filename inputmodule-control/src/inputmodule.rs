@@ -47,6 +47,7 @@ enum Command {
     Fps = 0x1A,
     PowerMode = 0x1B,
     AnimationPeriod = 0x1C,
+    Save = 0x1D,
     PwmFreq = 0x1E,
     Version = 0x20,
 }
@@ -220,6 +221,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
 
                 if let Some(fps) = ledmatrix_args.animation_fps {
                     animation_fps_cmd(serialdev, fps);
+                }
+
+                if ledmatrix_args.save {
+                    simple_cmd(serialdev, Command::Save, &[]);
                 }
 
                 if let Some(freq) = ledmatrix_args.pwm_freq {

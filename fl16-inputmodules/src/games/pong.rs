@@ -3,7 +3,7 @@ use crate::matrix::{GameState, Grid, LedmatrixState, HEIGHT, WIDTH};
 
 const PADDLE_WIDTH: usize = 5;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Score {
     _upper: u8,
     _lower: u8,
@@ -12,14 +12,14 @@ struct Score {
 type Position = (usize, usize);
 type Velocity = (i8, i8);
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Ball {
     pos: Position,
     // Not a position, more like a directional vector
     direction: Velocity,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PongState {
     // TODO: Properly calculate score and display it
     _score: Score,
