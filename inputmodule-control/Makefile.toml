@@ -2,3 +2,7 @@ extend = "../Makefile.toml"
 
 [env]
 TARGET_TRIPLE = "x86_64-unknown-linux-gnu"
+
+# TODO: Automatically detect Windows
+[env.windows]
+TARGET_TRIPLE = "x86_64-pc-windows-msvc"
