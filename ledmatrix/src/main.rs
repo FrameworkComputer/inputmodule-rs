@@ -33,6 +33,10 @@ const SLEEP_MODE: SleepMode = SleepMode::Fading;
 
 const STARTUP_ANIMATION: bool = true;
 
+/// Go to sleep after 60s awake
+const SLEEP_TIMEOUT: u64 = 60_000_000;
+
+/// List maximum current as 500mA in the USB descriptor
 const MAX_CURRENT: usize = 500;
 
 /// Maximum brightness out of 255
@@ -232,8 +236,9 @@ fn main() -> ! {
     fill_grid_pixels(&state, &mut matrix);
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
-    let mut prev_timer = timer.get_counter().ticks();
+    let mut animation_timer = timer.get_counter().ticks();
     let mut game_timer = timer.get_counter().ticks();
+    let mut sleep_timer = timer.get_counter().ticks();
 
     let mut startup_percentage = Some(0);
     if !STARTUP_ANIMATION {
@@ -254,27 +259,58 @@ fn main() -> ! {
     }
 
     let mut usb_initialized = false;
-    let mut usb_suspended = true;
+    let mut usb_suspended = false;
+    let mut last_usb_suspended = usb_suspended;
+    let mut sleeping = false;
+    let mut last_host_sleep = sleep.is_low().unwrap();
 
     loop {
         if sleep_present {
             // Go to sleep if the host is sleeping
-            // Or if USB is suspended. Only if it was previously initialized,
-            // since the OS puts the device into suspend before it's fully
-            // initialized for the first time. But we don't want to show the
-            // sleep animation during startup.
-            let host_sleeping = sleep.is_low().unwrap() || (usb_suspended && usb_initialized);
-            handle_sleep(
-                host_sleeping,
-                &mut state,
-                &mut matrix,
-                &mut delay,
-                &mut led_enable,
-            );
+            let host_sleeping = sleep.is_low().unwrap();
+            let host_sleep_changed = host_sleeping != last_host_sleep;
+            // Change sleep state either if SLEEP# has changed
+            // Or if it currently sleeping. Don't change if not sleeping
+            // because then sleep is controlled by timing or by API.
+            if host_sleep_changed || host_sleeping {
+                sleeping = host_sleeping;
+            }
+            last_host_sleep = host_sleeping;
         }
 
+        // Change sleep state either if SLEEP# has changed
+        // Or if it currently sleeping. Don't change if not sleeping
+        // because then sleep is controlled by timing or by API.
+        let usb_suspended_changed = usb_suspended != last_usb_suspended;
+        // Only if USB was previously initialized,
+        // since the OS puts the device into suspend before it's fully
+        // initialized for the first time. But we don't want to show the
+        // sleep animation during startup.
+        if usb_initialized && (usb_suspended_changed || usb_suspended) {
+            sleeping = usb_suspended;
+        }
+        last_usb_suspended = usb_suspended;
+
+        // Go to sleep after the timer has run out
+        if timer.get_counter().ticks() > sleep_timer + SLEEP_TIMEOUT {
+            sleeping = true;
+        }
+        // Constantly resetting timer during sleep is same as reset it once on waking up.
+        // This means the timer ends up counting the time spent awake.
+        if sleeping {
+            sleep_timer = timer.get_counter().ticks();
+        }
+
+        handle_sleep(
+            sleeping,
+            &mut state,
+            &mut matrix,
+            &mut delay,
+            &mut led_enable,
+        );
+
         // Handle period display updates. Don't do it too often
-        let render_again = timer.get_counter().ticks() > prev_timer + state.animation_period;
+        let render_again = timer.get_counter().ticks() > animation_timer + state.animation_period;
         if matches!(state.sleeping, SleepState::Awake) && render_again {
             // On startup slowly turn the screen on - it's a pretty effect :)
             match startup_percentage {
@@ -291,7 +327,7 @@ fn main() -> ! {
                     state.grid.0[x].rotate_right(1);
                 }
             }
-            prev_timer = timer.get_counter().ticks();
+            animation_timer = timer.get_counter().ticks();
         }
 
         // Check for new data
@@ -325,28 +361,43 @@ fn main() -> ! {
                 Ok(count) => {
                     let random = get_random_byte(&rosc);
                     match (parse_command(count, &buf), &state.sleeping) {
-                        (Some(Command::Sleep(go_sleeping)), _) => {
+                        // Handle bootloader command without any delay
+                        // No need, it'll reset the device anyways
+                        (Some(c @ Command::BootloaderReset), _) => {
+                            handle_command(&c, &mut state, &mut matrix, random);
+                        }
+                        (Some(command), _) => {
+                            if let Command::Sleep(go_sleeping) = command {
+                                sleeping = go_sleeping;
+                            } else {
+                                // If already sleeping, wake up.
+                                // This means every command will wake the device up.
+                                // Much more convenient than having to send the wakeup commmand.
+                                sleeping = false;
+                            }
+                            // Make sure sleep animation only goes up to newly set brightness,
+                            // if setting the brightness causes wakeup
+                            if let SleepState::Sleeping((ref grid, _)) = state.sleeping {
+                                if let Command::SetBrightness(new_brightness) = command {
+                                    state.sleeping =
+                                        SleepState::Sleeping((grid.clone(), new_brightness));
+                                }
+                            }
                             handle_sleep(
-                                go_sleeping,
+                                sleeping,
                                 &mut state,
                                 &mut matrix,
                                 &mut delay,
                                 &mut led_enable,
                             );
-                        }
-                        (Some(c @ Command::BootloaderReset), _)
-                        | (Some(c @ Command::IsSleeping), _) => {
-                            if let Some(response) =
-                                handle_command(&c, &mut state, &mut matrix, random)
-                            {
-                                let _ = serial.write(&response);
-                            };
-                        }
-                        (Some(command), SleepState::Awake) => {
+
                             // If there's a very early command, cancel the startup animation
                             startup_percentage = None;
 
-                            // While sleeping no command is handled, except waking up
+                            // Reset sleep timer when interacting with the device
+                            // Very easy way to keep the device from going to sleep
+                            sleep_timer = timer.get_counter().ticks();
+
                             if let Some(response) =
                                 handle_command(&command, &mut state, &mut matrix, random)
                             {
@@ -361,9 +412,11 @@ fn main() -> ! {
                                 buf[0], buf[1], buf[2], buf[3]
                             )
                             .unwrap();
+                            // let _ = serial.write(text.as_bytes());
+
                             fill_grid_pixels(&state, &mut matrix);
                         }
-                        _ => {}
+                        (None, _) => {}
                     }
                 }
             }
@@ -435,6 +488,7 @@ fn get_random_byte(rosc: &RingOscillator<Enabled>) -> u8 {
     byte
 }
 
+// Will do nothing if already in the right state
 fn handle_sleep(
     go_sleeping: bool,
     state: &mut LedmatrixState,

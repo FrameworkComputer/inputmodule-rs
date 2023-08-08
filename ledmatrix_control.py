@@ -1108,9 +1108,8 @@ def gui(devices):
             sg.Button("Stop", k='-STOP-EQ-')
         ],
 
-        # Recent hardware sleeps based on sleep pin, not command
-        #[sg.Text("Sleep")],
-        #[sg.Button("Sleep"), sg.Button("Wake")],
+        [sg.Text("Sleep")],
+        [sg.Button("Sleep"), sg.Button("Wake")],
         # [sg.Button("Panic")]
     ]
     window = sg.Window("LED Matrix Control", layout)
