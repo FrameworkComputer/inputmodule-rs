@@ -36,7 +36,7 @@ pub fn draw(bytes: &[u8; DRAW_BYTES]) -> Grid {
             let val = if bytes[byte] & (1 << bit) > 0 {
                 0xFF
             } else {
-                0x10
+                0x01
             };
             grid.0[8 - x][y] = val;
         }
