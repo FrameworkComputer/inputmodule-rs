@@ -1,1 +1,7 @@
 extend = "../Makefile.toml"
+
+[tasks.uf2]
+command = "elf2uf2-rs"
+args = ["../target/thumbv6m-none-eabi/release/b1display", "../target/thumbv6m-none-eabi/release/b1display.uf2"]
+dependencies = ["build-release"]
+install_crate = "elf2uf2-rs"

@@ -131,7 +131,6 @@ Prepare Rust toolchain (once):
 ```sh
 rustup target install thumbv6m-none-eabi
 cargo install flip-link
-cargo install elf2uf2-rs --locked
 ```
 
 Build:
@@ -145,9 +144,9 @@ cargo make --cwd c1minimal
 Generate the UF2 update file:
 
 ```sh
-elf2uf2-rs target/thumbv6m-none-eabi/debug/ledmatrix ledmatrix.uf2
-elf2uf2-rs target/thumbv6m-none-eabi/debug/b1display b1dipslay.uf2
-elf2uf2-rs target/thumbv6m-none-eabi/debug/c1minimal c1minimal.uf2
+cargo make --cwd ledmatrix uf2
+cargo make --cwd b1display uf2
+cargo make --cwd c1minimal uf2
 ```
 
 ## Building the Application
