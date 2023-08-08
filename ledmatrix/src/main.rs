@@ -361,25 +361,28 @@ fn main() -> ! {
                 Ok(count) => {
                     let random = get_random_byte(&rosc);
                     match (parse_command(count, &buf), &state.sleeping) {
-                        // While sleeping no command is handled, except waking up
-                        (Some(Command::Sleep(go_sleeping)), _) => {
-                            sleeping = go_sleeping;
-                            handle_sleep(
-                                go_sleeping,
-                                &mut state,
-                                &mut matrix,
-                                &mut delay,
-                                &mut led_enable,
-                            );
+                        // Handle bootloader command without any delay
+                        // No need, it'll reset the device anyways
+                        (Some(c @ Command::BootloaderReset), _) => {
+                            handle_command(&c, &mut state, &mut matrix, random);
                         }
                         (Some(command), _) => {
-                            // If there's a very early command, cancel the startup animation
-                            startup_percentage = None;
-
-                            // Reset sleep timer when interacting with the device
-                            sleep_timer = timer.get_counter().ticks();
-                            // If already sleeping, wake up
-                            sleeping = false;
+                            if let Command::Sleep(go_sleeping) = command {
+                                sleeping = go_sleeping;
+                            } else {
+                                // If already sleeping, wake up.
+                                // This means every command will wake the device up.
+                                // Much more convenient than having to send the wakeup commmand.
+                                sleeping = false;
+                            }
+                            // Make sure sleep animation only goes up to newly set brightness,
+                            // if setting the brightness causes wakeup
+                            if let SleepState::Sleeping((ref grid, _)) = state.sleeping {
+                                if let Command::SetBrightness(new_brightness) = command {
+                                    state.sleeping =
+                                        SleepState::Sleeping((grid.clone(), new_brightness));
+                                }
+                            }
                             handle_sleep(
                                 sleeping,
                                 &mut state,
@@ -387,6 +390,13 @@ fn main() -> ! {
                                 &mut delay,
                                 &mut led_enable,
                             );
+
+                            // If there's a very early command, cancel the startup animation
+                            startup_percentage = None;
+
+                            // Reset sleep timer when interacting with the device
+                            // Very easy way to keep the device from going to sleep
+                            sleep_timer = timer.get_counter().ticks();
 
                             if let Some(response) =
                                 handle_command(&command, &mut state, &mut matrix, random)
@@ -403,9 +413,10 @@ fn main() -> ! {
                             )
                             .unwrap();
                             // let _ = serial.write(text.as_bytes());
+
                             fill_grid_pixels(&state, &mut matrix);
                         }
-                        _ => {}
+                        (None, _) => {}
                     }
                 }
             }
@@ -477,6 +488,7 @@ fn get_random_byte(rosc: &RingOscillator<Enabled>) -> u8 {
     byte
 }
 
+// Will do nothing if already in the right state
 fn handle_sleep(
     go_sleeping: bool,
     state: &mut LedmatrixState,
