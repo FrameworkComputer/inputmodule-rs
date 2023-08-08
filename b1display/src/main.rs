@@ -114,7 +114,7 @@ fn main() -> ! {
     let mut serial = SerialPort::new(&usb_bus);
 
     let serialnum = if let Some(serialnum) = get_serialnum() {
-        serialnum
+        serialnum.serialnum
     } else {
         DEFAULT_SERIAL
     };

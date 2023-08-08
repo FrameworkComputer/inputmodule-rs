@@ -135,10 +135,10 @@ use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
 //                               KDE             - C1 LED Matrix
-//                                  AM           - Atemitech
-//                                    00         - Default Configuration
+//                                  BZ           - BizLink
+//                                    01         - SKU, Default Configuration
 //                                      00000000 - Device Identifier
-const DEFAULT_SERIAL: &str = "FRAKDEAM0000000000";
+const DEFAULT_SERIAL: &str = "FRAKDEBZ0100000000";
 
 #[entry]
 fn main() -> ! {
@@ -184,7 +184,7 @@ fn main() -> ! {
     let mut serial = SerialPort::new(&usb_bus);
 
     let serialnum = if let Some(serialnum) = get_serialnum() {
-        serialnum
+        serialnum.serialnum
     } else {
         DEFAULT_SERIAL
     };
