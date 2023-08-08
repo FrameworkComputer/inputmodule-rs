@@ -197,7 +197,7 @@ checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
 
 [[package]]
 name = "b1display"
-version = "0.1.5"
+version = "0.1.6-rc"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -306,7 +306,7 @@ checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
 
 [[package]]
 name = "c1minimal"
-version = "0.1.5"
+version = "0.1.6-rc"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -774,7 +774,7 @@ dependencies = [
 
 [[package]]
 name = "fl16-inputmodules"
-version = "0.1.5"
+version = "0.1.6-rc"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -979,7 +979,7 @@ dependencies = [
 
 [[package]]
 name = "inputmodule-control"
-version = "0.1.5"
+version = "0.1.6-rc"
 dependencies = [
  "chrono",
  "clap",
@@ -1103,7 +1103,7 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "ledmatrix"
-version = "0.1.5"
+version = "0.1.6-rc"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
