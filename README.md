@@ -137,9 +137,9 @@ cargo install elf2uf2-rs --locked
 Build:
 
 ```sh
-cargo build -p ledmatrix
-cargo build -p b1display
-cargo build -p c1minimal
+cargo make --cwd ledmatrix
+cargo make --cwd b1display
+cargo make --cwd c1minimal
 ```
 
 Generate the UF2 update file:
@@ -158,7 +158,7 @@ Currently have to specify the build target because it's not possible to specify 
 Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 
 ```
-> cargo build --target x86_64-unknown-linux-gnu -p inputmodule-control
+> cargo make --cwd inputmodule-control
 > cargo run --target x86_64-unknown-linux-gnu -p inputmodule-control
 ```
 
