@@ -17,13 +17,18 @@ jobs:
       - name: Setup Rust toolchain
         run: rustup show
 
+      - name: Install cargo-make
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --debug cargo-make
+
       - run: cargo install flip-link
-      - run: cargo build -p ledmatrix
-      - run: cargo build -p b1display
-      - run: cargo build -p c1minimal
-      - run: cargo build -p ledmatrix --release
-      - run: cargo build -p b1display --release
-      - run: cargo build -p c1minimal --release
+      - run: cargo make --cwd b1display
+      - run: cargo make --cwd c1minimal
+      - run: cargo make --cwd ledmatrix build-release
+      - run: cargo make --cwd b1display build-release
+      - run: cargo make --cwd c1minimal build-release
 
       - name: Convert to UF2 format
         run: |

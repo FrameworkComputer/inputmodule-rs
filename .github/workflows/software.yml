@@ -43,8 +43,14 @@ jobs:
     - name: Setup Rust toolchain
       run: rustup show
 
+    - name: Install cargo-make
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --debug cargo-make
+
     - name: Build Linux tool
-      run: cargo build --release --target x86_64-unknown-linux-gnu -p inputmodule-control
+      run: cargo make --cwd inputmodule-control build-release
 
     - name: Check if Linux tool can start
       run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help
@@ -64,8 +70,14 @@ jobs:
     - name: Setup Rust toolchain
       run: rustup show
 
+    - name: Install cargo-make
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --debug cargo-make
+
     - name: Build Windows tool
-      run: cargo build --release --target x86_64-pc-windows-msvc -p inputmodule-control
+      run: cargo make --profile windows --cwd inputmodule-control build-release
 
     - name: Check if Windows tool can start
       run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
