@@ -106,6 +106,19 @@ PATTERNS = [
     '"PANIC"',
     '"LOTUS" Top Down',
     'All brightness levels (1 LED each)',
+    'Every Second Row',
+    'Every Third Row',
+    'Every Fourth Row',
+    'Every Fifth Row',
+    'Every Sixth Row',
+    'Every Second Col',
+    'Every Third Col',
+    'Every Fourth Col',
+    'Every Fifth Col',
+    'Checkerboard',
+    'Double Checkerboard',
+    'Triple Checkerboard',
+    'Quad Checkerboard'
 ]
 DRAW_PATTERNS = ['off', 'on', 'foo']
 GREYSCALE_DEPTH = 32
@@ -578,6 +591,36 @@ def set_color(color):
         send_command(dev, CommandVals.SetColor, rgb)
 
 
+def checkerboard(dev, n):
+    with serial.Serial(dev.device, 115200) as s:
+        for x in range(0, WIDTH):
+            vals = (([0xFF] * n) + ([0x00] * n)) * int(HEIGHT/2)
+            if x % (n*2) < n:
+                # Rotate once
+                vals = vals[n:] + vals[:n]
+
+            send_col(s, x, vals)
+        commit_cols(s)
+
+
+def every_nth_col(dev, n):
+    with serial.Serial(dev.device, 115200) as s:
+        for x in range(0, WIDTH):
+            vals = [(0xFF if x % n == 0 else 0) for _ in range(HEIGHT)]
+
+            send_col(s, x, vals)
+        commit_cols(s)
+
+
+def every_nth_row(dev, n):
+    with serial.Serial(dev.device, 115200) as s:
+        for x in range(0, WIDTH):
+            vals = [(0xFF if y % n == 0 else 0) for y in range(HEIGHT)]
+
+            send_col(s, x, vals)
+        commit_cols(s)
+
+
 def all_brightnesses(dev):
     """Increase the brightness with each pixel.
     Only 0-255 available, so it can't fill all 306 LEDs"""
@@ -938,6 +981,32 @@ def pattern(dev, p):
         send_command(dev, CommandVals.Pattern, [PatternVals.DisplayLotus2])
     elif p == 'All brightness levels (1 LED each)':
         all_brightnesses(dev)
+    elif p == 'Every Second Row':
+        every_nth_row(dev, 2)
+    elif p == 'Every Third Row':
+        every_nth_row(dev, 3)
+    elif p == 'Every Fourth Row':
+        every_nth_row(dev, 4)
+    elif p == 'Every Fifth Row':
+        every_nth_row(dev, 5)
+    elif p == 'Every Sixth Row':
+        every_nth_row(dev, 6)
+    elif p == 'Every Second Col':
+        every_nth_col(dev, 2)
+    elif p == 'Every Third Col':
+        every_nth_col(dev, 3)
+    elif p == 'Every Fourth Col':
+        every_nth_col(dev, 4)
+    elif p == 'Every Fifth Col':
+        every_nth_col(dev, 4)
+    elif p == 'Checkerboard':
+        checkerboard(dev, 1)
+    elif p == 'Double Checkerboard':
+        checkerboard(dev, 2)
+    elif p == 'Triple Checkerboard':
+        checkerboard(dev, 3)
+    elif p == 'Quad Checkerboard':
+        checkerboard(dev, 4)
     else:
         print("Invalid pattern")
 
@@ -1044,8 +1113,8 @@ def gui(devices):
         [sg.Text("Detected Devices")],
     ] + device_checkboxes + [
         [sg.HorizontalSeparator()],
-        [sg.Text("Bootloader")],
-        [sg.Button("Bootloader")],
+        [sg.Text("Device Control")],
+        [sg.Button("Bootloader"), sg.Button("Sleep"), sg.Button("Wake")],
 
         [sg.HorizontalSeparator()],
         [sg.Text("Brightness")],
@@ -1077,11 +1146,17 @@ def gui(devices):
         ],
 
         [sg.HorizontalSeparator()],
-        [sg.Text("Black&White Image")],
-        [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')],
-
-        [sg.Text("Greyscale Image")],
-        [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')],
+        [
+            sg.Column([
+            [sg.Text("Black&White Image")],
+            [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')]
+            ]),
+            sg.VSeperator(),
+            sg.Column([
+            [sg.Text("Greyscale Image")],
+            [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')]
+            ])
+        ],
 
         [sg.HorizontalSeparator()],
         [sg.Text("Display Current Time")],
@@ -1091,11 +1166,18 @@ def gui(devices):
         ],
 
         [sg.HorizontalSeparator()],
-        [sg.Text("Custom Text")],
-        [sg.Input(k='-CUSTOM-TEXT-', s=7), sg.Button("Show", k='SEND-CUSTOM-TEXT')],
+        [
+            sg.Column([
+                [sg.Text("Custom Text")],
+                [sg.Input(k='-CUSTOM-TEXT-', s=7), sg.Button("Show", k='SEND-CUSTOM-TEXT')],
+            ]),
+            sg.VSeperator(),
+            sg.Column([
+                [sg.Text("Display Text with Symbols")],
+                [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
+            ])
+        ],
 
-        [sg.Text("Display Text with Symbols")],
-        [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
 
         # TODO
         # [sg.Text("Play Snake")],
@@ -1107,9 +1189,6 @@ def gui(devices):
             sg.Button("Start random equalizer", k='-RANDOM-EQ-'),
             sg.Button("Stop", k='-STOP-EQ-')
         ],
-
-        [sg.Text("Sleep")],
-        [sg.Button("Sleep"), sg.Button("Wake")],
         # [sg.Button("Panic")]
     ]
     window = sg.Window("LED Matrix Control", layout)
@@ -1154,7 +1233,7 @@ def gui(devices):
                     thread = threading.Thread(target=random_eq, args=(dev,), daemon=True)
                     thread.start()
             else:
-                if event in ['-START-COUNTDOWN-', '-PLAY-SNAKE-', '-RANDOM-EQ-']:
+                if event in ['-START-COUNTDOWN-', '-PLAY-SNAKE-', '-RANDOM-EQ-', '-START-TIME-']:
                     sg.Popup('Select exactly 1 device for this action')
             if event in ['-STOP-COUNTDOWN-', '-STOP-EQ-', '-STOP-TIME-']:
                 STOP_THREAD = True
