@@ -10,7 +10,7 @@ pub const LEDS: usize = WIDTH * HEIGHT;
 pub struct Grid(pub [[u8; HEIGHT]; WIDTH]);
 impl Default for Grid {
     fn default() -> Self {
-        Grid([[0; HEIGHT]; WIDTH])
+        Grid([[10; HEIGHT]; WIDTH])
     }
 }
 
