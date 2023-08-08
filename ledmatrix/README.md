@@ -203,7 +203,7 @@ What can change the sleep state
   - `SLEEP#` pin
   - USB Suspend
 - Software/Firmware Triggers
-  - Sleep/Wake Command via USB Serial
+  - Sleep/Wake or other command via USB Serial
   - Idle timer
 
 Both of the hardware/OS triggers change the sleep state if the transition from one state to another.
@@ -211,6 +211,7 @@ For example, if USB suspends, the LED matrix turns off. If it resumes, the LEDs 
 Same for the `SLEEP#` pin.
 
 The sleep/wake command always changes the state. But it can't be received when USB is suspended.
+Any other command will also wake up the device.
 
 The idle timer will send the device to sleep after a configured timeout (default 60 seconds).
 The idle timer is reset once the device wakes up or once it receives a command.

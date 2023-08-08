@@ -372,20 +372,21 @@ fn main() -> ! {
                                 &mut led_enable,
                             );
                         }
-                        (Some(c @ Command::BootloaderReset), _)
-                        | (Some(c @ Command::IsSleeping), _) => {
-                            if let Some(response) =
-                                handle_command(&c, &mut state, &mut matrix, random)
-                            {
-                                let _ = serial.write(&response);
-                            };
-                        }
-                        (Some(command), SleepState::Awake) => {
+                        (Some(command), _) => {
                             // If there's a very early command, cancel the startup animation
                             startup_percentage = None;
 
                             // Reset sleep timer when interacting with the device
                             sleep_timer = timer.get_counter().ticks();
+                            // If already sleeping, wake up
+                            sleeping = false;
+                            handle_sleep(
+                                sleeping,
+                                &mut state,
+                                &mut matrix,
+                                &mut delay,
+                                &mut led_enable,
+                            );
 
                             if let Some(response) =
                                 handle_command(&command, &mut state, &mut matrix, random)
@@ -401,6 +402,7 @@ fn main() -> ! {
                                 buf[0], buf[1], buf[2], buf[3]
                             )
                             .unwrap();
+                            // let _ = serial.write(text.as_bytes());
                             fill_grid_pixels(&state, &mut matrix);
                         }
                         _ => {}
