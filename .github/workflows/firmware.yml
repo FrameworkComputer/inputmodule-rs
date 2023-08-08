@@ -17,11 +17,7 @@ jobs:
       - name: Setup Rust toolchain
         run: rustup show
 
-      - name: Install cargo-make
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --debug cargo-make
+      - run: cargo install cargo-make
 
       - run: cargo install flip-link
       - run: cargo make --cwd b1display
