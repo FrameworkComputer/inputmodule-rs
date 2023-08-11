@@ -31,7 +31,7 @@ num-derive = "0.3"
 num-traits = { version = "0.2", default-features = false }
 
 # LED Matrix
-is31fl3741 = { git = "https://github.com/JohnAZoidberg/is31fl3741", branch = "all-at-once-update-deps", optional = true }
+is31fl3741 = { git = "https://github.com/JohnAZoidberg/is31fl3741", branch = "merged", optional = true }
 
 # B1 Display
 st7306 = { git = "https://github.com/FrameworkComputer/st7306-rs", branch = "update-deps", optional = true }

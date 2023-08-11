@@ -1022,7 +1022,7 @@ dependencies = [
 [[package]]
 name = "is31fl3741"
 version = "0.2.1"
-source = "git+https://github.com/JohnAZoidberg/is31fl3741?branch=all-at-once-update-deps#52ae4d277fd5decb148683d6aa5665c1153c8768"
+source = "git+https://github.com/JohnAZoidberg/is31fl3741?branch=merged#20dbb3ea963a01129fce75d4e2f07d82e2136820"
 dependencies = [
  "embedded-graphics-core",
  "embedded-hal",

@@ -1,3 +1,4 @@
+use crate::control::PwmFreqArg;
 use crate::games::game_of_life::GameOfLifeState;
 use crate::games::pong::PongState;
 use crate::games::snake::SnakeState;
@@ -22,6 +23,7 @@ pub struct LedmatrixState {
     pub sleeping: SleepState,
     pub game: Option<GameState>,
     pub animation_period: u64,
+    pub pwm_freq: PwmFreqArg,
 }
 
 #[allow(clippy::large_enum_variant)]

@@ -1,4 +1,5 @@
 //! Firmware API - Commands
+use is31fl3741::PwmFreq;
 use num::FromPrimitive;
 use rp2040_hal::rom_data::reset_to_usb_boot;
 
@@ -66,6 +67,7 @@ pub enum CommandVals {
     SetFps = 0x1A,
     SetPowerMode = 0x1B,
     AnimationPeriod = 0x1C,
+    PwmFreq = 0x1E,
     Version = 0x20,
 }
 
@@ -125,6 +127,28 @@ pub enum DisplayMode {
     Hpm = 0x01,
 }
 
+#[derive(Copy, Clone, num_derive::FromPrimitive)]
+pub enum PwmFreqArg {
+    /// 29kHz
+    P29k = 0x00,
+    /// 3.6kHz
+    P3k6 = 0x01,
+    /// 1.8kHz
+    P1k8 = 0x02,
+    /// 900Hz
+    P900 = 0x03,
+}
+impl From<PwmFreqArg> for PwmFreq {
+    fn from(val: PwmFreqArg) -> Self {
+        match val {
+            PwmFreqArg::P29k => PwmFreq::P29k,
+            PwmFreqArg::P3k6 => PwmFreq::P3k6,
+            PwmFreqArg::P1k8 => PwmFreq::P1k8,
+            PwmFreqArg::P900 => PwmFreq::P900,
+        }
+    }
+}
+
 // TODO: Reduce size for modules that don't require other commands
 pub enum Command {
     /// Get current brightness scaling
@@ -175,6 +199,8 @@ pub enum Command {
     GetPowerMode,
     SetAnimationPeriod(u16),
     GetAnimationPeriod,
+    SetPwmFreq(PwmFreqArg),
+    GetPwmFreq,
     _Unknown,
 }
 
@@ -346,6 +372,16 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     Some(Command::SetAnimationPeriod(period))
                 } else {
                     Some(Command::GetAnimationPeriod)
+                }
+            }
+            Some(CommandVals::PwmFreq) => {
+                if let Some(freq) = arg {
+                    match FromPrimitive::from_u8(freq) {
+                        Some(freq) => Some(Command::SetPwmFreq(freq)),
+                        _ => None,
+                    }
+                } else {
+                    Some(Command::GetPwmFreq)
                 }
             }
             _ => None,
@@ -565,6 +601,16 @@ pub fn handle_command(
             let mut response: [u8; 32] = [0; 32];
             let period_ms = state.animation_period / 1_000;
             response[0..2].copy_from_slice(&(period_ms as u16).to_le_bytes());
+            Some(response)
+        }
+        Command::SetPwmFreq(arg) => {
+            state.pwm_freq = *arg;
+            matrix.device.set_pwm_freq(state.pwm_freq.into()).unwrap();
+            None
+        }
+        Command::GetPwmFreq => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.pwm_freq as u8;
             Some(response)
         }
         _ => handle_generic_command(command),

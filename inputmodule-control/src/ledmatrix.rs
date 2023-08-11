@@ -126,6 +126,11 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub animation_fps: Option<Option<u16>>,
 
+    /// Set/get PWM Frequency in Hz
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub pwm_freq: Option<Option<u16>>,
+
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]
     pub panic: bool,

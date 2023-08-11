@@ -222,6 +222,7 @@ fn main() -> ! {
         sleeping: SleepState::Awake,
         game: None,
         animation_period: 31_250, // 31,250 us = 32 FPS
+        pwm_freq: PwmFreqArg::P29k,
     };
 
     let mut matrix = LedMatrix::configure(i2c);
@@ -232,6 +233,8 @@ fn main() -> ! {
     matrix
         .set_scaling(MAX_BRIGHTNESS)
         .expect("failed to set scaling");
+
+    matrix.device.set_pwm_freq(state.pwm_freq.into()).unwrap();
 
     fill_grid_pixels(&state, &mut matrix);
 

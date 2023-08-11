@@ -47,6 +47,7 @@ enum Command {
     Fps = 0x1A,
     PowerMode = 0x1B,
     AnimationPeriod = 0x1C,
+    PwmFreq = 0x1E,
     Version = 0x20,
 }
 
@@ -219,6 +220,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
 
                 if let Some(fps) = ledmatrix_args.animation_fps {
                     animation_fps_cmd(serialdev, fps);
+                }
+
+                if let Some(freq) = ledmatrix_args.pwm_freq {
+                    pwm_freq_cmd(serialdev, freq);
                 }
 
                 if ledmatrix_args.stop_game {
@@ -975,9 +980,41 @@ fn animation_fps_cmd(serialdev: &str, arg: Option<u16>) {
         port.read_exact(response.as_mut_slice())
             .expect("Found no data!");
 
-        println!("Response: {:X?}", response);
         let period = u16::from_le_bytes([response[0], response[1]]);
         println!("Animation Frequency: {}ms / {}Hz", period, 1_000 / period);
+    }
+}
+
+fn pwm_freq_cmd(serialdev: &str, arg: Option<u16>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(freq) = arg {
+        let hz = match freq {
+            29000 => 0,
+            3600 => 1,
+            1800 => 2,
+            9000 => 3,
+            _ => panic!("Invalid frequency"),
+        };
+        simple_cmd_port(&mut port, Command::PwmFreq, &[hz]);
+    } else {
+        simple_cmd_port(&mut port, Command::PwmFreq, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let hz = match response[0] {
+            0 => 29000,
+            1 => 3600,
+            2 => 1800,
+            3 => 900,
+            _ => panic!("Invalid frequency"),
+        };
+        println!("Animation Frequency: {}Hz", hz);
     }
 }
 
