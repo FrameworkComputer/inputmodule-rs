@@ -380,10 +380,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             }
             Some(CommandVals::PwmFreq) => {
                 if let Some(freq) = arg {
-                    match FromPrimitive::from_u8(freq) {
-                        Some(freq) => Some(Command::SetPwmFreq(freq)),
-                        _ => None,
-                    }
+                    FromPrimitive::from_u8(freq).map(Command::SetPwmFreq)
                 } else {
                     Some(Command::GetPwmFreq)
                 }
