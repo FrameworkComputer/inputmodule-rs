@@ -996,7 +996,7 @@ fn pwm_freq_cmd(serialdev: &str, arg: Option<u16>) {
             29000 => 0,
             3600 => 1,
             1800 => 2,
-            9000 => 3,
+            900 => 3,
             _ => panic!("Invalid frequency"),
         };
         simple_cmd_port(&mut port, Command::PwmFreq, &[hz]);

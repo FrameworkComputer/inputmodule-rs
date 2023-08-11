@@ -1,5 +1,4 @@
 //! Firmware API - Commands
-use is31fl3741::PwmFreq;
 use num::FromPrimitive;
 use rp2040_hal::rom_data::reset_to_usb_boot;
 
@@ -36,6 +35,8 @@ use crate::games::snake;
 use crate::matrix::*;
 #[cfg(feature = "ledmatrix")]
 use crate::patterns::*;
+#[cfg(feature = "ledmatrix")]
+use is31fl3741::PwmFreq;
 
 #[cfg(feature = "c1minimal")]
 use smart_leds::{SmartLedsWrite, RGB8};
@@ -127,6 +128,7 @@ pub enum DisplayMode {
     Hpm = 0x01,
 }
 
+#[cfg(feature = "ledmatrix")]
 #[derive(Copy, Clone, num_derive::FromPrimitive)]
 pub enum PwmFreqArg {
     /// 29kHz
@@ -138,6 +140,7 @@ pub enum PwmFreqArg {
     /// 900Hz
     P900 = 0x03,
 }
+#[cfg(feature = "ledmatrix")]
 impl From<PwmFreqArg> for PwmFreq {
     fn from(val: PwmFreqArg) -> Self {
         match val {
@@ -199,6 +202,7 @@ pub enum Command {
     GetPowerMode,
     SetAnimationPeriod(u16),
     GetAnimationPeriod,
+    #[cfg(feature = "ledmatrix")]
     SetPwmFreq(PwmFreqArg),
     GetPwmFreq,
     _Unknown,
