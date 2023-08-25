@@ -1,2 +1,0 @@
-# Framework Laptop 16 - LED Matrix Inputmodule
-SUBSYSTEMS=="usb", ATTRS{idVendor}=="32ac", ATTRS{idProduct}=="0020", MODE:="0666"
