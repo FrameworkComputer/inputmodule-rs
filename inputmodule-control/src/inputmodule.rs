@@ -393,12 +393,17 @@ fn simple_cmd_multiple(serialdevs: &Vec<String>, command: Command, args: &[u8]) 
 }
 
 fn simple_cmd(serialdev: &str, command: Command, args: &[u8]) {
-    let mut port = serialport::new(serialdev, 115_200)
+    let port_result = serialport::new(serialdev, 115_200)
         .timeout(SERIAL_TIMEOUT)
-        .open()
-        .expect("Failed to open port");
+        .open();
 
-    simple_cmd_port(&mut port, command, args);
+    match port_result {
+        Ok(mut port) => simple_cmd_port(&mut port, command, args),
+        Err(error) => match error.kind {
+            serialport::ErrorKind::Io(std::io::ErrorKind::PermissionDenied) => panic!("Permission denied, couldn't access inputmodule serialport. Ensure that you have permission, for example using a udev rule or sudo."),
+            other_error => panic!("Couldn't open port: {:?}", other_error)
+        }
+    };
 }
 
 fn open_serialport(serialdev: &str) -> Box<dyn SerialPort> {

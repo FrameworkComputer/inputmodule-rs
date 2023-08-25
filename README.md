@@ -38,7 +38,15 @@ Optionally there are is also a [Python script](python.md).
 
 For device specific commands, see their individual documentation pages.
 
-Common commands:
+###### Permissions on Linux
+To ensure that the input module's port is accessible, install the `udev` rule and trigger a reload:
+
+```
+sudo cp release/50-framework-inputmodule.rules /etc/udev/rules.d/
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+##### Common commands:
 
 ###### Listing available devices
 
