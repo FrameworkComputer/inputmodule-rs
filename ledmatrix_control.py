@@ -46,6 +46,7 @@ class CommandVals(IntEnum):
     ScreenSaver = 0x19
     SetFps = 0x1A
     SetPowerMode = 0x1B
+    PwmFreq = 0x1E
     Version = 0x20
 
 
@@ -96,6 +97,12 @@ class GameControlVal(IntEnum):
     Right = 3
     Quit = 4
 
+PWM_FREQUENCIES = [
+    '29kHz',
+    '3.6kHz',
+    '1.8kHz',
+    '900Hz',
+]
 
 PATTERNS = [
     'All LEDs on',
@@ -166,6 +173,10 @@ def main():
                         help='Start/stop vertical scrolling')
     parser.add_argument('--get-animate', action='store_true',
                         help='Check if currently animating')
+    parser.add_argument("--pwm", help="Adjust the PWM frequency. Value 0-255",
+                        type=int, choices=[29000, 3600, 1800, 900])
+    parser.add_argument("--get-pwm", help="Get current PWM Frequency",
+                        action="store_true")
     parser.add_argument("--pattern", help='Display a pattern',
                         type=str, choices=PATTERNS)
     parser.add_argument("--image", help="Display a PNG or GIF image in black and white only)",
@@ -285,6 +296,18 @@ def main():
     elif args.get_brightness:
         br = get_brightness(dev)
         print(f"Current brightness: {br}")
+    elif args.pwm is not None:
+        if args.pwm == 29000:
+            pwm_freq(dev, '29kHz')
+        elif args.pwm == 3600:
+            pwm_freq(dev, '3.6kHz')
+        elif args.pwm == 1800:
+            pwm_freq(dev, '1.8kHz')
+        elif args.pwm == 900:
+            pwm_freq(dev, '900Hz')
+    elif args.get_pwm:
+        p = get_pwm_freq(dev)
+        print(f"Current PWM Frequency: {p} Hz")
     elif args.percentage is not None:
         if args.percentage > 100 or args.percentage < 0:
             print("Percentage must be 0-100")
@@ -412,6 +435,23 @@ def get_brightness(dev):
     """
     res = send_command(dev, CommandVals.Brightness, with_response=True)
     return int(res[0])
+
+
+def get_pwm_freq(dev):
+    """Adjust the brightness scaling of the entire screen.
+    """
+    res = send_command(dev, CommandVals.PwmFreq, with_response=True)
+    freq = int(res[0])
+    if freq == 0:
+        return 29000
+    elif freq == 1:
+        return 3600
+    elif freq == 2:
+        return 1800
+    elif freq == 3:
+        return 900
+    else:
+        return None
 
 
 def get_version(dev):
@@ -963,6 +1003,18 @@ def light_leds(dev, leds):
     send_command(dev, CommandVals.Draw, vals)
 
 
+def pwm_freq(dev, freq):
+    """Display a pattern that's already programmed into the firmware"""
+    if freq == '29kHz':
+        send_command(dev, CommandVals.PwmFreq, [0])
+    elif freq == '3.6kHz':
+        send_command(dev, CommandVals.PwmFreq, [1])
+    elif freq == '1.8kHz':
+        send_command(dev, CommandVals.PwmFreq, [2])
+    elif freq == '900Hz':
+        send_command(dev, CommandVals.PwmFreq, [3])
+
+
 def pattern(dev, p):
     """Display a pattern that's already programmed into the firmware"""
     if p == 'All LEDs on':
@@ -1177,6 +1229,9 @@ def gui(devices):
                 [sg.Button("Send '2 5 degC thunder'", k='-SEND-TEXT-')],
             ])
         ],
+        [sg.HorizontalSeparator()],
+        [sg.Text("PWM Frequency")],
+        [sg.Combo(PWM_FREQUENCIES, k='-PWM-FREQ-', enable_events=True)],
 
 
         # TODO
@@ -1244,6 +1299,9 @@ def gui(devices):
 
                 if event == '-PATTERN-':
                     pattern(dev, values['-PATTERN-'])
+
+                if event == '-PWM-FREQ-':
+                    pwm_freq(dev, values['-PWM-FREQ-'])
 
                 if event == 'Start Animation':
                     animate(dev, True)
