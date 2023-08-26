@@ -76,6 +76,18 @@ jobs:
           cargo clippy -p c1minimal -- --deny=warnings
           cargo clippy -p ledmatrix -- --deny=warnings
 
+      # fl16-inputmodules/src/serialnum.rs
+      # is currently used by all firmwares to show their firmware version.
+      # But it shows the version of the fl16-inputmodules package.
+      # So that needs to be the same as the firmware version.
+      - name: Check versions of all packages are the same
+        run: |
+          cargo pkgid -p fl16-inputmodules | cut -d "#" -f2 >> versions.tmp
+          cargo pkgid -p b1display | cut -d "#" -f2 >> versions.tmp
+          cargo pkgid -p c1minimal | cut -d "#" -f2 >> versions.tmp
+          cargo pkgid -p ledmatrix | cut -d "#" -f2 >> versions.tmp
+          uniq -c versions.tmp | [ $(wc -l) -eq 1 ]
+
   formatting:
     name: Formatting
     runs-on: ubuntu-latest
