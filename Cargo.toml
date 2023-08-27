@@ -10,6 +10,7 @@ members = [
     "ledmatrix",
     "fl16-inputmodules",
     "inputmodule-control",
+    "dbus-monitor"
 ]
 # Don't build all of them by default.
 # Because that'll lead to all features enabled in `fl16-inputmodules` and it

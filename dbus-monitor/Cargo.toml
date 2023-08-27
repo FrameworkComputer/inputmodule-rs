@@ -1,0 +1,16 @@
+[package]
+edition = "2021"
+name = "framework-inputmodule-dbus-monitor"
+version = "0.0.1"
+
+[dependencies]
+dbus = { version = "0.9.7", features = ["vendored"] }
+clap = { version = "4.0", features = ["derive"] }
+
+[dependencies.libdbus-sys]
+default-features = false
+features = ["vendored"]
+version = "0.2.5"
+
+[dependencies.inputmodule-control]
+path = "../inputmodule-control"

@@ -12,6 +12,7 @@ use crate::b1display::{B1Pattern, Fps, PowerMode};
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
 use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
+use crate::commands::ClapCli;
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 pub const FRAMEWORK_VID: u16 = 0x32AC;
@@ -99,7 +100,7 @@ fn match_serialdevs(
     }
 }
 
-pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<String>, bool) {
+pub fn find_serialdevs(args: &ClapCli, wait_for_device: bool) -> (Vec<String>, bool) {
     let mut serialdevs: Vec<String>;
     let mut waited = false;
     loop {
@@ -151,7 +152,7 @@ pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<Str
 }
 
 /// Commands that interact with serial devices
-pub fn serial_commands(args: &crate::ClapCli) {
+pub fn serial_commands(args: &ClapCli) {
     let (serialdevs, waited): (Vec<String>, bool) = find_serialdevs(args, args.wait_for_device);
     if serialdevs.is_empty() {
         println!("Failed to find serial devivce. Please manually specify with --serial-dev");
@@ -164,7 +165,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
 
     match &args.command {
         // TODO: Handle generic commands without code deduplication
-        Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
+        Some(crate::commands::Commands::LedMatrix(ledmatrix_args)) => {
             for serialdev in &serialdevs {
                 if args.verbose {
                     println!("Selected serialdev: {:?}", serialdev);
@@ -262,7 +263,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 clock_cmd(&serialdevs);
             }
         }
-        Some(crate::Commands::B1Display(b1display_args)) => {
+        Some(crate::commands::Commands::B1Display(b1display_args)) => {
             for serialdev in &serialdevs {
                 if args.verbose {
                     println!("Selected serialdev: {:?}", serialdev);
@@ -312,7 +313,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
             }
         }
-        Some(crate::Commands::C1Minimal(c1minimal_args)) => {
+        Some(crate::commands::Commands::C1Minimal(c1minimal_args)) => {
             for serialdev in &serialdevs {
                 if args.verbose {
                     println!("Selected serialdev: {:?}", serialdev);
