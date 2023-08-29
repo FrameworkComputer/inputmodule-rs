@@ -4,29 +4,28 @@ name = "ledmatrix"
 version = "0.1.5"
 
 [dependencies]
-cortex-m = "0.7"
-cortex-m-rt = "0.7.3"
-embedded-hal = { version = "0.2.7", features = ["unproven"] }
+cortex-m.workspace = true
+cortex-m-rt.workspace = true
+embedded-hal.workspace = true
 
-defmt = "0.3"
-defmt-rtt = "0.4"
+defmt.workspace = true
+defmt-rtt.workspace = true
 
-#panic-probe = { version = "0.3", features = ["print-defmt"] }
-rp2040-panic-usb-boot = "0.5.0"
+#panic-probe.workspace = true
+rp2040-panic-usb-boot.workspace = true
 
 # Not using an external BSP, we've got the Framework Laptop 16 BSPs locally in this crate
-rp2040-hal = { version = "0.8", features = ["rt", "critical-section-impl"] }
-rp2040-boot2 = "0.3"
+rp2040-hal.workspace = true
+rp2040-boot2.workspace = true
 
 # USB Serial
-usb-device = "0.2.9"
+usb-device.workspace = true
+heapless.workspace = true
+usbd-serial.workspace = true
+usbd-hid.workspace = true
+fugit.workspace = true
 
-heapless = "0.7.16"
-usbd-serial = "0.1.1"
-usbd-hid = "0.6.1"
-fugit = "0.3.7"
-
-is31fl3741 = { git = "https://github.com/JohnAZoidberg/is31fl3741", branch = "merged" }
+is31fl3741.workspace = true
 
 [dependencies.fl16-inputmodules]
 path = "../fl16-inputmodules"
