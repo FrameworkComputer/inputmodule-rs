@@ -40,8 +40,9 @@ const SLEEP_TIMEOUT: u64 = 60_000_000;
 const MAX_CURRENT: usize = 500;
 
 /// Maximum brightness out of 255
-/// Set to 94 because that results in just below 500mA current draw.
-const MAX_BRIGHTNESS: u8 = 94;
+/// On HW Rev 1 from BizLink set to 94 to have just below 500mA current draw.
+/// BizLink HW Rev 2 has a larger current limiting resistor
+const MAX_BRIGHTNESS: u8 = 255;
 
 // TODO: Doesn't work yet, unless I panic right at the beginning of main
 //#[cfg(not(debug_assertions))]
