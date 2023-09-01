@@ -52,7 +52,7 @@ jobs:
     - name: Upload Linux tool
       uses: actions/upload-artifact@v3
       with:
-        name: inputmodule-control
+        name: inputmodule_control_linux_${{github.sha}}
         path: target/x86_64-unknown-linux-gnu/release/inputmodule-control
 
   build-windows:
@@ -73,7 +73,7 @@ jobs:
     - name: Upload Windows App
       uses: actions/upload-artifact@v3
       with:
-        name: inputmodule-control.exe
+        name: inputmodule_control_windows_${{github.sha}}
         path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
 
   # Or manually with
@@ -91,7 +91,7 @@ jobs:
         python_ver: '3.11'
         spec: ledmatrix_control.py #'src/build.spec'
         requirements: 'requirements.txt'
-        upload_exe_with_name: 'ledmatrix_control.py'
+        upload_exe_with_name: 'ledmatrix_gui_windows_${{github.sha}}'
         options: --onefile, --windowed, --add-data 'res;res'
 
   lints:

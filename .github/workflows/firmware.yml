@@ -37,7 +37,7 @@ jobs:
       - name: Upload UF2 files
         uses: actions/upload-artifact@v3
         with:
-          name: inputmodule_fw_uf2
+          name: inputmodule_fw_uf2_${{github.sha}}
           path: |
             b1display.uf2
             c1minimal.uf2
@@ -54,7 +54,7 @@ jobs:
       - name: Upload bin files
         uses: actions/upload-artifact@v3
         with:
-          name: inputmodule_fw_bin
+          name: inputmodule_fw_bin_${{github.sha}}
           path: |
             b1display.bin
             c1minimal.bin
