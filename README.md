@@ -157,8 +157,11 @@ Currently have to specify the build target because it's not possible to specify 
 Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 
 ```
+# Build it
 > cargo make --cwd inputmodule-control
-> cargo run --target x86_64-unknown-linux-gnu -p inputmodule-control
+
+# Build and run it, showing the tool version
+> cargo make --cwd inputmodule-control run -- --version
 ```
 
 ### Check the firmware version of the device

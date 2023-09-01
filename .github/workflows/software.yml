@@ -49,7 +49,7 @@ jobs:
       run: cargo make --cwd inputmodule-control build-release
 
     - name: Check if Linux tool can start
-      run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help
+      run: cargo make --cwd inputmodule-control run -- --help | grep 'RAW Hid and VIA commandline'
 
     - name: Upload Linux tool
       uses: actions/upload-artifact@v3
@@ -72,7 +72,7 @@ jobs:
       run: cargo make --cwd inputmodule-control build-release
 
     - name: Check if Windows tool can start
-      run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
+      run: cargo make --cwd inputmodule-control run -- --help | grep 'RAW Hid and VIA commandline'
 
     - name: Upload Windows App
       uses: actions/upload-artifact@v3

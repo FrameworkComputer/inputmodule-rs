@@ -4,3 +4,11 @@ extend = "../Makefile.toml"
 [env]
 TARGET_TRIPLE = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 
+[tasks.run]
+command = "cargo"
+args = [
+    "run",
+    "--target",
+    "${CARGO_MAKE_RUST_TARGET_TRIPLE}",
+    "${@}",
+]
