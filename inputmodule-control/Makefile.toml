@@ -1,8 +1,6 @@
 extend = "../Makefile.toml"
 
+# Since it's a tool, build it for the platform we're running on
 [env]
-TARGET_TRIPLE = "x86_64-unknown-linux-gnu"
+TARGET_TRIPLE = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 
-# TODO: Automatically detect Windows
-[env.windows]
-TARGET_TRIPLE = "x86_64-pc-windows-msvc"

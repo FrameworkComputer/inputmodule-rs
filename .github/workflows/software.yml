@@ -69,7 +69,7 @@ jobs:
     - run: cargo install cargo-make
 
     - name: Build Windows tool
-      run: cargo make --profile windows --cwd inputmodule-control build-release
+      run: cargo make --cwd inputmodule-control build-release
 
     - name: Check if Windows tool can start
       run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
