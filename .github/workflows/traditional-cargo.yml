@@ -53,7 +53,7 @@ jobs:
       run: cargo build --release --target x86_64-unknown-linux-gnu -p inputmodule-control
 
     - name: Check if tool can start
-      run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help | grep 'RAW Hid and VIA commandline'
+      run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help | grep 'RAW HID and VIA commandline'
 
   windows-software:
     name: Build Windows
@@ -70,7 +70,7 @@ jobs:
       run: cargo build --release --target x86_64-pc-windows-msvc -p inputmodule-control
 
     - name: Check if tool can start
-      run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help | grep 'RAW Hid and VIA commandline'
+      run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help | grep 'RAW HID and VIA commandline'
 
   lint-format:
     name: Lint and format check

@@ -42,9 +42,9 @@ jobs:
         run: |
             sudo apt-get update
             sudo apt-get install -y libudev-dev
-            cargo make b1display uf2
-            cargo make c1minimal uf2
-            cargo make ledmatrix uf2
+            cargo make --cwd b1display uf2
+            cargo make --cwd c1minimal uf2
+            cargo make --cwd ledmatrix uf2
 
       - name: Upload UF2 files
         uses: actions/upload-artifact@v3
@@ -59,9 +59,9 @@ jobs:
         run: |
             sudo apt-get update
             sudo apt-get install -y llvm
-            cargo make b1display bin
-            cargo make c1minimal bin
-            cargo make ledmatrix bin
+            cargo make --cwd b1display bin
+            cargo make --cwd c1minimal bin
+            cargo make --cwd ledmatrix bin
 
       - name: Upload bin files
         uses: actions/upload-artifact@v3
