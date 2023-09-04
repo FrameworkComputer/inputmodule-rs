@@ -30,10 +30,9 @@ jobs:
         run: |
             sudo apt-get update
             sudo apt-get install -y libudev-dev
-            cargo install elf2uf2-rs
-            elf2uf2-rs target/thumbv6m-none-eabi/release/b1display b1display.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/release/c1minimal c1minimal.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/release/ledmatrix ledmatrix.uf2
+            cargo make b1display uf2
+            cargo make c1minimal uf2
+            cargo make ledmatrix uf2
 
       - name: Upload UF2 files
         uses: actions/upload-artifact@v3
@@ -48,9 +47,9 @@ jobs:
         run: |
             sudo apt-get update
             sudo apt-get install -y llvm
-            llvm-objcopy -O binary target/thumbv6m-none-eabi/release/b1display b1display.bin
-            llvm-objcopy -O binary target/thumbv6m-none-eabi/release/c1minimal c1minimal.bin
-            llvm-objcopy -O binary target/thumbv6m-none-eabi/release/ledmatrix ledmatrix.bin
+            cargo make b1display bin
+            cargo make c1minimal bin
+            cargo make ledmatrix bin
 
       - name: Upload bin files
         uses: actions/upload-artifact@v3
