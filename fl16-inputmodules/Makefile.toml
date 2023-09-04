@@ -1,0 +1,21 @@
+extend = "../Makefile.toml"
+
+[tasks.build-all]
+run_task = { name = [
+    "build-ledmatrix",
+    "build-b1display",
+    "build-c1minimal",
+], parallel = true }
+
+
+[tasks.build-ledmatrix]
+env.FEATURES = "ledmatrix"
+run_task = "build"
+
+[tasks.build-b1display]
+env.FEATURES = "b1display"
+run_task = "build"
+
+[tasks.build-c1minimal]
+env.FEATURES = "c1minimal"
+run_task = "build"

@@ -1,7 +1,19 @@
-name: Firmware CI Checks
+name: Firmware Checks
 
 on:
-  push
+  push:
+    branches:
+      - master
+      - dev-*
+    paths-ignore:
+      - '*.py'
+      - 'inputmodule-control/**'
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - '*.py'
+      - 'inputmodule-control/**'
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,22 +29,22 @@ jobs:
       - name: Setup Rust toolchain
         run: rustup show
 
+      - run: cargo install cargo-make
+
       - run: cargo install flip-link
-      - run: cargo build -p ledmatrix
-      - run: cargo build -p b1display
-      - run: cargo build -p c1minimal
-      - run: cargo build -p ledmatrix --release
-      - run: cargo build -p b1display --release
-      - run: cargo build -p c1minimal --release
+      - run: cargo make --cwd b1display
+      - run: cargo make --cwd c1minimal
+      - run: cargo make --cwd ledmatrix build-release
+      - run: cargo make --cwd b1display build-release
+      - run: cargo make --cwd c1minimal build-release
 
       - name: Convert to UF2 format
         run: |
             sudo apt-get update
             sudo apt-get install -y libudev-dev
-            cargo install elf2uf2-rs
-            elf2uf2-rs target/thumbv6m-none-eabi/release/b1display b1display.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/release/c1minimal c1minimal.uf2
-            elf2uf2-rs target/thumbv6m-none-eabi/release/ledmatrix ledmatrix.uf2
+            cargo make --cwd b1display uf2
+            cargo make --cwd c1minimal uf2
+            cargo make --cwd ledmatrix uf2
 
       - name: Upload UF2 files
         uses: actions/upload-artifact@v3
@@ -47,9 +59,9 @@ jobs:
         run: |
             sudo apt-get update
             sudo apt-get install -y llvm
-            llvm-objcopy -O binary target/thumbv6m-none-eabi/release/b1display b1display.bin
-            llvm-objcopy -O binary target/thumbv6m-none-eabi/release/c1minimal c1minimal.bin
-            llvm-objcopy -O binary target/thumbv6m-none-eabi/release/ledmatrix ledmatrix.bin
+            cargo make --cwd b1display bin
+            cargo make --cwd c1minimal bin
+            cargo make --cwd ledmatrix bin
 
       - name: Upload bin files
         uses: actions/upload-artifact@v3
@@ -65,8 +77,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
 
       - name: Setup Rust toolchain
         run: rustup show
@@ -93,8 +103,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
 
       - name: Setup Rust toolchain
         run: rustup show

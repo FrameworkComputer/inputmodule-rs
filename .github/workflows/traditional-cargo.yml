@@ -1,0 +1,99 @@
+# Test builds without cargo-make
+# Not the recommended path, but should make sure it still works
+name: Traditional Cargo Workflow
+
+on:
+  push:
+    branches:
+      - master
+      - dev-*
+    paths-ignore:
+      - '*.py'
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - '*.py'
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+jobs:
+  firmware:
+    name: Building
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - run: cargo install flip-link
+
+      - run: cargo build -p ledmatrix
+      - run: cargo build -p b1display
+      - run: cargo build -p c1minimal
+
+  linux-software:
+    name: Build Linux
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libudev-dev libasound2-dev
+
+    - name: Setup Rust toolchain
+      run: rustup show
+
+    - name: Build tool
+      run: cargo build --release --target x86_64-unknown-linux-gnu -p inputmodule-control
+
+    - name: Check if tool can start
+      run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help | grep 'RAW HID and VIA commandline'
+
+  windows-software:
+    name: Build Windows
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Rust toolchain
+      run: rustup show
+
+    - run: cargo install cargo-make
+
+    - name: Build tool
+      run: cargo build --release --target x86_64-pc-windows-msvc -p inputmodule-control
+
+    - name: Check if tool can start
+      run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help | grep 'RAW HID and VIA commandline'
+
+  lint-format:
+    name: Lint and format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev libasound2-dev
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: Firmware clippy
+        run: |
+          cargo clippy -p b1display -- --deny=warnings
+          cargo clippy -p c1minimal -- --deny=warnings
+          cargo clippy -p ledmatrix -- --deny=warnings
+
+      - name: Software clippy
+        run: cargo clippy --target x86_64-unknown-linux-gnu -p inputmodule-control -- -D warnings
+
+      - name: All cargo fmt
+        run: cargo fmt --all -- --check

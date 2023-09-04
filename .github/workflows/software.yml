@@ -1,6 +1,23 @@
-name: Software CI Checks
+name: Software Checks
+
 on:
   push:
+    branches:
+      - master
+      - dev-*
+    paths-ignore:
+      - 'b1display/**'
+      - 'c1minimal/**'
+      - 'fl16-inputmodules/**'
+      - 'ledmatrix/**'
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - 'b1display/**'
+      - 'c1minimal/**'
+      - 'fl16-inputmodules/**'
+      - 'ledmatrix/**'
 
 env:
   CARGO_TERM_COLOR: always
@@ -43,11 +60,13 @@ jobs:
     - name: Setup Rust toolchain
       run: rustup show
 
+    - run: cargo install cargo-make
+
     - name: Build Linux tool
-      run: cargo build --release --target x86_64-unknown-linux-gnu -p inputmodule-control
+      run: cargo make --cwd inputmodule-control build-release
 
     - name: Check if Linux tool can start
-      run: cargo run --release --target x86_64-unknown-linux-gnu -p inputmodule-control -- --help
+      run: cargo make --cwd inputmodule-control run -- --help | grep 'RAW HID and VIA commandline'
 
     - name: Upload Linux tool
       uses: actions/upload-artifact@v3
@@ -64,11 +83,13 @@ jobs:
     - name: Setup Rust toolchain
       run: rustup show
 
+    - run: cargo install cargo-make
+
     - name: Build Windows tool
-      run: cargo build --release --target x86_64-pc-windows-msvc -p inputmodule-control
+      run: cargo make --cwd inputmodule-control build-release
 
     - name: Check if Windows tool can start
-      run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help
+      run: cargo make --cwd inputmodule-control run -- --help | grep 'RAW HID and VIA commandline'
 
     - name: Upload Windows App
       uses: actions/upload-artifact@v3

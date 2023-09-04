@@ -1,0 +1,14 @@
+extend = "../Makefile.toml"
+
+# Since it's a tool, build it for the platform we're running on
+[env]
+TARGET_TRIPLE = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
+
+[tasks.run]
+command = "cargo"
+args = [
+    "run",
+    "--target",
+    "${CARGO_MAKE_RUST_TARGET_TRIPLE}",
+    "${@}",
+]
