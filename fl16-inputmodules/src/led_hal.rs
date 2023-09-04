@@ -17,6 +17,8 @@ pub use hal::pac;
 hal::bsp_pins!(
     /// GPIO 0 is connected to the SLEEP# pin of the EC
     Gpio0 { name: sleep },
+    /// GPIO 25 is connected to the DIP Switch #1
+    Gpio25 { name: dip1 },
     /// GPIO 26 is connected to I2C SDA of the LED controller
     Gpio26 {
         name: gpio26,
