@@ -3,7 +3,17 @@
 name: Traditional Cargo Workflow
 
 on:
-  push
+  push:
+    branches:
+      - master
+      - dev-*
+    paths-ignore:
+      - '*.py'
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - '*.py'
 
 env:
   CARGO_TERM_COLOR: always

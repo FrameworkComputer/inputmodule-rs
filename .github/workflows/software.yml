@@ -1,6 +1,23 @@
-name: Software CI Checks
+name: Software Checks
+
 on:
   push:
+    branches:
+      - master
+      - dev-*
+    paths-ignore:
+      - 'b1display/**'
+      - 'c1minimal/**'
+      - 'fl16-inputmodules/**'
+      - 'ledmatrix/**'
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - 'b1display/**'
+      - 'c1minimal/**'
+      - 'fl16-inputmodules/**'
+      - 'ledmatrix/**'
 
 env:
   CARGO_TERM_COLOR: always

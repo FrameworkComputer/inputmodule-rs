@@ -1,7 +1,19 @@
-name: Firmware CI Checks
+name: Firmware Checks
 
 on:
-  push
+  push:
+    branches:
+      - master
+      - dev-*
+    paths-ignore:
+      - '*.py'
+      - 'inputmodule-control/**'
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - '*.py'
+      - 'inputmodule-control/**'
 
 env:
   CARGO_TERM_COLOR: always
