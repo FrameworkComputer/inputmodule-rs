@@ -48,6 +48,7 @@ enum Command {
     PowerMode = 0x1B,
     AnimationPeriod = 0x1C,
     PwmFreq = 0x1E,
+    DebugMode = 0x1F,
     Version = 0x20,
 }
 
@@ -224,6 +225,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
 
                 if let Some(freq) = ledmatrix_args.pwm_freq {
                     pwm_freq_cmd(serialdev, freq);
+                }
+                if let Some(debug_mode) = ledmatrix_args.debug_mode {
+                    debug_mode_cmd(serialdev, debug_mode);
                 }
 
                 if ledmatrix_args.stop_game {
@@ -443,6 +447,26 @@ fn sleeping_cmd(serialdev: &str, arg: Option<bool>) {
 
         let sleeping: bool = response[0] == 1;
         println!("Currently sleeping: {sleeping}");
+    }
+}
+
+fn debug_mode_cmd(serialdev: &str, arg: Option<bool>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(enable_debug) = arg {
+        simple_cmd_port(&mut port, Command::DebugMode, &[u8::from(enable_debug)]);
+    } else {
+        simple_cmd_port(&mut port, Command::DebugMode, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let debug_mode: bool = response[0] == 1;
+        println!("Debug Mode enabled: {debug_mode}");
     }
 }
 
