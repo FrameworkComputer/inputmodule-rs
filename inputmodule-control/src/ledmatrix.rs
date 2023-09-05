@@ -131,6 +131,10 @@ pub struct LedMatrixSubcommand {
     #[clap(value_enum)]
     pub pwm_freq: Option<Option<u16>>,
 
+    /// Set debug mode or get current mode, if no value provided
+    #[arg(long)]
+    pub debug_mode: Option<Option<bool>>,
+
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]
     pub panic: bool,

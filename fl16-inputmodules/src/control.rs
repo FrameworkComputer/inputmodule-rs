@@ -69,6 +69,7 @@ pub enum CommandVals {
     SetPowerMode = 0x1B,
     AnimationPeriod = 0x1C,
     PwmFreq = 0x1E,
+    DebugMode = 0x1F,
     Version = 0x20,
 }
 
@@ -205,6 +206,8 @@ pub enum Command {
     #[cfg(feature = "ledmatrix")]
     SetPwmFreq(PwmFreqArg),
     GetPwmFreq,
+    SetDebugMode(bool),
+    GetDebugMode,
     _Unknown,
 }
 
@@ -385,6 +388,11 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     Some(Command::GetPwmFreq)
                 }
             }
+            Some(CommandVals::DebugMode) => Some(if let Some(debug_mode) = arg {
+                Command::SetDebugMode(debug_mode == 1)
+            } else {
+                Command::GetDebugMode
+            }),
             _ => None,
         }
     } else {
@@ -612,6 +620,15 @@ pub fn handle_command(
         Command::GetPwmFreq => {
             let mut response: [u8; 32] = [0; 32];
             response[0] = state.pwm_freq as u8;
+            Some(response)
+        }
+        Command::SetDebugMode(arg) => {
+            state.debug_mode = *arg;
+            None
+        }
+        Command::GetDebugMode => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.debug_mode as u8;
             Some(response)
         }
         _ => handle_generic_command(command),

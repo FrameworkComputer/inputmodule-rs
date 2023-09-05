@@ -328,3 +328,13 @@ pub const EXCLAMATION_MARK: SingleDisplayData = [
     0b00000000,
     0b00010000,
 ];
+pub const HASH: SingleDisplayData = [
+    0b00100100,
+    0b00100111,
+    0b00111100,
+    0b11100100,
+    0b00100111,
+    0b00111100,
+    0b11100100,
+    0b00100100,
+];
