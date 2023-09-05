@@ -217,3 +217,31 @@ Any other command will also wake up the device.
 
 The idle timer will send the device to sleep after a configured timeout (default 60 seconds).
 The idle timer is reset once the device wakes up or once it receives a command.
+
+## DIP Switch
+
+LED Matrix hardware since DVT2 (September 2023) has a DIP switch with two
+switches, let's call them DIP1 and DIP2.
+
+###### DIP2 (Bootloader)
+
+DIP2 is the bootloader switch. To enter bootloader mode follow these steps:
+
+1. Unplug module and flip the switch to ON
+2. Plug module back in, it will appear as a flash drive with the name `RPI-RP2`
+3. Copy the firmware `.uf2` file onto that drive, it will automatically flash and reappear as a flash drive
+4. To exit bootloader mode, unplug the module to flip the switch back, and plug it back in
+5. Now the new firmware should be running
+
+###### DIP1 (General Purpose)
+
+DIP1 could serve many purposes. Currently it is configured to enable the debug mode.
+When debug mode is enabled and the module goes to sleep, it will not turn the LEDs off to save power.
+Instead it will display the reason why it went to sleep. This is useful for debugging module and host system behavior.
+
+Sleep Reasons can be:
+
+- `SLEEP#` pin: `SLP#`
+- USB Suspend: `USB`
+- Command: `CMD`
+- Idle timer: `TIME`
