@@ -91,6 +91,7 @@ jobs:
           cargo clippy -p b1display -- --deny=warnings
           cargo clippy -p c1minimal -- --deny=warnings
           cargo clippy -p ledmatrix -- --deny=warnings
+          cargo clippy -p fl16-inputmodules -- --deny=warnings
 
       - name: Software clippy
         run: cargo clippy --target x86_64-unknown-linux-gnu -p inputmodule-control -- -D warnings
