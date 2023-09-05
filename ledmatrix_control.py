@@ -98,6 +98,7 @@ class GameControlVal(IntEnum):
     Right = 3
     Quit = 4
 
+
 PWM_FREQUENCIES = [
     '29kHz',
     '3.6kHz',
@@ -266,7 +267,8 @@ def main():
     elif len(ports) == 1:
         dev = ports[0]
     elif len(ports) >= 1 and not args.gui:
-        popup(args.gui, "More than 1 compatibles devices found. Please choose from the commandline with --serial-dev COMX.\nConnected ports:\n- {}".format("\n- ".join([port.device for port in ports])))
+        popup(args.gui, "More than 1 compatibles devices found. Please choose from the commandline with --serial-dev COMX.\nConnected ports:\n- {}".format(
+            "\n- ".join([port.device for port in ports])))
         print("More than 1 compatible device found. Please choose with --serial-dev ...")
         print("Example on Windows: --serial-dev COM3")
         print("Example on Linux:   --serial-dev /dev/ttyACM0")
@@ -335,7 +337,7 @@ def main():
         (red, green, blue) = get_color(dev)
         print(f"Current color: RGB:({red}, {green}, {blue})")
     elif args.gui:
-        devices = find_devs()#show=False, verbose=False)
+        devices = find_devs()  # show=False, verbose=False)
         print("Found {} devices".format(len(devices)))
         gui(devices)
     elif args.blink:
@@ -704,7 +706,7 @@ def countdown(dev, seconds):
 
     light_leds(dev, 306)
     breathing(dev)
-    #blinking(dev)
+    # blinking(dev)
 
 
 def blinking(dev):
@@ -1133,7 +1135,7 @@ def send_command_raw(dev, command, with_response=False):
     except (IOError, OSError) as ex:
         global DISCONNECTED_DEVS
         DISCONNECTED_DEVS.append(dev.device)
-        #print("Error: ", ex)
+        # print("Error: ", ex)
 
 
 def send_serial(s, command):
@@ -1143,7 +1145,7 @@ def send_serial(s, command):
     except (IOError, OSError) as ex:
         global DISCONNECTED_DEVS
         DISCONNECTED_DEVS.append(dev.device)
-        #print("Error: ", ex)
+        # print("Error: ", ex)
 
 
 def popup(gui, message):
@@ -1159,7 +1161,8 @@ def gui(devices):
     device_checkboxes = []
     for dev in devices:
         device_info = f"{dev.name}\nSerial No: {dev.serial_number}"
-        checkbox = sg.Checkbox(device_info, default=True, key=f'-CHECKBOX-{dev.name}-', enable_events=True)
+        checkbox = sg.Checkbox(device_info, default=True,
+                               key=f'-CHECKBOX-{dev.name}-', enable_events=True)
         device_checkboxes.append([checkbox])
 
     layout = [
@@ -1201,13 +1204,13 @@ def gui(devices):
         [sg.HorizontalSeparator()],
         [
             sg.Column([
-            [sg.Text("Black&White Image")],
-            [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')]
+                [sg.Text("Black&White Image")],
+                [sg.Button("Send stripe.gif", k='-SEND-BL-IMAGE-')]
             ]),
             sg.VSeperator(),
             sg.Column([
-            [sg.Text("Greyscale Image")],
-            [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')]
+                [sg.Text("Greyscale Image")],
+                [sg.Button("Send greyscale.gif", k='-SEND-GREY-IMAGE-')]
             ])
         ],
 
@@ -1222,7 +1225,8 @@ def gui(devices):
         [
             sg.Column([
                 [sg.Text("Custom Text")],
-                [sg.Input(k='-CUSTOM-TEXT-', s=7), sg.Button("Show", k='SEND-CUSTOM-TEXT')],
+                [sg.Input(k='-CUSTOM-TEXT-', s=7),
+                 sg.Button("Show", k='SEND-CUSTOM-TEXT')],
             ]),
             sg.VSeperator(),
             sg.Column([
@@ -1259,9 +1263,10 @@ def gui(devices):
 
             # TODO
             for dev in devices:
-                #print("Dev {} disconnected? {}".format(dev.name, dev.device in DISCONNECTED_DEVS))
+                # print("Dev {} disconnected? {}".format(dev.name, dev.device in DISCONNECTED_DEVS))
                 if dev.device in DISCONNECTED_DEVS:
-                    window['-CHECKBOX-{}-'.format(dev.name)].update(False, disabled=True)
+                    window['-CHECKBOX-{}-'.format(dev.name)
+                           ].update(False, disabled=True)
 
             selected_devices = [
                 dev for dev in devices if
@@ -1275,18 +1280,20 @@ def gui(devices):
                 dev = selected_devices[0]
                 if event == '-START-COUNTDOWN-':
                     thread = threading.Thread(target=countdown, args=(dev,
-                        int(values['-COUNTDOWN-']),), daemon=True)
+                                                                      int(values['-COUNTDOWN-']),), daemon=True)
                     thread.start()
 
                 if event == '-START-TIME-':
-                    thread = threading.Thread(target=clock, args=(dev,), daemon=True)
+                    thread = threading.Thread(
+                        target=clock, args=(dev,), daemon=True)
                     thread.start()
 
                 if event == '-PLAY-SNAKE-':
                     snake()
 
                 if event == '-RANDOM-EQ-':
-                    thread = threading.Thread(target=random_eq, args=(dev,), daemon=True)
+                    thread = threading.Thread(
+                        target=random_eq, args=(dev,), daemon=True)
                     thread.start()
             else:
                 if event in ['-START-COUNTDOWN-', '-PLAY-SNAKE-', '-RANDOM-EQ-', '-START-TIME-']:
@@ -1321,7 +1328,8 @@ def gui(devices):
                     image_bl(dev, path)
 
                 if event == '-SEND-GREY-IMAGE-':
-                    path = os.path.join(resource_path(), 'res', 'greyscale.gif')
+                    path = os.path.join(
+                        resource_path(), 'res', 'greyscale.gif')
                     image_greyscale(dev, path)
 
                 if event == '-SEND-TEXT-':
@@ -1341,7 +1349,7 @@ def gui(devices):
         print(e)
         raise e
         pass
-        #sg.popup_error_with_traceback(f'An error happened.  Here is the info:', e)
+        # sg.popup_error_with_traceback(f'An error happened.  Here is the info:', e)
 
 
 def display_string(disp_str):
