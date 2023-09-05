@@ -1,13 +1,13 @@
 use crate::control::{GameControlArg, GameOfLifeStartParam};
 use crate::matrix::{GameState, Grid, LedmatrixState, HEIGHT, WIDTH};
 
-#[derive(Clone, Copy, num_derive::FromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, num_derive::FromPrimitive)]
 pub enum Cell {
     Dead = 0,
     Alive = 1,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameOfLifeState {
     cells: [[Cell; WIDTH]; HEIGHT],
 }

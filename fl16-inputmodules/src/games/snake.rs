@@ -6,7 +6,7 @@ use heapless::Vec;
 // Wrap around the edges
 const WRAP_ENABLE: bool = false;
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeadDirection {
     Up,
     Down,
@@ -16,7 +16,7 @@ pub enum HeadDirection {
 
 type Position = (i8, i8);
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SnakeState {
     head: Position,
     pub direction: HeadDirection,

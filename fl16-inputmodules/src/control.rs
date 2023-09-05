@@ -41,6 +41,8 @@ use is31fl3741::PwmFreq;
 #[cfg(feature = "c1minimal")]
 use smart_leds::{SmartLedsWrite, RGB8};
 
+use serde::{Deserialize, Serialize};
+
 #[repr(u8)]
 #[derive(num_derive::FromPrimitive)]
 /// All available commands
@@ -68,6 +70,7 @@ pub enum CommandVals {
     SetFps = 0x1A,
     SetPowerMode = 0x1B,
     AnimationPeriod = 0x1C,
+    Save = 0x1D,
     PwmFreq = 0x1E,
     Version = 0x20,
 }
@@ -129,7 +132,7 @@ pub enum DisplayMode {
 }
 
 #[cfg(feature = "ledmatrix")]
-#[derive(Copy, Clone, num_derive::FromPrimitive)]
+#[derive(Copy, Clone, num_derive::FromPrimitive, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum PwmFreqArg {
     /// 29kHz
     P29k = 0x00,
@@ -202,6 +205,7 @@ pub enum Command {
     GetPowerMode,
     SetAnimationPeriod(u16),
     GetAnimationPeriod,
+    Save,
     #[cfg(feature = "ledmatrix")]
     SetPwmFreq(PwmFreqArg),
     GetPwmFreq,
@@ -378,6 +382,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                     Some(Command::GetAnimationPeriod)
                 }
             }
+            Some(CommandVals::Save) => Some(Command::Save),
             Some(CommandVals::PwmFreq) => {
                 if let Some(freq) = arg {
                     FromPrimitive::from_u8(freq).map(Command::SetPwmFreq)
@@ -604,6 +609,8 @@ pub fn handle_command(
             response[0..2].copy_from_slice(&(period_ms as u16).to_le_bytes());
             Some(response)
         }
+        // TODO
+        // Command::Save => None,
         Command::SetPwmFreq(arg) => {
             state.pwm_freq = *arg;
             matrix.device.set_pwm_freq(state.pwm_freq.into()).unwrap();

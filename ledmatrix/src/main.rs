@@ -7,6 +7,8 @@ use cortex_m::delay::Delay;
 //use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
+use heapless::Vec;
+use rp2040_flash::flash;
 
 use rp2040_hal::{
     gpio::bank0::Gpio29,
@@ -172,6 +174,16 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
+    let psm = pac.PSM;
+
+    // Reset core1 so it's guaranteed to be running
+    // ROM code, waiting for the wakeup sequence
+    psm.frce_off.modify(|_, w| w.proc1().set_bit());
+    while !psm.frce_off.read().proc1().bit_is_set() {
+        cortex_m::asm::nop();
+    }
+    psm.frce_off.modify(|_, w| w.proc1().clear_bit());
+
     // Set up the USB driver
     let usb_bus = UsbBusAllocator::new(usb::UsbBus::new(
         pac.USBCTRL_REGS,
@@ -216,6 +228,7 @@ fn main() -> ! {
     );
 
     let mut state = LedmatrixState {
+        rev: 0,
         grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
@@ -321,7 +334,47 @@ fn main() -> ! {
                 Some(p) if p <= 100 && STARTUP_ANIMATION => {
                     state.grid = percentage(p);
                     startup_percentage = Some(p + 5);
+
+                    if p == 100 {
+                        let addr = 0xfe000 + 0x10000000; // 2nd to last 4K sector
+                        let ptr = unsafe { addr as *const [u8; 4096] };
+                        let _ = serial.write(b"Before restoring\n\r");
+                        unsafe {
+                            let read = ptr.as_ref().unwrap();
+                            let _ = serial.write(b"After restoring\n\r");
+                            // TODO: Use checksum instead
+                            if read[0] == 0x32 && read[1] == 0xAC {
+                                state.grid.0[0] =
+                                    Vec::from_slice(&read[4 + 34 * 0..4 + 34 * 1]).unwrap();
+                                state.grid.0[1] =
+                                    Vec::from_slice(&read[4 + 34 * 1..4 + 34 * 2]).unwrap();
+                                state.grid.0[2] =
+                                    Vec::from_slice(&read[4 + 34 * 2..4 + 34 * 3]).unwrap();
+                                state.grid.0[3] =
+                                    Vec::from_slice(&read[4 + 34 * 3..4 + 34 * 4]).unwrap();
+                                state.grid.0[4] =
+                                    Vec::from_slice(&read[4 + 34 * 4..4 + 34 * 5]).unwrap();
+                                state.grid.0[5] =
+                                    Vec::from_slice(&read[4 + 34 * 5..4 + 34 * 6]).unwrap();
+                                state.grid.0[6] =
+                                    Vec::from_slice(&read[4 + 34 * 6..4 + 34 * 7]).unwrap();
+                                state.grid.0[7] =
+                                    Vec::from_slice(&read[4 + 34 * 7..4 + 34 * 8]).unwrap();
+                                state.grid.0[8] =
+                                    Vec::from_slice(&read[4 + 34 * 8..4 + 34 * 9]).unwrap();
+                                let mut text: String<64> = String::new();
+                                write!(
+                                    &mut text,
+                                    "Read text '{:?}, {}, {}, {}, {}, {}, {}'\r\n",
+                                    read[0], read[1], read[2], read[3], read[4], read[5], read[6]
+                                )
+                                .unwrap();
+                                let _ = serial.write(text.as_bytes());
+                            }
+                        }
+                    }
                 }
+
                 _ => {}
             }
 
@@ -369,6 +422,68 @@ fn main() -> ! {
                         // No need, it'll reset the device anyways
                         (Some(c @ Command::BootloaderReset), _) => {
                             handle_command(&c, &mut state, &mut matrix, random);
+                        }
+                        (Some(Command::Save), _) => {
+                            let jedec_id: u32 = unsafe {
+                                cortex_m::interrupt::free(|_cs| flash::flash_jedec_id(true))
+                            };
+                            let mut unique_id = [0u8; 8];
+                            unsafe {
+                                cortex_m::interrupt::free(|_cs| {
+                                    flash::flash_unique_id(&mut unique_id, true)
+                                })
+                            };
+                            let mut text: String<64> = String::new();
+                            write!(
+                                &mut text,
+                                "JEDEC ID {:x?}, Unique ID {:x?}\n\r",
+                                jedec_id, unique_id
+                            )
+                            .unwrap();
+
+                            let _ = serial.write(text.as_bytes());
+                            let mut data: [u8; 4096] = [0xFF; 4096];
+                            data[0] = 0x32;
+                            data[1] = 0xAC;
+                            data[4 + 34 * 0..4 + 34 * 1]
+                                .copy_from_slice(state.grid.0[0].as_slice());
+                            data[4 + 34 * 1..4 + 34 * 2]
+                                .copy_from_slice(state.grid.0[1].as_slice());
+                            data[4 + 34 * 2..4 + 34 * 3]
+                                .copy_from_slice(state.grid.0[2].as_slice());
+                            data[4 + 34 * 3..4 + 34 * 4]
+                                .copy_from_slice(state.grid.0[3].as_slice());
+                            data[4 + 34 * 4..4 + 34 * 5]
+                                .copy_from_slice(state.grid.0[4].as_slice());
+                            data[4 + 34 * 5..4 + 34 * 6]
+                                .copy_from_slice(state.grid.0[5].as_slice());
+                            data[4 + 34 * 6..4 + 34 * 7]
+                                .copy_from_slice(state.grid.0[6].as_slice());
+                            data[4 + 34 * 7..4 + 34 * 8]
+                                .copy_from_slice(state.grid.0[7].as_slice());
+                            data[4 + 34 * 8..4 + 34 * 9]
+                                .copy_from_slice(state.grid.0[8].as_slice());
+                            let _ = serial.write(b"Before saving\n\r");
+                            core::sync::atomic::compiler_fence(
+                                core::sync::atomic::Ordering::SeqCst,
+                            );
+                            cortex_m::interrupt::free(|_cs| {
+                                unsafe {
+                                    flash::flash_range_erase_and_program(0xfe000, &data, true)
+                                };
+                            });
+                            core::sync::atomic::compiler_fence(
+                                core::sync::atomic::Ordering::SeqCst,
+                            );
+                            let _ = serial.write(b"After saving\n\r");
+                            let mut text: String<64> = String::new();
+                            write!(
+                                &mut text,
+                                "Write text '{:?}, {}, {}, {}, {}, {}, {}'\r\n",
+                                data[0], data[1], data[2], data[3], data[4], data[5], data[6]
+                            )
+                            .unwrap();
+                            let _ = serial.write(text.as_bytes());
                         }
                         (Some(command), _) => {
                             if let Command::Sleep(go_sleeping) = command {

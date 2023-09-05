@@ -25,6 +25,9 @@ usbd-serial.workspace = true
 usbd-hid.workspace = true
 fugit.workspace = true
 
+# Persistent Configuration
+rp2040-flash = "0.3.1"
+
 is31fl3741.workspace = true
 
 [dependencies.fl16-inputmodules]
