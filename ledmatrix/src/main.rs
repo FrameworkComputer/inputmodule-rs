@@ -31,7 +31,7 @@ enum SleepMode {
 /// slowly fade themm on/off
 const SLEEP_MODE: SleepMode = SleepMode::Fading;
 
-const STARTUP_ANIMATION: bool = true;
+const STARTUP_ANIMATION: bool = false;
 
 /// Go to sleep after 60s awake
 const SLEEP_TIMEOUT: u64 = 60_000_000;
