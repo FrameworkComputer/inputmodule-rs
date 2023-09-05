@@ -216,7 +216,11 @@ fn main() -> ! {
     );
 
     let mut state = LedmatrixState {
-        grid: percentage(0),
+        grid: if STARTUP_ANIMATION {
+            percentage(0)
+        } else {
+            every_nth_col(2)
+        },
         col_buffer: Grid::default(),
         animate: false,
         brightness: 51, // Default to 51/255 = 20% brightness
@@ -245,9 +249,6 @@ fn main() -> ! {
     let mut sleep_timer = timer.get_counter().ticks();
 
     let mut startup_percentage = Some(0);
-    if !STARTUP_ANIMATION {
-        state.grid = percentage(100);
-    }
 
     // Detect whether the sleep pin is connected
     // Early revisions of the hardware didn't have it wired up, if that is the
