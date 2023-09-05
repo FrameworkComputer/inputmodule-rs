@@ -215,6 +215,18 @@ fn main() -> ! {
         &clocks.peripheral_clock,
     );
 
+    // Detect whether the dip1 pin is connected
+    // We switched from bootsel button to DIP-switch with general purpose DIP1 pin in DVT2
+    let mut dip1_present = false;
+    let dip1 = pins.dip1.into_pull_up_input();
+    if dip1.is_low().unwrap() {
+        dip1_present = true;
+    }
+    let dip1 = dip1.into_pull_down_input();
+    if dip1.is_high().unwrap() {
+        dip1_present = true;
+    }
+
     let mut state = LedmatrixState {
         grid: percentage(0),
         col_buffer: Grid::default(),
@@ -225,6 +237,14 @@ fn main() -> ! {
         animation_period: 31_250, // 31,250 us = 32 FPS
         pwm_freq: PwmFreqArg::P29k,
         debug_mode: false,
+    };
+    if dip1_present {
+        state.debug_mode = dip1.is_high().unwrap();
+    }
+    if !show_startup_animation(&state) {
+        // If no startup animation, render another pattern
+        // Lighting up every second column is a good pattern to test for noise.
+        state.grid = every_nth_col(2);
     };
 
     let mut matrix = LedMatrix::configure(i2c);
@@ -246,9 +266,6 @@ fn main() -> ! {
     let mut sleep_timer = timer.get_counter().ticks();
 
     let mut startup_percentage = Some(0);
-    if !STARTUP_ANIMATION || state.debug_mode {
-        state.grid = percentage(100);
-    }
 
     // Detect whether the sleep pin is connected
     // Early revisions of the hardware didn't have it wired up, if that is the
@@ -261,18 +278,6 @@ fn main() -> ! {
     let sleep = sleep.into_pull_down_input();
     if sleep.is_high().unwrap() {
         sleep_present = true;
-    }
-
-    // Detect whether the dip1 pin is connected
-    // We switched from bootsel button to DIP-switch with general purpose DIP1 pin in DVT2
-    let mut dip1_present = false;
-    let dip1 = pins.dip1.into_pull_up_input();
-    if dip1.is_low().unwrap() {
-        dip1_present = true;
-    }
-    let dip1 = dip1.into_pull_down_input();
-    if sleep.is_high().unwrap() {
-        dip1_present = true;
     }
 
     let mut usb_initialized = false;
@@ -342,7 +347,7 @@ fn main() -> ! {
         if matches!(state.sleeping, SleepState::Awake) && render_again {
             // On startup slowly turn the screen on - it's a pretty effect :)
             match startup_percentage {
-                Some(p) if p <= 100 && (STARTUP_ANIMATION || state.debug_mode) => {
+                Some(p) if p <= 100 && show_startup_animation(&state) => {
                     state.grid = percentage(p);
                     startup_percentage = Some(p + 5);
                 }
@@ -520,12 +525,21 @@ fn get_random_byte(rosc: &RingOscillator<Enabled>) -> u8 {
     byte
 }
 
-fn dyn_sleep_mode(state: &mut LedmatrixState) -> SleepMode {
+fn dyn_sleep_mode(state: &LedmatrixState) -> SleepMode {
     if state.debug_mode {
         SleepMode::Debug
     } else {
         SLEEP_MODE
     }
+}
+
+fn debug_mode(state: &LedmatrixState) -> bool {
+    dyn_sleep_mode(state) == SleepMode::Debug
+}
+
+fn show_startup_animation(state: &LedmatrixState) -> bool {
+    // Show startup animation
+    STARTUP_ANIMATION && !debug_mode(state)
 }
 
 // Will do nothing if already in the right state
@@ -554,7 +568,7 @@ fn handle_sleep(
             }
 
             // Turn LED controller off to save power
-            if dyn_sleep_mode(state) == SleepMode::Debug {
+            if debug_mode(state) {
                 state.grid = display_sleep_reason(sleep_reason);
                 fill_grid_pixels(state, matrix);
             } else {
@@ -572,7 +586,7 @@ fn handle_sleep(
             fill_grid_pixels(state, matrix);
 
             // Power LED controller back on
-            if dyn_sleep_mode(state) != SleepMode::Debug {
+            if debug_mode(state) {
                 led_enable.set_high().unwrap();
             }
 
