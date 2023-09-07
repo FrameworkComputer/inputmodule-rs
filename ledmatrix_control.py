@@ -156,6 +156,19 @@ STOP_THREAD = False
 DISCONNECTED_DEVS = []
 
 
+def update_brightness_slider(window, devices):
+    average_brightness = None
+    for dev in devices:
+        if not average_brightness:
+            average_brightness = 0
+
+        br = get_brightness(dev)
+        average_brightness += br
+        print(f"Brightness: {br}")
+    if average_brightness:
+        window['-BRIGHTNESS-'].update(average_brightness / len(devices))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1158,9 +1171,11 @@ def gui(devices):
 
     device_checkboxes = []
     for dev in devices:
-        device_info = f"{dev.name}\nSerial No: {dev.serial_number}"
+        version = get_version(dev)
+        device_info = f"{dev.name}\nSerial No: {dev.serial_number}\nFW Version:{version}"
         checkbox = sg.Checkbox(device_info, default=True, key=f'-CHECKBOX-{dev.name}-', enable_events=True)
         device_checkboxes.append([checkbox])
+
 
     layout = [
         [sg.Text("Detected Devices")],
@@ -1247,10 +1262,14 @@ def gui(devices):
         ],
         # [sg.Button("Panic")]
     ]
-    window = sg.Window("LED Matrix Control", layout)
+
+    window = sg.Window("LED Matrix Control", layout, finalize=True)
     selected_devices = []
     global STOP_THREAD
     global DISCONNECTED_DEVS
+
+    update_brightness_slider(window, devices)
+
     try:
         while True:
             event, values = window.read()
