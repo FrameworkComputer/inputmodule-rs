@@ -284,9 +284,12 @@ fn main() -> ! {
     let mut usb_suspended = false;
     let mut last_usb_suspended = usb_suspended;
     let mut sleep_reason: Option<SleepReason> = None;
+    let mut last_sleep_reason: Option<SleepReason>;
     let mut last_host_sleep = sleep.is_low().unwrap();
 
     loop {
+        last_sleep_reason = sleep_reason;
+
         if dip1_present {
             state.debug_mode = dip1.is_high().unwrap();
         }
@@ -298,11 +301,13 @@ fn main() -> ! {
             // Or if it currently sleeping. Don't change if not sleeping
             // because then sleep is controlled by timing or by API.
             if host_sleep_changed || host_sleeping {
-                sleep_reason = if host_sleeping {
-                    Some(SleepReason::SleepPin)
-                } else {
-                    None
-                };
+                sleep_reason = assign_sleep_reason(
+                    last_sleep_reason,
+                    sleep_reason,
+                    host_sleeping,
+                    host_sleep_changed,
+                    SleepReason::SleepPin,
+                );
             }
             last_host_sleep = host_sleeping;
         }
@@ -316,17 +321,25 @@ fn main() -> ! {
         // initialized for the first time. But we don't want to show the
         // sleep animation during startup.
         if usb_initialized && (usb_suspended_changed || usb_suspended) {
-            sleep_reason = if usb_suspended {
-                Some(SleepReason::UsbSuspend)
-            } else {
-                None
-            };
+            sleep_reason = assign_sleep_reason(
+                last_sleep_reason,
+                sleep_reason,
+                usb_suspended,
+                usb_suspended_changed,
+                SleepReason::UsbSuspend,
+            );
         }
         last_usb_suspended = usb_suspended;
 
         // Go to sleep after the timer has run out
         if timer.get_counter().ticks() > sleep_timer + SLEEP_TIMEOUT && !state.debug_mode {
-            sleep_reason = Some(SleepReason::Timeout);
+            sleep_reason = assign_sleep_reason(
+                last_sleep_reason,
+                sleep_reason,
+                true,
+                true,
+                SleepReason::Timeout,
+            );
         }
         // Constantly resetting timer during sleep is same as reset it once on waking up.
         // This means the timer ends up counting the time spent awake.
@@ -401,11 +414,13 @@ fn main() -> ! {
                         }
                         (Some(command), _) => {
                             if let Command::Sleep(go_sleeping) = command {
-                                sleep_reason = if go_sleeping {
-                                    Some(SleepReason::Command)
-                                } else {
-                                    None
-                                };
+                                sleep_reason = assign_sleep_reason(
+                                    last_sleep_reason,
+                                    sleep_reason,
+                                    go_sleeping,
+                                    true,
+                                    SleepReason::Command,
+                                );
                             } else {
                                 // If already sleeping, wake up.
                                 // This means every command will wake the device up.
@@ -542,6 +557,23 @@ fn show_startup_animation(state: &LedmatrixState) -> bool {
     STARTUP_ANIMATION && !debug_mode(state)
 }
 
+fn assign_sleep_reason(
+    previous: Option<SleepReason>,
+    current: Option<SleepReason>,
+    need_sleep: bool,
+    // Whether the signal has actually changed in between firing
+    signal_changed: bool,
+    new: SleepReason,
+) -> Option<SleepReason> {
+    if !need_sleep {
+        None
+    } else if current.is_some() && (Some(new) == previous || !signal_changed) {
+        current
+    } else {
+        Some(new)
+    }
+}
+
 // Will do nothing if already in the right state
 fn handle_sleep(
     sleep_reason: Option<SleepReason>,
@@ -551,6 +583,7 @@ fn handle_sleep(
     led_enable: &mut gpio::Pin<Gpio29, gpio::Output<gpio::PushPull>>,
 ) {
     match (state.sleeping.clone(), sleep_reason) {
+        // Awake and staying awake
         (SleepState::Awake, None) => (),
         (SleepState::Awake, Some(sleep_reason)) => {
             state.sleeping = SleepState::Sleeping((state.grid.clone(), state.brightness));
@@ -567,18 +600,26 @@ fn handle_sleep(
                 }
             }
 
-            // Turn LED controller off to save power
             if debug_mode(state) {
                 state.grid = display_sleep_reason(sleep_reason);
                 fill_grid_pixels(state, matrix);
             } else {
+                // Turn LED controller off to save power
                 led_enable.set_low().unwrap();
             }
 
             // TODO: Set up SLEEP# pin as interrupt and wfi
             //cortex_m::asm::wfi();
         }
-        (SleepState::Sleeping(_), Some(_)) => (),
+        // Already sleeping and new sleep reason => just keep sleeping
+        (SleepState::Sleeping(_), Some(sleep_reason)) => {
+            // If debug mode is enabled, then make sure the latest sleep reason is displayed
+            if debug_mode(state) {
+                state.grid = display_sleep_reason(sleep_reason);
+                fill_grid_pixels(state, matrix);
+            }
+        }
+        // Sleeping and need to wake up
         (SleepState::Sleeping((old_grid, old_brightness)), None) => {
             // Restore back grid before sleeping
             state.sleeping = SleepState::Awake;
@@ -586,7 +627,7 @@ fn handle_sleep(
             fill_grid_pixels(state, matrix);
 
             // Power LED controller back on
-            if debug_mode(state) {
+            if !debug_mode(state) {
                 led_enable.set_high().unwrap();
             }
 

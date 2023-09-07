@@ -48,7 +48,7 @@ pub enum SleepState {
     Sleeping((Grid, u8)),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SleepReason {
     Command,
     SleepPin,
