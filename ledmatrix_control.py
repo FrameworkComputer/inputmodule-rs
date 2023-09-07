@@ -800,15 +800,15 @@ def snake_embedded_keyscan():
             send_command(dev, CommandVals.GameControl, [key_arg])
 
 
-def game_over():
+def game_over(dev):
     global body
     while True:
-        show_string('GAME ')
+        show_string(dev, 'GAME ')
         time.sleep(0.75)
-        show_string('OVER!')
+        show_string(dev, 'OVER!')
         time.sleep(0.75)
         score = len(body)
-        show_string(f'{score:>3} P')
+        show_string(dev, f'{score:>3} P')
         time.sleep(0.75)
 
 
@@ -850,7 +850,7 @@ def snake_embedded():
     snake_embedded_keyscan()
 
 
-def snake():
+def snake(dev):
     from getkey import keys
     global direction
     global body
@@ -892,7 +892,7 @@ def snake():
         # Detect edge condition
         (x, y) = head
         if head in body:
-            return game_over()
+            return game_over(dev)
         elif x >= WIDTH or x < 0 or y >= HEIGHT or y < 0:
             if WRAP:
                 if x >= WIDTH:
@@ -905,7 +905,7 @@ def snake():
                     y = HEIGHT-1
                 head = (x, y)
             else:
-                return game_over()
+                return game_over(dev)
         elif head == food:
             body.insert(0, oldhead)
             while food == head:
@@ -922,7 +922,7 @@ def snake():
         for bodypart in body:
             (x, y) = bodypart
             matrix[x][y] = 1
-        render_matrix(matrix)
+        render_matrix(dev, matrix)
 
 
 def wpm_demo():
@@ -944,7 +944,7 @@ def wpm_demo():
         if total_time < 10:
             wpm = wpm / (total_time / 10)
 
-        show_string(' ' + str(int(wpm)))
+        show_string(dev, ' ' + str(int(wpm)))
 
 
 def random_eq(dev):
