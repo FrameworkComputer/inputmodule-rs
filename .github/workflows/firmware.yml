@@ -46,15 +46,6 @@ jobs:
             cargo make --cwd c1minimal uf2
             cargo make --cwd ledmatrix uf2
 
-      - name: Upload UF2 files
-        uses: actions/upload-artifact@v3
-        with:
-          name: inputmodule_fw_uf2
-          path: |
-            b1display.uf2
-            c1minimal.uf2
-            ledmatrix.uf2
-
       - name: Convert to bin format
         run: |
             sudo apt-get update
@@ -63,14 +54,29 @@ jobs:
             cargo make --cwd c1minimal bin
             cargo make --cwd ledmatrix bin
 
-      - name: Upload bin files
+      - name: Upload ledmatrix files
         uses: actions/upload-artifact@v3
         with:
           name: inputmodule_fw_bin
           path: |
-            b1display.bin
-            c1minimal.bin
             ledmatrix.bin
+            ledmatrix.uf2
+
+      - name: Upload b1display files
+        uses: actions/upload-artifact@v3
+        with:
+          name: inputmodule_fw_uf2
+          path: |
+            b1display.bin
+            b1display.uf2
+
+      - name: Upload c1minimal files
+        uses: actions/upload-artifact@v3
+        with:
+          name: inputmodule_fw_uf2
+          path: |
+            c1minimal.bin
+            c1minimal.uf2
 
   linting:
     name: Linting
