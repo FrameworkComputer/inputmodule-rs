@@ -13,7 +13,10 @@ venv
 !.vscode/tasks.json
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Firmware
 *.uf2
+*.bin
 
 # Panic dump
 message.bin
