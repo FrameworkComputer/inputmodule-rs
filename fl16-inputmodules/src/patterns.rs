@@ -359,3 +359,17 @@ pub fn zigzag() -> Grid {
 
     grid
 }
+
+pub fn every_nth_col(n: usize) -> Grid {
+    let mut grid = Grid::default();
+
+    for y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            if x % n == 0 {
+                grid.0[x][y] = 0xFF;
+            }
+        }
+    }
+
+    grid
+}

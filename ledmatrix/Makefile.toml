@@ -1,5 +1,15 @@
 extend = "../Makefile.toml"
 
+[tasks.build-release-10k]
+command = "cargo"
+args = ["build", "--target=thumbv6m-none-eabi", "--release", "--features", "10k"]
+
+[tasks.build-release-10k-uf2]
+command = "elf2uf2-rs"
+args = ["../target/thumbv6m-none-eabi/release/ledmatrix", "../target/thumbv6m-none-eabi/release/ledmatrix_10k.uf2"]
+dependencies = ["build-release-10k"]
+install_crate = "elf2uf2-rs"
+
 [tasks.uf2]
 command = "elf2uf2-rs"
 args = ["../target/thumbv6m-none-eabi/release/ledmatrix", "../target/thumbv6m-none-eabi/release/ledmatrix.uf2"]

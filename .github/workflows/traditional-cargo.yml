@@ -21,7 +21,7 @@ env:
 
 jobs:
   firmware:
-    name: Building
+    name: Build firmware
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v3
@@ -32,6 +32,7 @@ jobs:
       - run: cargo install flip-link
 
       - run: cargo build -p ledmatrix
+      - run: cargo build -p ledmatrix --features 10k
       - run: cargo build -p b1display
       - run: cargo build -p c1minimal
 
