@@ -4,6 +4,10 @@ extend = "../Makefile.toml"
 [env]
 TARGET_TRIPLE = "${CARGO_MAKE_RUST_TARGET_TRIPLE}"
 
+# Seems clippy doesn't respect TARGET_TRIPLE
+[tasks.clippy]
+args = ["clippy", "--target", "${CARGO_MAKE_RUST_TARGET_TRIPLE}", "--", "-Dwarnings"]
+
 [tasks.run]
 command = "cargo"
 args = [

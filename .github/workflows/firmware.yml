@@ -90,10 +90,13 @@ jobs:
       - name: Setup Rust toolchain
         run: rustup show
 
+      - run: cargo install cargo-make
+
       - run: |
-          cargo clippy -p b1display -- --deny=warnings
-          cargo clippy -p c1minimal -- --deny=warnings
-          cargo clippy -p ledmatrix -- --deny=warnings
+          sudo apt-get install -y libudev-dev
+          cargo make clippy --cwd b1display
+          cargo make clippy --cwd c1minimal
+          cargo make clippy --cwd ledmatrix
 
       # fl16-inputmodules/src/serialnum.rs
       # is currently used by all firmwares to show their firmware version.
@@ -116,4 +119,8 @@ jobs:
       - name: Setup Rust toolchain
         run: rustup show
 
-      - run: cargo fmt --all -- --check
+      - run: |
+          cargo fmt -p b1display -- --check
+          cargo fmt -p c1minimal -- --check
+          cargo fmt -p ledmatrix -- --check
+          cargo fmt -p fl16-inputmodules -- --check
