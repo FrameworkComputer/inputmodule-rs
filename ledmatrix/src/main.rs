@@ -218,17 +218,7 @@ fn main() -> ! {
         &clocks.peripheral_clock,
     );
 
-    // Detect whether the dip1 pin is connected
-    // We switched from bootsel button to DIP-switch with general purpose DIP1 pin in DVT2
-    let mut dip1_present = false;
     let dip1 = pins.dip1.into_pull_up_input();
-    if dip1.is_low().unwrap() {
-        dip1_present = true;
-    }
-    let dip1 = dip1.into_pull_down_input();
-    if dip1.is_high().unwrap() {
-        dip1_present = true;
-    }
 
     let mut state = LedmatrixState {
         grid: percentage(0),
@@ -241,9 +231,7 @@ fn main() -> ! {
         pwm_freq: PwmFreqArg::P29k,
         debug_mode: false,
     };
-    if dip1_present {
-        state.debug_mode = dip1.is_high().unwrap();
-    }
+    state.debug_mode = dip1.is_low().unwrap();
     if !show_startup_animation(&state) {
         // If no startup animation, render another pattern
         // Lighting up every second column is a good pattern to test for noise.
@@ -294,9 +282,7 @@ fn main() -> ! {
     loop {
         last_sleep_reason = sleep_reason;
 
-        if dip1_present {
-            state.debug_mode = dip1.is_high().unwrap();
-        }
+        state.debug_mode = dip1.is_low().unwrap();
         if sleep_present {
             // Go to sleep if the host is sleeping
             let host_sleeping = sleep.is_low().unwrap();
