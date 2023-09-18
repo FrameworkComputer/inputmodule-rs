@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "fl16-inputmodules"
-version = "0.1.6"
+version = "0.1.7-pre"
 
 [dependencies]
 crc = "3.0"
