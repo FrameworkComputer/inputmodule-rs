@@ -106,7 +106,7 @@ const MAX_BRIGHTNESS: u8 = 255;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
-use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
+use fl16_inputmodules::{fl16::DVT2_CALC_PIXEL, games::game_of_life, led_hal as bsp};
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -250,7 +250,8 @@ fn main() -> ! {
         state.grid = every_nth_col(2);
     };
 
-    let mut matrix = LedMatrix::configure(i2c);
+    let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
+    //let mut matrix = LedMatrix::new(i2c, EVT_CALC_PIXEL);
     matrix
         .setup(&mut delay)
         .expect("failed to setup RGB controller");
