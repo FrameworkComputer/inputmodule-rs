@@ -98,7 +98,7 @@ def main():
         if debug:
             print(led, "(0x{:02x}, {})".format(register, page))
         else:
-            print("(0x{:02x}, {}), // x:{}, y:{}, sw:{}, cs:{}, id:{}".format(
+            print("(0x{:02x}, {}), // x:{:2d}, y:{:2d}, sw:{:2d}, cs:{:2d}, id:{:3d}".format(
                 register, page, led.x, led.y, led.sw, led.cs, led.id))
     # print_led(leds, 0, 30)
 
