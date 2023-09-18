@@ -7,6 +7,7 @@
 # (0x1e, 0), // x:2, y:1, sw:2, cs:1, id:2
 # [...]
 
+import math
 from dataclasses import dataclass
 
 WIDTH = 9
@@ -35,6 +36,12 @@ class Led:
             page = 1
             register = 0x5A + self.cs - 31 + (self.sw-1) * 9
         return (register, page)
+
+    def __lt__(self, other):
+        if self.y == other.y:
+            return self.x < other.x
+        else:
+            return self.y < other.y
 
 
 def get_leds():
@@ -90,6 +97,9 @@ def get_leds():
 def main():
     # Assumes that the index in the LEDs list is: index = x + y * 9
     leds = get_leds()
+
+    # Needs to be sorted according to x and y
+    leds.sort()
 
     debug = False
 
