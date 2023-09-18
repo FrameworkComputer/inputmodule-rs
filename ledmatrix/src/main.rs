@@ -106,7 +106,11 @@ const MAX_BRIGHTNESS: u8 = 255;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
-use fl16_inputmodules::{fl16::DVT2_CALC_PIXEL, games::game_of_life, led_hal as bsp};
+#[cfg(not(feature = "evt"))]
+use fl16_inputmodules::fl16::DVT2_CALC_PIXEL;
+#[cfg(feature = "evt")]
+use fl16_inputmodules::fl16::EVT_CALC_PIXEL;
+use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -238,18 +242,22 @@ fn main() -> ! {
         state.grid = every_nth_col(2);
     };
 
-    //let mut matrix = LedMatrix::new(i2c, EVT_CALC_PIXEL);
+    #[cfg(feature = "evt")]
+    let mut matrix = LedMatrix::new(i2c, EVT_CALC_PIXEL);
+    #[cfg(not(feature = "evt"))]
     let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
     matrix
         .setup(&mut delay)
         .expect("failed to setup RGB controller");
 
     // EVT
-    // matrix
-    //     .device
-    //     .sw_enablement(is31fl3741::SwSetting::Sw1Sw9)
-    //     .unwrap();
+    #[cfg(feature = "evt")]
+    matrix
+        .device
+        .sw_enablement(is31fl3741::SwSetting::Sw1Sw9)
+        .unwrap();
     // DVT
+    #[cfg(not(feature = "evt"))]
     matrix
         .device
         .sw_enablement(is31fl3741::SwSetting::Sw1Sw8)

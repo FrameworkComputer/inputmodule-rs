@@ -36,6 +36,7 @@ jobs:
       - run: cargo make --cwd c1minimal
       - run: cargo make --cwd ledmatrix build-release
       - run: cargo make --cwd ledmatrix build-release-10k
+      - run: cargo make --cwd ledmatrix build-release-evt
       - run: cargo make --cwd b1display build-release
       - run: cargo make --cwd c1minimal build-release
 
@@ -46,6 +47,7 @@ jobs:
             cargo make --cwd b1display uf2
             cargo make --cwd c1minimal uf2
             cargo make --cwd ledmatrix build-release-10k-uf2
+            cargo make --cwd ledmatrix build-release-evt-uf2
             cargo make --cwd ledmatrix uf2
 
       - name: Convert to bin format
@@ -64,6 +66,7 @@ jobs:
             ledmatrix.bin
             ledmatrix.uf2
             ledmatrix_10k.uf2
+            ledmatrix_evt.uf2
 
       - name: Upload b1display files
         uses: actions/upload-artifact@v3
