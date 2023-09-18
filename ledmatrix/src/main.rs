@@ -238,11 +238,22 @@ fn main() -> ! {
         state.grid = every_nth_col(2);
     };
 
-    let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
     //let mut matrix = LedMatrix::new(i2c, EVT_CALC_PIXEL);
+    let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
     matrix
         .setup(&mut delay)
         .expect("failed to setup RGB controller");
+
+    // EVT
+    // matrix
+    //     .device
+    //     .sw_enablement(is31fl3741::SwSetting::Sw1Sw9)
+    //     .unwrap();
+    // DVT
+    matrix
+        .device
+        .sw_enablement(is31fl3741::SwSetting::Sw1Sw8)
+        .unwrap();
 
     matrix
         .set_scaling(MAX_BRIGHTNESS)
