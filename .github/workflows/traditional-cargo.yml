@@ -1,6 +1,6 @@
 # Test builds without cargo-make
 # Not the recommended path, but should make sure it still works
-name: Traditional Cargo Workflow
+name: Traditional Cargo
 
 on:
   push:
@@ -75,7 +75,7 @@ jobs:
       run: cargo run --release --target x86_64-pc-windows-msvc -p inputmodule-control -- --help | grep 'RAW HID and VIA commandline'
 
   lint-format:
-    name: Lint and format check
+    name: Lint and format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
