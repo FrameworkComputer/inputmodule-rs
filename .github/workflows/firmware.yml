@@ -63,26 +63,29 @@ jobs:
         with:
           name: inputmodule_fw_bin
           path: |
-            ledmatrix.bin
-            ledmatrix.uf2
-            ledmatrix_10k.uf2
-            ledmatrix_evt.uf2
+            # Main firmware
+            target/thumbv6m-none-eabi/release/ledmatrix.bin
+            target/thumbv6m-none-eabi/release/ledmatrix.uf2
+            # EVT 10k resistor
+            target/thumbv6m-none-eabi/release/ledmatrix_10k.uf2
+            # EVT (27k) resistor
+            target/thumbv6m-none-eabi/release/ledmatrix_evt.uf2
 
       - name: Upload b1display files
         uses: actions/upload-artifact@v3
         with:
           name: inputmodule_fw_uf2
           path: |
-            b1display.bin
-            b1display.uf2
+            target/thumbv6m-none-eabi/release/b1display.bin
+            target/thumbv6m-none-eabi/release/b1display.uf2
 
       - name: Upload c1minimal files
         uses: actions/upload-artifact@v3
         with:
           name: inputmodule_fw_uf2
           path: |
-            c1minimal.bin
-            c1minimal.uf2
+            target/thumbv6m-none-eabi/release/c1minimal.bin
+            target/thumbv6m-none-eabi/release/c1minimal.uf2
 
   linting:
     name: Linting
