@@ -106,6 +106,10 @@ const MAX_BRIGHTNESS: u8 = 255;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
+#[cfg(not(feature = "evt"))]
+use fl16_inputmodules::fl16::DVT2_CALC_PIXEL;
+#[cfg(feature = "evt")]
+use fl16_inputmodules::fl16::EVT_CALC_PIXEL;
 use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
@@ -218,17 +222,7 @@ fn main() -> ! {
         &clocks.peripheral_clock,
     );
 
-    // Detect whether the dip1 pin is connected
-    // We switched from bootsel button to DIP-switch with general purpose DIP1 pin in DVT2
-    let mut dip1_present = false;
     let dip1 = pins.dip1.into_pull_up_input();
-    if dip1.is_low().unwrap() {
-        dip1_present = true;
-    }
-    let dip1 = dip1.into_pull_down_input();
-    if dip1.is_high().unwrap() {
-        dip1_present = true;
-    }
 
     let mut state = LedmatrixState {
         grid: percentage(0),
@@ -241,19 +235,33 @@ fn main() -> ! {
         pwm_freq: PwmFreqArg::P29k,
         debug_mode: false,
     };
-    if dip1_present {
-        state.debug_mode = dip1.is_high().unwrap();
-    }
+    state.debug_mode = dip1.is_low().unwrap();
     if !show_startup_animation(&state) {
         // If no startup animation, render another pattern
         // Lighting up every second column is a good pattern to test for noise.
         state.grid = every_nth_col(2);
     };
 
-    let mut matrix = LedMatrix::configure(i2c);
+    #[cfg(feature = "evt")]
+    let mut matrix = LedMatrix::new(i2c, EVT_CALC_PIXEL);
+    #[cfg(not(feature = "evt"))]
+    let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
     matrix
         .setup(&mut delay)
         .expect("failed to setup RGB controller");
+
+    // EVT
+    #[cfg(feature = "evt")]
+    matrix
+        .device
+        .sw_enablement(is31fl3741::SwSetting::Sw1Sw9)
+        .unwrap();
+    // DVT
+    #[cfg(not(feature = "evt"))]
+    matrix
+        .device
+        .sw_enablement(is31fl3741::SwSetting::Sw1Sw8)
+        .unwrap();
 
     matrix
         .set_scaling(MAX_BRIGHTNESS)
@@ -293,9 +301,7 @@ fn main() -> ! {
     loop {
         last_sleep_reason = sleep_reason;
 
-        if dip1_present {
-            state.debug_mode = dip1.is_high().unwrap();
-        }
+        state.debug_mode = dip1.is_low().unwrap();
         if sleep_present {
             // Go to sleep if the host is sleeping
             let host_sleeping = sleep.is_low().unwrap();

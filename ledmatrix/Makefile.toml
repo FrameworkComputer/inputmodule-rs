@@ -1,22 +1,57 @@
 extend = "../Makefile.toml"
 
+[tasks.build-release-evt]
+command = "cargo"
+args = [
+    "build",
+    "--target=thumbv6m-none-eabi",
+    "--release",
+    "--features",
+    "evt",
+]
+
+[tasks.build-release-evt-uf2]
+command = "elf2uf2-rs"
+args = [
+    "../target/thumbv6m-none-eabi/release/ledmatrix",
+    "../target/thumbv6m-none-eabi/release/ledmatrix_evt.uf2",
+]
+dependencies = ["build-release-evt"]
+install_crate = "elf2uf2-rs"
+
 [tasks.build-release-10k]
 command = "cargo"
-args = ["build", "--target=thumbv6m-none-eabi", "--release", "--features", "10k"]
+args = [
+    "build",
+    "--target=thumbv6m-none-eabi",
+    "--release",
+    "--features",
+    "10k,evt",
+]
 
 [tasks.build-release-10k-uf2]
 command = "elf2uf2-rs"
-args = ["../target/thumbv6m-none-eabi/release/ledmatrix", "../target/thumbv6m-none-eabi/release/ledmatrix_10k.uf2"]
+args = [
+    "../target/thumbv6m-none-eabi/release/ledmatrix",
+    "../target/thumbv6m-none-eabi/release/ledmatrix_10k.uf2",
+]
 dependencies = ["build-release-10k"]
 install_crate = "elf2uf2-rs"
 
 [tasks.uf2]
 command = "elf2uf2-rs"
-args = ["../target/thumbv6m-none-eabi/release/ledmatrix", "../target/thumbv6m-none-eabi/release/ledmatrix.uf2"]
+args = [
+    "../target/thumbv6m-none-eabi/release/ledmatrix",
+    "../target/thumbv6m-none-eabi/release/ledmatrix.uf2",
+]
 dependencies = ["build-release"]
 install_crate = "elf2uf2-rs"
 
 [tasks.bin]
 command = "llvm-objcopy"
-args = ["-Obinary", "../target/thumbv6m-none-eabi/release/ledmatrix", "../target/thumbv6m-none-eabi/release/ledmatrix.bin"]
+args = [
+    "-Obinary",
+    "../target/thumbv6m-none-eabi/release/ledmatrix",
+    "../target/thumbv6m-none-eabi/release/ledmatrix.bin",
+]
 dependencies = ["build-release"]

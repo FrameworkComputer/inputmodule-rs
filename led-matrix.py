@@ -7,6 +7,7 @@
 # (0x1e, 0), // x:2, y:1, sw:2, cs:1, id:2
 # [...]
 
+import math
 from dataclasses import dataclass
 
 WIDTH = 9
@@ -36,6 +37,12 @@ class Led:
             register = 0x5A + self.cs - 31 + (self.sw-1) * 9
         return (register, page)
 
+    def __lt__(self, other):
+        if self.y == other.y:
+            return self.x < other.x
+        else:
+            return self.y < other.y
+
 
 def get_leds():
     leds = []
@@ -45,7 +52,7 @@ def get_leds():
     # First down and then right
     # CS1 through CS4
     for cs in range(1, 5):
-        for sw in range(1, WIDTH+1):
+        for sw in range(1, WIDTH):
             leds.append(Led(id=WIDTH * (cs-1) + sw, x=sw, y=cs, sw=sw, cs=cs))
 
     # First right and then down
@@ -53,43 +60,70 @@ def get_leds():
     base_cs = 4
     base_id = WIDTH * base_cs
     for cs in range(1, 5):
-        for sw in range(1, WIDTH+1):
+        for sw in range(1, WIDTH):
             leds.append(Led(id=base_id + 4 * (sw-1) + cs, x=sw,
                         y=cs+base_cs, sw=sw, cs=cs+base_cs))
+    base_id+=5
 
     # First right and then down
     # CS9 through CS16
     base_cs = 8
     base_id = WIDTH * base_cs
     for cs in range(1, 9):
-        for sw in range(1, WIDTH+1):
+        for sw in range(1, WIDTH):
             leds.append(Led(id=base_id + 8 * (sw-1) + cs, x=sw,
                         y=cs+base_cs, sw=sw, cs=cs+base_cs))
+    base_id+=9
 
     # First right and then down
     # CS17 through CS32
     base_cs = 16
     base_id = WIDTH * base_cs
     for cs in range(1, 17):
-        for sw in range(1, WIDTH+1):
+        for sw in range(1, WIDTH):
             leds.append(Led(id=base_id + 16 * (sw-1) + cs, x=sw,
                         y=cs+base_cs, sw=sw, cs=cs+base_cs))
+    base_id+=17
 
     # First down and then right
     # CS33 through CS34
     base_cs = 32
     base_id = WIDTH * base_cs
     for cs in range(1, 3):
-        for sw in range(1, WIDTH+1):
+        for sw in range(1, WIDTH):
             leds.append(Led(id=base_id + 9 * (cs-1) + sw, x=sw,
                         y=cs+base_cs, sw=sw, cs=cs+base_cs))
+    base_id+=3
+
+    # DVT2 Last column
+    five_cycle=[36, 37, 38, 39, 35]
+    four_cycle=[36, 37, 38, 35]
+    for y in range(1, HEIGHT+1):
+        ledid = WIDTH*y
+        if y >= 5:
+            ledid = 69 + y%5
+        if y >= 9:
+            ledid = 137 + y%9
+        if y >= 17:
+            ledid = 273 + y%17
+        if y >= 33:
+            ledid = WIDTH*y
+
+        if y <= 10:
+            leds.append(Led(id=ledid, x=WIDTH, y=y, sw=math.ceil(y/5), cs=five_cycle[(y-1)%5]))
+        else:
+            sw = 2 + math.ceil((y-10)/4)
+            cs = four_cycle[(y-10-1)%4]
+            leds.append(Led(id=ledid, x=WIDTH, y=y, sw=sw, cs=cs))
 
     return leds
 
 
 def main():
-    # Assumes that the index in the LEDs list is: index = x + y * 9
     leds = get_leds()
+    # Needs to be sorted according to x and y
+    leds.sort()
+
 
     debug = False
 
@@ -98,7 +132,7 @@ def main():
         if debug:
             print(led, "(0x{:02x}, {})".format(register, page))
         else:
-            print("(0x{:02x}, {}), // x:{}, y:{}, sw:{}, cs:{}, id:{}".format(
+            print("(0x{:02x}, {}), // x:{:2d}, y:{:2d}, sw:{:2d}, cs:{:2d}, id:{:3d}".format(
                 register, page, led.x, led.y, led.sw, led.cs, led.id))
     # print_led(leds, 0, 30)
 
