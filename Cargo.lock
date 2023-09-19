@@ -1022,7 +1022,6 @@ dependencies = [
 [[package]]
 name = "is31fl3741"
 version = "0.2.1"
-source = "git+https://github.com/FrameworkComputer/is31fl3741-rs?branch=sw-enablement#fb88ad1baf28aa2a61bc85ff5db83c6e2b661ed5"
 dependencies = [
  "embedded-graphics-core",
  "embedded-hal",

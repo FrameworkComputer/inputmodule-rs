@@ -8,6 +8,7 @@ use cortex_m::delay::Delay;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 
+use is31fl3741::addresses;
 use rp2040_hal::{
     gpio::bank0::Gpio29,
     rosc::{Enabled, RingOscillator},
@@ -414,6 +415,50 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
+                    let id = matrix
+                        .device
+                        .read_u8(is31fl3741::addresses::ID_REGISTER)
+                        .unwrap();
+                    let reg = matrix
+                        .device
+                        .read_register(
+                            is31fl3741::Page::Config,
+                            is31fl3741::addresses::CONFIG_REGISTER,
+                        )
+                        .unwrap();
+                    let open1 = matrix.device.check_open(&mut delay, 0x03, true).unwrap();
+                    let open2 = matrix.device.check_open(&mut delay, 0x07, true).unwrap();
+                    let open3 = matrix.device.check_open(&mut delay, 0x08, true).unwrap();
+                    let open4 = matrix.device.check_open(&mut delay, 0x0C, true).unwrap();
+
+                    let short1 = matrix.device.check_open(&mut delay, 0x03, false).unwrap();
+                    let short2 = matrix.device.check_open(&mut delay, 0x07, false).unwrap();
+                    let short2 = matrix.device.check_open(&mut delay, 0x07, false).unwrap();
+                    let short3 = matrix.device.check_open(&mut delay, 0x08, false).unwrap();
+                    let short4 = matrix.device.check_open(&mut delay, 0x0C, false).unwrap();
+
+                    let mut text: String<128> = String::new();
+                    write!(&mut text, "ID: {:02X}, Conf: {:02X}\r\n", id, reg).unwrap();
+                    let _ = serial.write(text.as_bytes());
+
+                    let mut text: String<128> = String::new();
+                    write!(
+                        &mut text,
+                        "Open0x03:  {:02X}, Open0x07:  {:02X}, Open0x08:  {:02X}, Open0x0C:  {:02X}\r\n",
+                        open1, open2, open3, open4
+                    )
+                    .unwrap();
+                    let _ = serial.write(text.as_bytes());
+
+                    let mut text: String<128> = String::new();
+                    write!(
+                        &mut text,
+                        "Short0x03: {:02X}, Short0x07: {:02X}, Short0x08: {:02X}, Short0x0C: {:02X}\r\n",
+                        short1, short2, short3, short4
+                    )
+                    .unwrap();
+                    let _ = serial.write(text.as_bytes());
+
                     let random = get_random_byte(&rosc);
                     match (parse_command(count, &buf), &state.sleeping) {
                         // Handle bootloader command without any delay
