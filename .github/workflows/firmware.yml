@@ -61,7 +61,7 @@ jobs:
       - name: Upload ledmatrix files
         uses: actions/upload-artifact@v3
         with:
-          name: inputmodule_fw_bin
+          name: ledmatrix_fw_${{github.sha}}
           path: |
             # Main firmware
             target/thumbv6m-none-eabi/release/ledmatrix.bin
@@ -74,7 +74,7 @@ jobs:
       - name: Upload b1display files
         uses: actions/upload-artifact@v3
         with:
-          name: inputmodule_fw_uf2
+          name: b1display_fw_${{github.sha}}
           path: |
             target/thumbv6m-none-eabi/release/b1display.bin
             target/thumbv6m-none-eabi/release/b1display.uf2
@@ -82,7 +82,7 @@ jobs:
       - name: Upload c1minimal files
         uses: actions/upload-artifact@v3
         with:
-          name: inputmodule_fw_uf2
+          name: c1minimal_fw_${{github.sha}}
           path: |
             target/thumbv6m-none-eabi/release/c1minimal.bin
             target/thumbv6m-none-eabi/release/c1minimal.uf2
