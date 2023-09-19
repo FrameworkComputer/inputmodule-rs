@@ -27,7 +27,7 @@ pub mod graphics;
 #[cfg(feature = "b1display")]
 pub mod lcd_hal;
 
-#[cfg(feature = "c1minimal")]
+#[cfg(all(feature = "c1minimal", not(feature = "qtpy")))]
 pub mod minimal_hal;
 
 pub mod control;

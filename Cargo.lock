@@ -24,6 +24,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "adafruit-qt-py-rp2040"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e36e061b89c1354cab7a96173730928d67e9970ad509cd295af724abb30920b6"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "rp2040-boot2 0.2.1",
+ "rp2040-hal",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -208,7 +220,7 @@ dependencies = [
  "fl16-inputmodules",
  "fugit",
  "heapless",
- "rp2040-boot2",
+ "rp2040-boot2 0.3.0",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "st7306",
@@ -316,7 +328,7 @@ dependencies = [
  "fl16-inputmodules",
  "fugit",
  "heapless",
- "rp2040-boot2",
+ "rp2040-boot2 0.3.0",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
@@ -789,7 +801,7 @@ dependencies = [
  "num",
  "num-derive",
  "num-traits",
- "rp2040-boot2",
+ "rp2040-boot2 0.3.0",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
@@ -1114,7 +1126,7 @@ dependencies = [
  "fugit",
  "heapless",
  "is31fl3741",
- "rp2040-boot2",
+ "rp2040-boot2 0.3.0",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "usb-device",
@@ -1616,6 +1628,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "qtpy"
+version = "0.1.7"
+dependencies = [
+ "adafruit-qt-py-rp2040",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt",
+ "defmt-rtt",
+ "embedded-hal",
+ "fl16-inputmodules",
+ "fugit",
+ "heapless",
+ "rp2040-boot2 0.3.0",
+ "rp2040-hal",
+ "rp2040-panic-usb-boot",
+ "smart-leds",
+ "usb-device",
+ "usbd-hid",
+ "usbd-serial",
+ "ws2812-pio",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1830,6 +1865,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20ec2d3e3fc7a92ced357df9cebd5a10b6fb2aa1ee797bf7e9ce2f17dffc8f59"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "rp2040-boot2"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c773ec49b836077aa144b58dc7654a243e1eecdb6cf0d25361ae7c7600fabd8"
+dependencies = [
+ "crc-any",
 ]
 
 [[package]]

@@ -10,6 +10,7 @@ members = [
     "ledmatrix",
     "fl16-inputmodules",
     "inputmodule-control",
+    "qtpy",
 ]
 # Don't build all of them by default.
 # Because that'll lead to all features enabled in `fl16-inputmodules` and it
@@ -58,6 +59,12 @@ incremental = true
 opt-level = 3
 
 [profile.dev.package.b1display]
+codegen-units = 1
+incremental = true
+# To allow single-stepping through code use 0. Will cause timing issues, though
+opt-level = 3
+
+[profile.dev.package.qtpy]
 codegen-units = 1
 incremental = true
 # To allow single-stepping through code use 0. Will cause timing issues, though
