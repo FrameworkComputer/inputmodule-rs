@@ -1,4 +1,4 @@
-name: Firmware Checks
+name: Firmware
 
 on:
   push:
