@@ -109,8 +109,7 @@ fn main() -> ! {
         DEFAULT_SERIAL
     };
 
-    // TODO: Choose other ID
-    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0xFFFF))
+    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x01AF))
         .manufacturer("Adafruit")
         .product("QT PY")
         .serial_number(serialnum)
