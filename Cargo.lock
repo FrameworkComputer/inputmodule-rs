@@ -2031,10 +2031,8 @@ dependencies = [
 [[package]]
 name = "rp2040-hal-macros"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86479063e497efe1ae81995ef9071f54fd1c7427e04d6c5b84cde545ff672a5e"
+source = "git+https://github.com/FrameworkComputer/rp-hal?branch=adc-pull-down-up#ef80ceba220f0dc0f50cabeee4ed8fc3c597cf43"
 dependencies = [
- "cortex-m-rt",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
