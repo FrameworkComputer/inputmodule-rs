@@ -34,6 +34,8 @@ usbd-serial.workspace = true
 usbd-hid.workspace = true
 fugit.workspace = true
 
+usbd-human-interface-device = "0.3.1"
+
 [dependencies.fl16-inputmodules]
 path = "../fl16-inputmodules"
 features = ["keyboard"]

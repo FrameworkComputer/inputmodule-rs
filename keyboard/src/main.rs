@@ -4,6 +4,22 @@
 #![no_main]
 #![allow(clippy::needless_range_loop)]
 
+// TODO:
+// - [x] Basic keyscan
+// - [x] Send UP/LEFT/RIGHT/CAPS HID reports, DOWN to go into bootloader
+// - [x] Can go into D2 (tested on Linux)
+// - [x] Can wake host (remote wakeup)
+// - [ ] Both serial and HID keyboard as composite device
+// - [ ] Key Debouncing
+// - [ ] 1-Zone PWM backlight
+// - [ ] RGB backlight (needs new/modified Rust driver)
+// - [ ] Separate builds for different keyboard variants
+// - [ ] Measure and optimize scan frequency
+// - [ ] Implement full key matrix with all keys
+// - [ ] Implement second layer for FN (including FN lock)
+// - [ ] Persist brightness setting and FN lock through reset
+// - [ ] Media keys
+
 //use cortex_m::delay::Delay;
 //use defmt::*;
 use defmt_rtt as _;
@@ -11,6 +27,10 @@ use embedded_hal::adc::OneShot;
 use embedded_hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use rp2040_hal::gpio::bank0::Gpio28;
 use rp2040_hal::gpio::{Input, PullUp};
+use usbd_human_interface_device::device::keyboard::BootKeyboardInterface;
+use usbd_human_interface_device::page::Keyboard;
+use usbd_human_interface_device::prelude::UsbHidClassBuilder;
+use usbd_human_interface_device::UsbHidError;
 
 use core::fmt::Display;
 use core::fmt::{self, Formatter};
@@ -168,6 +188,7 @@ impl Scanner {
         self.drive_col(col, PinState::Low);
 
         self.mux.select_row(row);
+        // Let column and mux settle a bit
         cortex_m::asm::delay(2000);
         let adc_read: u16 = self.adc.0.read(&mut self.adc.1).unwrap();
 
@@ -245,7 +266,10 @@ fn main() -> ! {
     ));
 
     // Set up the USB Communications Class Device driver
-    let mut serial = SerialPort::new(&usb_bus);
+    //let mut serial = SerialPort::new(&usb_bus);
+    let mut keyboard_hid = UsbHidClassBuilder::new()
+        .add_interface(BootKeyboardInterface::default_config())
+        .build(&usb_bus);
 
     #[cfg(feature = "macropad")]
     let pid = 0x013;
@@ -272,8 +296,10 @@ fn main() -> ! {
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, pid))
         .manufacturer("Framework Computer Inc")
         .product(product)
-        //.supports_remote_wakeup(true)
-        .device_class(USB_CLASS_CDC)
+        .supports_remote_wakeup(true)
+        .device_class(0)
+        .device_sub_class(0)
+        .device_protocol(0)
         .max_power(MAX_CURRENT)
         .serial_number("testing")
         .device_release(device_release())
@@ -285,7 +311,6 @@ fn main() -> ! {
 
     // pins.gp26 // SDA
     // pins.gp27 // SCL
-    // pins.analog_in
 
     let mut caps_led = pins.caps_led.into_push_pull_output();
     let mut _backlight = pins.backlight.into_push_pull_output();
@@ -348,7 +373,8 @@ fn main() -> ! {
     //    fill_grid_pixels(&state, &mut matrix);
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
-    let mut animation_timer = timer.get_counter().ticks();
+    let mut scan_timer = timer.get_counter().ticks();
+    let mut capslock_timer = timer.get_counter().ticks();
     caps_led.set_high().unwrap();
 
     let adc = Adc::new(pac.ADC, &mut pac.RESETS);
@@ -381,49 +407,89 @@ fn main() -> ! {
 
         // Blink when in USB Suspend
         // 500_000us = 500ms = 0.5s
-        if usb_suspended && timer.get_counter().ticks() > animation_timer + 500_000 {
+        if usb_suspended && timer.get_counter().ticks() > capslock_timer + 500_000 {
             if caps_led.is_set_high().unwrap() {
                 caps_led.set_low().unwrap();
             } else {
                 caps_led.set_high().unwrap();
             }
-            animation_timer = timer.get_counter().ticks();
+            capslock_timer = timer.get_counter().ticks();
         }
 
-        if timer.get_counter().ticks() > animation_timer + 500_000 {
+        let mut keycode: Option<Keyboard> = None;
+        if timer.get_counter().ticks() > scan_timer + 250_000 {
             let left = scanner.measure_key(6, 11);
             let up = scanner.measure_key(1, 13);
             let down = scanner.measure_key(1, 8);
             let right = scanner.measure_key(2, 15);
+            let caps = scanner.measure_key(4, 4);
 
-            let mut text: String<64> = String::new();
-            write!(
-                &mut text,
-                "L:{}.{:0>3}V, R:{}.{:0>3}V, U:{}.{:0>3}V, D:{}.{:0>3}V\r\n",
-                left.0, left.1, right.0, right.1, up.0, up.1, down.0, down.1
-            )
-            .unwrap();
-            let _ = serial.write(text.as_bytes());
+            // let mut text: String<64> = String::new();
+            // write!(
+            //     &mut text,
+            //     "L:{}.{:0>3}V, R:{}.{:0>3}V, U:{}.{:0>3}V, D:{}.{:0>3}V\r\n",
+            //     left.0, left.1, right.0, right.1, up.0, up.1, down.0, down.1
+            // )
+            // .unwrap();
+            // let _ = serial.write(text.as_bytes());
 
             let left_p = left.0 < 2 || (left.0 == 2 && left.1 < 290);
             let right_p = right.0 < 2 || (right.0 == 2 && right.1 < 290);
             let up_p = up.0 < 2 || (up.0 == 2 && up.1 < 290);
-            let down_p = down.0 < 2 || (up.0 == 2 && down.1 < 290);
+            let down_p = down.0 < 2 || (down.0 == 2 && down.1 < 290);
+            let caps_p = caps.0 < 2 || (caps.0 == 2 && caps.1 < 290);
 
-            let mut text: String<64> = String::new();
-            write!(
-                &mut text,
-                "L:{:5}, R:{:5}, U:{:5}, D:{:5}\r\n",
-                left_p, right_p, up_p, down_p
-            )
-            .unwrap();
-            let _ = serial.write(text.as_bytes());
+            // let mut text: String<64> = String::new();
+            // write!(
+            //     &mut text,
+            //     "L:{:5}, R:{:5}, U:{:5}, D:{:5}\r\n",
+            //     left_p, right_p, up_p, down_p
+            // )
+            // .unwrap();
+            // let _ = serial.write(text.as_bytes());
 
-            animation_timer = timer.get_counter().ticks();
+            if left_p {
+                keycode = Some(Keyboard::LeftArrow);
+            } else if right_p {
+                keycode = Some(Keyboard::RightArrow);
+            } else if up_p {
+                keycode = Some(Keyboard::UpArrow);
+            } else if down_p {
+                keycode = None;
+                rp2040_hal::rom_data::reset_to_usb_boot(0, 0);
+            } else if caps_p {
+                keycode = Some(Keyboard::CapsLock);
+            } else {
+                keycode = None;
+            }
+
+            scan_timer = timer.get_counter().ticks();
+        }
+
+        let _ = keyboard_hid.interface().read_report();
+
+        // Setup the report for the control channel
+        let keycodes = if let Some(keycode) = keycode {
+            [keycode]
+        } else {
+            [Keyboard::NoEventIndicated]
+        };
+        match keyboard_hid.interface().write_report(keycodes) {
+            Err(UsbHidError::WouldBlock) | Err(UsbHidError::Duplicate) | Ok(_) => {}
+            Err(e) => panic!("Failed to write keyboard report: {:?}", e),
+        }
+        match keyboard_hid.interface().tick() {
+            Err(UsbHidError::WouldBlock) | Ok(_) => {}
+            Err(e) => panic!("Failed to process keyboard tick: {:?}", e),
+        }
+
+        // Wake the host.
+        if keycode.is_some() && usb_suspended && usb_dev.remote_wakeup_enabled() {
+            usb_dev.bus().remote_wakeup();
         }
 
         // Check for new data
-        if usb_dev.poll(&mut [&mut serial]) {
+        if usb_dev.poll(&mut [&mut keyboard_hid]) {
             match usb_dev.state() {
                 // Default: Device has just been created or reset
                 // Addressed: Device has received an address for the host
@@ -447,33 +513,35 @@ fn main() -> ! {
             let _ = usb_initialized;
             let _ = usb_suspended;
 
-            let kb = Matrix::default();
-            let kb = scanner.scan();
+            //let kb = Matrix::default();
+            //let kb = scanner.scan();
 
-            let mut buf = [0u8; 64];
-            match serial.read(&mut buf) {
-                Err(_e) => {
-                    // Do nothing
-                }
-                Ok(0) => {
-                    // Do nothing
-                }
-                Ok(_count) => {
-                    match buf[0] {
-                        b'r' => rp2040_hal::rom_data::reset_to_usb_boot(0, 0),
-                        _ => (),
-                    }
-                    //let mut text: String<64> = String::new();
-                    //write!(&mut text, "    01234567\r\n").unwrap();
-                    //let _ = serial.write(text.as_bytes());
+            keyboard_hid.poll();
 
-                    //for col in 0..MATRIX_COLS {
-                    //    let mut text: String<64> = String::new();
-                    //    write!(&mut text, "{:2}: {}\r\n", col, kb.0[col]).unwrap();
-                    //    let _ = serial.write(text.as_bytes());
-                    //}
-                }
-            }
+            // let mut buf = [0u8; 64];
+            // match serial.read(&mut buf) {
+            //     Err(_e) => {
+            //         // Do nothing
+            //     }
+            //     Ok(0) => {
+            //         // Do nothing
+            //     }
+            //     Ok(_count) => {
+            //         match buf[0] {
+            //             b'r' => rp2040_hal::rom_data::reset_to_usb_boot(0, 0),
+            //             _ => (),
+            //         }
+            //         //let mut text: String<64> = String::new();
+            //         //write!(&mut text, "    01234567\r\n").unwrap();
+            //         //let _ = serial.write(text.as_bytes());
+
+            //         //for col in 0..MATRIX_COLS {
+            //         //    let mut text: String<64> = String::new();
+            //         //    write!(&mut text, "{:2}: {}\r\n", col, kb.0[col]).unwrap();
+            //         //    let _ = serial.write(text.as_bytes());
+            //         //}
+            //     }
+            // }
         } else {
             match usb_dev.state() {
                 // No new data
