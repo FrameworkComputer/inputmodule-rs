@@ -1089,8 +1089,8 @@ dependencies = [
 
 [[package]]
 name = "is31fl3741"
-version = "0.2.1"
-source = "git+https://github.com/FrameworkComputer/is31fl3741-rs?branch=sw-enablement#fb88ad1baf28aa2a61bc85ff5db83c6e2b661ed5"
+version = "0.2.2"
+source = "git+https://github.com/FrameworkComputer/is31fl3741-rs?branch=is31fl3743a#1814f6a838560c7553cda34cdad4692dc5da2d5f"
 dependencies = [
  "embedded-graphics-core",
  "embedded-hal",
@@ -1169,6 +1169,7 @@ dependencies = [
  "fl16-inputmodules",
  "fugit",
  "heapless",
+ "is31fl3741",
  "rp2040-boot2",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
