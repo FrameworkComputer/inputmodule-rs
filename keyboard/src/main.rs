@@ -395,11 +395,26 @@ fn main() -> ! {
             let up = scanner.measure_key(1, 13);
             let down = scanner.measure_key(1, 8);
             let right = scanner.measure_key(2, 15);
+
             let mut text: String<64> = String::new();
             write!(
                 &mut text,
-                "L:{}.{:0>4}V, R:{}.{:0>4}V, U:{}.{:0>4}V, D:{}.{:0>4}V\r\n",
+                "L:{}.{:0>3}V, R:{}.{:0>3}V, U:{}.{:0>3}V, D:{}.{:0>3}V\r\n",
                 left.0, left.1, right.0, right.1, up.0, up.1, down.0, down.1
+            )
+            .unwrap();
+            let _ = serial.write(text.as_bytes());
+
+            let left_p = left.0 < 2 || (left.0 == 2 && left.1 < 290);
+            let right_p = right.0 < 2 || (right.0 == 2 && right.1 < 290);
+            let up_p = up.0 < 2 || (up.0 == 2 && up.1 < 290);
+            let down_p = down.0 < 2 || (up.0 == 2 && down.1 < 290);
+
+            let mut text: String<64> = String::new();
+            write!(
+                &mut text,
+                "L:{:5}, R:{:5}, U:{:5}, D:{:5}\r\n",
+                left_p, right_p, up_p, down_p
             )
             .unwrap();
             let _ = serial.write(text.as_bytes());
