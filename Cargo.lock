@@ -1090,6 +1090,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyboard"
+version = "0.1.7"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt",
+ "defmt-rtt",
+ "embedded-hal",
+ "fl16-inputmodules",
+ "fugit",
+ "heapless",
+ "rp2040-boot2",
+ "rp2040-hal",
+ "rp2040-panic-usb-boot",
+ "usb-device",
+ "usbd-hid",
+ "usbd-serial",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
