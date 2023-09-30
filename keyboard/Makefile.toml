@@ -2,11 +2,18 @@ extend = "../Makefile.toml"
 
 [tasks.uf2]
 command = "elf2uf2-rs"
-args = ["../target/thumbv6m-none-eabi/release/b1display", "../target/thumbv6m-none-eabi/release/b1display.uf2"]
+args = [
+    "../target/thumbv6m-none-eabi/release/keyboard",
+    "../target/thumbv6m-none-eabi/release/keyboard.uf2",
+]
 dependencies = ["build-release"]
 install_crate = "elf2uf2-rs"
 
 [tasks.bin]
 command = "llvm-objcopy"
-args = ["-Obinary", "../target/thumbv6m-none-eabi/release/b1display", "../target/thumbv6m-none-eabi/release/b1display.bin"]
+args = [
+    "-Obinary",
+    "../target/thumbv6m-none-eabi/release/keyboard",
+    "../target/thumbv6m-none-eabi/release/keyboard.bin",
+]
 dependencies = ["build-release"]
