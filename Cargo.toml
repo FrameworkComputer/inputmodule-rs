@@ -20,6 +20,9 @@ members = [
 # target. But we set the default target to thumbv6m-none-eabi
 default-members = ["fl16-inputmodules"]
 
+[patch.crates-io]
+rp2040-hal = { git = "https://github.com/FrameworkComputer/rp-hal", branch = "adc-pull-down-up" }
+
 [workspace.dependencies]
 cortex-m = "0.7"
 cortex-m-rt = "0.7.3"

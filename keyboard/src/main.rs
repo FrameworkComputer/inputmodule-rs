@@ -7,9 +7,24 @@
 //use cortex_m::delay::Delay;
 //use defmt::*;
 use defmt_rtt as _;
+use embedded_hal::adc::OneShot;
 use embedded_hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
+use rp2040_hal::gpio::bank0::Gpio28;
+use rp2040_hal::gpio::{Input, PullUp};
 
-use rp2040_hal::Timer;
+use core::fmt::Display;
+use core::fmt::{self, Formatter};
+
+use rp2040_hal::{
+    gpio::{
+        bank0::{
+            Gpio1, Gpio10, Gpio11, Gpio12, Gpio13, Gpio14, Gpio15, Gpio16, Gpio17, Gpio18, Gpio19,
+            Gpio2, Gpio20, Gpio21, Gpio22, Gpio23, Gpio3, Gpio8, Gpio9,
+        },
+        Output, Pin, PinState, PushPull,
+    },
+    Adc, Timer,
+};
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
@@ -43,6 +58,151 @@ use core::fmt::Write;
 use heapless::String;
 
 use fl16_inputmodules::serialnum::device_release;
+
+const MATRIX_COLS: usize = 16;
+const MATRIX_ROWS: usize = 8;
+const ADC_THRESHOLD: usize = 2900;
+
+struct Mux {
+    a: Pin<Gpio1, Output<PushPull>>,
+    b: Pin<Gpio2, Output<PushPull>>,
+    c: Pin<Gpio3, Output<PushPull>>,
+    // TODO
+    // x: Pin<Gpio3, Output<PushPull>>,
+}
+impl Mux {
+    pub fn select_row(&mut self, row: usize) {
+        let index = match row {
+            0 => 2,
+            1 => 0,
+            2 => 1,
+            _ => row,
+        };
+        self.a.set_state(PinState::from(index & 0x01 != 0)).unwrap();
+        self.b.set_state(PinState::from(index & 0x02 != 0)).unwrap();
+        self.c.set_state(PinState::from(index & 0x04 != 0)).unwrap();
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+pub struct Col(u8);
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+struct Matrix([Col; MATRIX_COLS]);
+
+impl Matrix {
+    pub fn set(&mut self, row: usize, col: usize, val: bool) {
+        let mask = 1 << row;
+
+        self.0[col].0 = if val {
+            self.0[col].0 | mask
+        } else {
+            self.0[col].0 & !mask
+        };
+    }
+}
+
+impl Display for Col {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        for row in 0..MATRIX_ROWS {
+            let val = (self.0 & (1 << row)) >> row;
+            write!(f, "{:b}", val)?
+        }
+        Ok(())
+    }
+}
+
+type Kso = (
+    Pin<Gpio8, Output<PushPull>>,
+    Pin<Gpio9, Output<PushPull>>,
+    Pin<Gpio10, Output<PushPull>>,
+    Pin<Gpio11, Output<PushPull>>,
+    Pin<Gpio12, Output<PushPull>>,
+    Pin<Gpio13, Output<PushPull>>,
+    Pin<Gpio14, Output<PushPull>>,
+    Pin<Gpio15, Output<PushPull>>,
+    Pin<Gpio21, Output<PushPull>>,
+    Pin<Gpio20, Output<PushPull>>,
+    Pin<Gpio19, Output<PushPull>>,
+    Pin<Gpio18, Output<PushPull>>,
+    Pin<Gpio17, Output<PushPull>>,
+    Pin<Gpio16, Output<PushPull>>,
+    Pin<Gpio23, Output<PushPull>>,
+    Pin<Gpio22, Output<PushPull>>,
+);
+
+struct Scanner {
+    kso: Kso,
+    mux: Mux,
+    adc: (Adc, Pin<Gpio28, Input<PullUp>>),
+}
+impl Scanner {
+    fn drive_col(&mut self, col: usize, state: PinState) {
+        match col {
+            0 => self.kso.0.set_state(state).unwrap(),
+            1 => self.kso.1.set_state(state).unwrap(),
+            2 => self.kso.2.set_state(state).unwrap(),
+            3 => self.kso.3.set_state(state).unwrap(),
+            4 => self.kso.4.set_state(state).unwrap(),
+            5 => self.kso.5.set_state(state).unwrap(),
+            6 => self.kso.6.set_state(state).unwrap(),
+            7 => self.kso.7.set_state(state).unwrap(),
+            8 => self.kso.8.set_state(state).unwrap(),
+            9 => self.kso.9.set_state(state).unwrap(),
+            10 => self.kso.10.set_state(state).unwrap(),
+            11 => self.kso.11.set_state(state).unwrap(),
+            12 => self.kso.12.set_state(state).unwrap(),
+            13 => self.kso.13.set_state(state).unwrap(),
+            14 => self.kso.14.set_state(state).unwrap(),
+            15 => self.kso.15.set_state(state).unwrap(),
+            _ => unreachable!(),
+        }
+    }
+    fn read_voltage(&mut self) -> usize {
+        let _adc_read: u16 = self.adc.0.read(&mut self.adc.1).unwrap();
+        33000
+    }
+    pub fn measure_key(&mut self, row: usize, col: usize) -> (usize, usize) {
+        for col in 0..MATRIX_COLS {
+            self.drive_col(col, PinState::High);
+        }
+        self.drive_col(col, PinState::Low);
+
+        self.mux.select_row(row);
+        cortex_m::asm::delay(2000);
+        let adc_read: u16 = self.adc.0.read(&mut self.adc.1).unwrap();
+
+        self.drive_col(col, PinState::High);
+
+        let voltage_10k = ((adc_read as usize) * 3300) / 4096;
+        (voltage_10k / 1_000, voltage_10k % 1_000)
+    }
+    pub fn scan(&mut self) -> Matrix {
+        let mut matrix = Matrix::default();
+
+        // Initialize all cols as high
+        for col in 0..MATRIX_COLS {
+            self.drive_col(col, PinState::High);
+        }
+
+        for col in 0..MATRIX_COLS {
+            self.drive_col(col, PinState::Low);
+
+            for row in 0..MATRIX_ROWS {
+                self.mux.select_row(row);
+
+                if self.read_voltage() < ADC_THRESHOLD {
+                    matrix.set(row, col, true);
+                }
+            }
+
+            self.drive_col(col, PinState::High);
+        }
+
+        matrix.set(3, 4, true);
+        matrix.set(0, 4, true);
+        matrix
+    }
+}
 
 #[entry]
 fn main() -> ! {
@@ -121,7 +281,7 @@ fn main() -> ! {
 
     // Disable bootloader circuitry
     let mut boot_done = pins.boot_done.into_push_pull_output();
-    boot_done.set_high().unwrap();
+    boot_done.set_low().unwrap();
 
     // pins.gp26 // SDA
     // pins.gp27 // SCL
@@ -133,28 +293,28 @@ fn main() -> ! {
     // Pull low to enable mux
     let mut mux_enable = pins.mux_enable.into_push_pull_output();
     mux_enable.set_low().unwrap();
-    let mut _mux_a = pins.mux_a.into_push_pull_output();
-    let mut _mux_b = pins.mux_b.into_push_pull_output();
-    let mut _mux_c = pins.mux_c.into_push_pull_output();
+    let mux_a = pins.mux_a.into_push_pull_output();
+    let mux_b = pins.mux_b.into_push_pull_output();
+    let mux_c = pins.mux_c.into_push_pull_output();
 
     // KS0 - KSO7 for Keyboard and Numpad
-    let mut _kso0 = pins.kso0.into_push_pull_output();
-    let mut _kso1 = pins.kso1.into_push_pull_output();
-    let mut _kso2 = pins.kso2.into_push_pull_output();
-    let mut _kso3 = pins.kso3.into_push_pull_output();
-    let mut _kso4 = pins.kso4.into_push_pull_output();
-    let mut _kso5 = pins.kso5.into_push_pull_output();
-    let mut _kso6 = pins.kso6.into_push_pull_output();
-    let mut _kso7 = pins.kso7.into_push_pull_output();
+    let kso0 = pins.kso0.into_push_pull_output();
+    let kso1 = pins.kso1.into_push_pull_output();
+    let kso2 = pins.kso2.into_push_pull_output();
+    let kso3 = pins.kso3.into_push_pull_output();
+    let kso4 = pins.kso4.into_push_pull_output();
+    let kso5 = pins.kso5.into_push_pull_output();
+    let kso6 = pins.kso6.into_push_pull_output();
+    let kso7 = pins.kso7.into_push_pull_output();
     // KS08 - KS015 for Keyboard only
-    let mut _kso8 = pins.kso8.into_push_pull_output();
-    let mut _kso9 = pins.kso9.into_push_pull_output();
-    let mut _kso10 = pins.kso10.into_push_pull_output();
-    let mut _kso11 = pins.kso11.into_push_pull_output();
-    let mut _kso12 = pins.kso12.into_push_pull_output();
-    let mut _kso13 = pins.kso13.into_push_pull_output();
-    let mut _kso14 = pins.kso14.into_push_pull_output();
-    let mut _kso15 = pins.kso15.into_push_pull_output();
+    let kso8 = pins.kso8.into_push_pull_output();
+    let kso9 = pins.kso9.into_push_pull_output();
+    let kso10 = pins.kso10.into_push_pull_output();
+    let kso11 = pins.kso11.into_push_pull_output();
+    let kso12 = pins.kso12.into_push_pull_output();
+    let kso13 = pins.kso13.into_push_pull_output();
+    let kso14 = pins.kso14.into_push_pull_output();
+    let kso15 = pins.kso15.into_push_pull_output();
     // Set unused pins to input to avoid interfering. They're hooked up to rows 5 and 6
     let _ = pins.ksi5_reserved.into_floating_input();
     let _ = pins.ksi6_reserved.into_floating_input();
@@ -191,6 +351,22 @@ fn main() -> ! {
     let mut animation_timer = timer.get_counter().ticks();
     caps_led.set_high().unwrap();
 
+    let adc = Adc::new(pac.ADC, &mut pac.RESETS);
+    let adc_x = pins.analog_in.into_pull_up_input();
+
+    let mut scanner = Scanner {
+        kso: (
+            kso0, kso1, kso2, kso3, kso4, kso5, kso6, kso7, kso8, kso9, kso10, kso11, kso12, kso13,
+            kso14, kso15,
+        ),
+        mux: Mux {
+            a: mux_a,
+            b: mux_b,
+            c: mux_c,
+        },
+        adc: (adc, adc_x),
+    };
+
     let mut usb_initialized;
     let mut usb_suspended = false;
     loop {
@@ -211,6 +387,23 @@ fn main() -> ! {
             } else {
                 caps_led.set_high().unwrap();
             }
+            animation_timer = timer.get_counter().ticks();
+        }
+
+        if timer.get_counter().ticks() > animation_timer + 500_000 {
+            let left = scanner.measure_key(6, 11);
+            let up = scanner.measure_key(1, 13);
+            let down = scanner.measure_key(1, 8);
+            let right = scanner.measure_key(2, 15);
+            let mut text: String<64> = String::new();
+            write!(
+                &mut text,
+                "L:{}.{:0>4}V, R:{}.{:0>4}V, U:{}.{:0>4}V, D:{}.{:0>4}V\r\n",
+                left.0, left.1, right.0, right.1, up.0, up.1, down.0, down.1
+            )
+            .unwrap();
+            let _ = serial.write(text.as_bytes());
+
             animation_timer = timer.get_counter().ticks();
         }
 
@@ -239,6 +432,9 @@ fn main() -> ! {
             let _ = usb_initialized;
             let _ = usb_suspended;
 
+            let kb = Matrix::default();
+            let kb = scanner.scan();
+
             let mut buf = [0u8; 64];
             match serial.read(&mut buf) {
                 Err(_e) => {
@@ -247,15 +443,20 @@ fn main() -> ! {
                 Ok(0) => {
                     // Do nothing
                 }
-                Ok(count) => {
-                    let mut text: String<64> = String::new();
-                    write!(
-                        &mut text,
-                        "Hello World: Usb Suspended: {}. C: {}\r\n",
-                        usb_suspended, count
-                    )
-                    .unwrap();
-                    let _ = serial.write(text.as_bytes());
+                Ok(_count) => {
+                    match buf[0] {
+                        b'r' => rp2040_hal::rom_data::reset_to_usb_boot(0, 0),
+                        _ => (),
+                    }
+                    //let mut text: String<64> = String::new();
+                    //write!(&mut text, "    01234567\r\n").unwrap();
+                    //let _ = serial.write(text.as_bytes());
+
+                    //for col in 0..MATRIX_COLS {
+                    //    let mut text: String<64> = String::new();
+                    //    write!(&mut text, "{:2}: {}\r\n", col, kb.0[col]).unwrap();
+                    //    let _ = serial.write(text.as_bytes());
+                    //}
                 }
             }
         } else {
