@@ -38,12 +38,14 @@ jobs:
       - run: cargo make --cwd ledmatrix
       - run: cargo make --cwd qtpy
       # Release version
+      - run: cargo make --cwd keyboard
       - run: cargo make --cwd ledmatrix build-release
       - run: cargo make --cwd ledmatrix build-release-10k
       - run: cargo make --cwd ledmatrix build-release-evt
       - run: cargo make --cwd b1display build-release
       - run: cargo make --cwd c1minimal build-release
       - run: cargo make --cwd qtpy build-release
+      - run: cargo make --cwd keyboard build-release
 
       - name: Convert to UF2 format
         run: |
@@ -52,6 +54,7 @@ jobs:
             cargo make --cwd b1display uf2
             cargo make --cwd c1minimal uf2
             cargo make --cwd qtpy uf2
+            cargo make --cwd keyboard uf2
             cargo make --cwd ledmatrix build-release-10k-uf2
             cargo make --cwd ledmatrix build-release-evt-uf2
             cargo make --cwd ledmatrix uf2
@@ -63,6 +66,7 @@ jobs:
             cargo make --cwd b1display bin
             cargo make --cwd qtpy bin
             cargo make --cwd c1minimal bin
+            cargo make --cwd keyboard bin
             cargo make --cwd ledmatrix bin
 
       - name: Upload ledmatrix files
@@ -94,6 +98,14 @@ jobs:
             target/thumbv6m-none-eabi/release/c1minimal.bin
             target/thumbv6m-none-eabi/release/c1minimal.uf2
 
+      - name: Upload keyboard files
+        uses: actions/upload-artifact@v3
+        with:
+          name: c1minimal_fw_${{github.sha}}
+          path: |
+            target/thumbv6m-none-eabi/release/keyboard.bin
+            target/thumbv6m-none-eabi/release/keyboard.uf2
+
   linting:
     name: Linting
     runs-on: ubuntu-latest
@@ -111,6 +123,7 @@ jobs:
           cargo make clippy --cwd b1display
           cargo make clippy --cwd qtpy
           cargo make clippy --cwd c1minimal
+          cargo make clippy --cwd keyboard
           cargo make clippy --cwd ledmatrix
 
       # fl16-inputmodules/src/serialnum.rs
@@ -123,6 +136,7 @@ jobs:
           cargo pkgid -p b1display | cut -d "#" -f2 >> versions.tmp
           cargo pkgid -p qtpy | cut -d "#" -f2 >> versions.tmp
           cargo pkgid -p c1minimal | cut -d "#" -f2 >> versions.tmp
+          cargo pkgid -p keyboard | cut -d "#" -f2 >> versions.tmp
           cargo pkgid -p ledmatrix | cut -d "#" -f2 >> versions.tmp
           uniq -c versions.tmp | [ $(wc -l) -eq 1 ]
 
@@ -138,6 +152,7 @@ jobs:
       - run: |
           cargo fmt -p b1display -- --check
           cargo fmt -p c1minimal -- --check
+          cargo fmt -p keyboard -- --check
           cargo fmt -p ledmatrix -- --check
           cargo fmt -p qtpy -- --check
           cargo fmt -p fl16-inputmodules -- --check

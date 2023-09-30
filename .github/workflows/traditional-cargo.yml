@@ -36,6 +36,7 @@ jobs:
       - run: cargo build -p ledmatrix --features evt
       - run: cargo build -p b1display
       - run: cargo build -p c1minimal
+      - run: cargo build -p keyboard
 
   linux-software:
     name: Build Linux
@@ -92,6 +93,7 @@ jobs:
         run: |
           cargo clippy -p b1display -- --deny=warnings
           cargo clippy -p c1minimal -- --deny=warnings
+          cargo clippy -p keyboard -- --deny=warnings
           cargo clippy -p ledmatrix -- --deny=warnings
           cargo clippy -p fl16-inputmodules -- --deny=warnings
 

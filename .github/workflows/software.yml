@@ -8,6 +8,7 @@ on:
     paths-ignore:
       - 'b1display/**'
       - 'c1minimal/**'
+      - 'keyboard/**'
       - 'fl16-inputmodules/**'
       - 'ledmatrix/**'
   pull_request:
@@ -16,6 +17,7 @@ on:
     paths-ignore:
       - 'b1display/**'
       - 'c1minimal/**'
+      - 'keyboard/**'
       - 'fl16-inputmodules/**'
       - 'ledmatrix/**'
 
