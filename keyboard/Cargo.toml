@@ -35,6 +35,7 @@ usbd-hid.workspace = true
 fugit.workspace = true
 
 usbd-human-interface-device = "0.3.1"
+is31fl3741.workspace = true
 
 [dependencies.fl16-inputmodules]
 path = "../fl16-inputmodules"

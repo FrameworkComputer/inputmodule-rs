@@ -12,7 +12,9 @@
 // - [ ] Both serial and HID keyboard as composite device
 // - [ ] Key Debouncing
 // - [ ] 1-Zone PWM backlight
-// - [ ] RGB backlight (needs new/modified Rust driver)
+// - [x] RGB backlight (needs new/modified Rust driver)
+//   - [x] Working (all white)
+//   - [ ] Map all LEDs
 // - [ ] Separate builds for different keyboard variants
 // - [ ] Measure and optimize scan frequency
 // - [ ] Implement full key matrix with all keys
@@ -22,15 +24,18 @@
 
 //use cortex_m::delay::Delay;
 //use defmt::*;
+use crate::rgb_matrix::{LedMatrix, DVT2_CALC_PIXEL};
 use defmt_rtt as _;
 use embedded_hal::adc::OneShot;
 use embedded_hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use rp2040_hal::gpio::bank0::Gpio28;
-use rp2040_hal::gpio::{Input, PullUp};
+use rp2040_hal::gpio::{self, Input, PullUp};
 use usbd_human_interface_device::device::keyboard::BootKeyboardInterface;
 use usbd_human_interface_device::page::Keyboard;
 use usbd_human_interface_device::prelude::UsbHidClassBuilder;
 use usbd_human_interface_device::UsbHidError;
+
+mod rgb_matrix;
 
 use core::fmt::Display;
 use core::fmt::{self, Formatter};
@@ -66,6 +71,7 @@ use bsp::hal::{
     usb,
     watchdog::Watchdog,
 };
+use fugit::RateExtU32;
 
 // USB Device support
 use usb_device::{class_prelude::*, prelude::*};
@@ -247,7 +253,7 @@ fn main() -> ! {
     let rosc = rp2040_hal::rosc::RingOscillator::new(pac.ROSC);
     let _rosc = rosc.initialize();
 
-    let mut _delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
     let pins = bsp::Pins::new(
         pac.IO_BANK0,
@@ -347,30 +353,33 @@ fn main() -> ! {
     let sleep = pins.sleep.into_floating_input();
 
     // Enable LED controller
-    // SDB
     let mut led_enable = pins.sdb.into_push_pull_output();
-    led_enable.set_low().unwrap();
-    //    led_enable.set_high().unwrap();
-    //
-    //    let i2c = bsp::hal::I2C::i2c1(
-    //        pac.I2C1,
-    //        pins.gpio26.into_mode::<gpio::FunctionI2C>(),
-    //        pins.gpio27.into_mode::<gpio::FunctionI2C>(),
-    //        1000.kHz(),
-    //        &mut pac.RESETS,
-    //        &clocks.peripheral_clock,
-    //    );
-    //
-    //    let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
-    //    matrix
-    //        .setup(&mut delay)
-    //        .expect("failed to setup RGB controller");
-    //
-    //    matrix
-    //        .set_scaling(MAX_BRIGHTNESS)
-    //        .expect("failed to set scaling");
-    //
-    //    fill_grid_pixels(&state, &mut matrix);
+    led_enable.set_high().unwrap();
+
+    let i2c = bsp::hal::I2C::i2c1(
+        pac.I2C1,
+        pins.gpio26.into_mode::<gpio::FunctionI2C>(),
+        pins.gpio27.into_mode::<gpio::FunctionI2C>(),
+        1000.kHz(),
+        &mut pac.RESETS,
+        &clocks.peripheral_clock,
+    );
+
+    let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
+
+    matrix.set_address(0b0100000);
+    matrix
+        .setup(&mut delay)
+        .expect("failed to setup RGB controller");
+    matrix.set_scaling(0xFF).expect("failed to set scaling");
+    matrix.device.fill(0xFF);
+
+    matrix.set_address(0b0100011);
+    matrix
+        .setup(&mut delay)
+        .expect("failed to setup RGB controller");
+    matrix.set_scaling(0xFF).expect("failed to set scaling");
+    matrix.device.fill(0xFF);
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut scan_timer = timer.get_counter().ticks();
