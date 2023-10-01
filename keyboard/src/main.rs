@@ -475,25 +475,6 @@ fn main() -> ! {
             scan_timer = timer.get_counter().ticks();
         }
 
-        if !usb_suspended {
-            let _ = keyboard_hid.interface().read_report();
-
-            // Setup the report for the control channel
-            let keycodes = if let Some(keycode) = keycode {
-                [keycode]
-            } else {
-                [Keyboard::NoEventIndicated]
-            };
-            match keyboard_hid.interface().write_report(keycodes) {
-                Err(UsbHidError::WouldBlock) | Err(UsbHidError::Duplicate) | Ok(_) => {}
-                Err(e) => panic!("Failed to write keyboard report: {:?}", e),
-            }
-            match keyboard_hid.interface().tick() {
-                Err(UsbHidError::WouldBlock) | Ok(_) => {}
-                Err(e) => panic!("Failed to process keyboard tick: {:?}", e),
-            }
-        }
-
         // Wake the host.
         if keycode.is_some() && usb_suspended && usb_dev.remote_wakeup_enabled() {
             usb_dev.bus().remote_wakeup();
@@ -527,7 +508,22 @@ fn main() -> ! {
             //let kb = Matrix::default();
             //let kb = scanner.scan();
 
-            keyboard_hid.poll();
+            let _ = keyboard_hid.interface().read_report();
+
+            // Setup the report for the control channel
+            let keycodes = if let Some(keycode) = keycode {
+                [keycode]
+            } else {
+                [Keyboard::NoEventIndicated]
+            };
+            match keyboard_hid.interface().write_report(keycodes) {
+                Err(UsbHidError::WouldBlock) | Err(UsbHidError::Duplicate) | Ok(_) => {}
+                Err(e) => panic!("Failed to write keyboard report: {:?}", e),
+            }
+            match keyboard_hid.interface().tick() {
+                Err(UsbHidError::WouldBlock) | Ok(_) => {}
+                Err(e) => panic!("Failed to process keyboard tick: {:?}", e),
+            }
 
             // let mut buf = [0u8; 64];
             // match serial.read(&mut buf) {
