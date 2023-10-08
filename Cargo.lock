@@ -1033,8 +1033,9 @@ dependencies = [
 
 [[package]]
 name = "is31fl3741"
-version = "0.2.1"
-source = "git+https://github.com/FrameworkComputer/is31fl3741-rs?branch=sw-enablement#fb88ad1baf28aa2a61bc85ff5db83c6e2b661ed5"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "954e34e51c5456ad555979abfdf34ee0574fdfdde2d2499404800cb51929eceb"
 dependencies = [
  "embedded-graphics-core",
  "embedded-hal",
