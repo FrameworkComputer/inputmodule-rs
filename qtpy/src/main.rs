@@ -1,4 +1,4 @@
-//! C1 Minimal Input Module
+//! QT PY RP2040 with Framework 16 Input Module Firmware
 //!
 //! Neopixel/WS2812 compatible RGB LED is connected to GPIO12.
 //! This pin doesn't support SPI TX.
@@ -53,15 +53,10 @@ pub type Ws2812<'a> = ws2812_pio::Ws2812<
 >;
 
 use fl16_inputmodules::control::*;
-use fl16_inputmodules::serialnum::{device_release, get_serialnum};
+use fl16_inputmodules::serialnum::device_release;
 
-// TODO: Need to adjust
-//                            FRA                - Framwork
-//                               000             - C1 Minimal Input Module (No assigned  value)
-//                                  AM           - Atemitech
-//                                    00         - Default Configuration
-//                                      00000000 - Device Identifier
-const DEFAULT_SERIAL: &str = "FRA000AM0000000000";
+const FRAMEWORK_VID: u16 = 0x32AC;
+const COMMUNITY_PID: u16 = 0x001F;
 
 #[entry]
 fn main() -> ! {
@@ -103,16 +98,9 @@ fn main() -> ! {
     // Set up the USB Communications Class Device driver
     let mut serial = SerialPort::new(&usb_bus);
 
-    let serialnum = if let Some(serialnum) = get_serialnum() {
-        serialnum.serialnum
-    } else {
-        DEFAULT_SERIAL
-    };
-
-    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x01AF))
+    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(FRAMEWORK_VID, COMMUNITY_PID))
         .manufacturer("Adafruit")
-        .product("QT PY")
-        .serial_number(serialnum)
+        .product("QT PY - Framework 16 Inputmodule FW")
         .max_power(500)
         .device_release(device_release())
         .device_class(USB_CLASS_CDC)
@@ -194,9 +182,6 @@ fn handle_sleep(
 
             // Turn off LED
             ws2812.write([colors::BLACK].iter().cloned()).unwrap();
-
-            // TODO: Set up SLEEP# pin as interrupt and wfi
-            //cortex_m::asm::wfi();
         }
         (SimpleSleepState::Sleeping, true) => (),
         (SimpleSleepState::Sleeping, false) => {

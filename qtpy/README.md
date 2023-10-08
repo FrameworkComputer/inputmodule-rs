@@ -1,7 +1,8 @@
 ## QT PY RP2040
 
-Easy to get started with, without having a Framework module.
-Has GPIO and WS2812/Neopixel compatible RGB LED.
+**NOT** an official Framework module.
+Just reference firmware that's easy to get started with, without having a
+Framework module. Has GPIO and WS2812/Neopixel compatible RGB LED.
 
 When booting up this LED is lit in green color.
 Its color and brightness can be controlled via the commands:

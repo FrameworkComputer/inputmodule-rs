@@ -20,7 +20,7 @@ from serial.tools import list_ports
 FWK_MAGIC = [0x32, 0xAC]
 FWK_VID = 0x32AC
 LED_MATRIX_PID = 0x20
-QTPY_PID = 0x01AF
+QTPY_PID = 0x001F
 INPUTMODULE_PIDS = [LED_MATRIX_PID, QTPY_PID]
 
 
