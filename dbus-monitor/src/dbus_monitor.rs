@@ -21,9 +21,22 @@ use clap::{Parser, Subcommand};
 
 fn handle_message(msg: &Message) {
     println!("Got message from DBus: {:?}", msg);
+    let mut iter = msg.iter_init();
+    while let Some(arg) = iter.get_refarg() {
+        // Extract the inner value as a string and convert it to a String
+        if let Some(string_ref) = arg.as_str() {
+            let string_value: String = string_ref.to_string();
+            println!("String value: {}", string_value);
 
-    run_inputmodule_command(vec!["led-matrix", "--pattern", "all-on", "--blink-n-times", "3"]);
-    run_inputmodule_command(vec!["led-matrix", "--brightness", "0"]);
+            if string_value.contains("calendar.google.com"){
+                run_inputmodule_command(vec!["led-matrix", "--pattern", "all-on", "--blink-n-times", "3"]);
+                run_inputmodule_command(vec!["led-matrix", "--brightness", "0"]);
+            }
+        } else {
+            println!("Not a string.");
+        }
+        iter.next();
+    }
 
     println!("Message handled");
 }
