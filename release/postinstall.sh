@@ -1,3 +1,3 @@
 #!/bin/bash
 
-cp -u ./ledmatrix/50-framework.rules /etc/udev/rules.d/
+cp -u ./release/50-framework-inputmodule.rules /etc/udev/rules.d/

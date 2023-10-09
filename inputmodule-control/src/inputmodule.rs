@@ -10,6 +10,7 @@ use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
 use crate::b1display::{B1Pattern, Fps, PowerMode};
 use crate::c1minimal::Color;
+use crate::commands::ClapCli;
 use crate::font::{convert_font, convert_symbol};
 use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
 
@@ -99,7 +100,7 @@ fn match_serialdevs(
     }
 }
 
-pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<String>, bool) {
+pub fn find_serialdevs(args: &ClapCli, wait_for_device: bool) -> (Vec<String>, bool) {
     let mut serialdevs: Vec<String>;
     let mut waited = false;
     loop {
@@ -151,7 +152,7 @@ pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<Str
 }
 
 /// Commands that interact with serial devices
-pub fn serial_commands(args: &crate::ClapCli) {
+pub fn serial_commands(args: &ClapCli) {
     let (serialdevs, waited): (Vec<String>, bool) = find_serialdevs(args, args.wait_for_device);
     if serialdevs.is_empty() {
         println!("Failed to find serial devivce. Please manually specify with --serial-dev");
@@ -164,7 +165,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
 
     match &args.command {
         // TODO: Handle generic commands without code deduplication
-        Some(crate::Commands::LedMatrix(ledmatrix_args)) => {
+        Some(crate::commands::Commands::LedMatrix(ledmatrix_args)) => {
             for serialdev in &serialdevs {
                 if args.verbose {
                     println!("Selected serialdev: {:?}", serialdev);
@@ -188,6 +189,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if let Some(pattern) = ledmatrix_args.pattern {
                     pattern_cmd(serialdev, pattern);
+                }
+                if let Some(blink_n_times_arg) = ledmatrix_args.blink_n_times {
+                    blink_n_cmd(&serialdevs, blink_n_times_arg);
                 }
                 if ledmatrix_args.all_brightnesses {
                     all_brightnesses_cmd(serialdev);
@@ -262,7 +266,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 clock_cmd(&serialdevs);
             }
         }
-        Some(crate::Commands::B1Display(b1display_args)) => {
+        Some(crate::commands::Commands::B1Display(b1display_args)) => {
             for serialdev in &serialdevs {
                 if args.verbose {
                     println!("Selected serialdev: {:?}", serialdev);
@@ -312,7 +316,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
             }
         }
-        Some(crate::Commands::C1Minimal(c1minimal_args)) => {
+        Some(crate::commands::Commands::C1Minimal(c1minimal_args)) => {
             for serialdev in &serialdevs {
                 if args.verbose {
                     println!("Selected serialdev: {:?}", serialdev);
@@ -548,6 +552,16 @@ fn all_brightnesses_cmd(serialdev: &str) {
 fn blinking_cmd(serialdevs: &Vec<String>) {
     let duration = Duration::from_millis(500);
     loop {
+        simple_cmd_multiple(serialdevs, Command::Brightness, &[0]);
+        thread::sleep(duration);
+        simple_cmd_multiple(serialdevs, Command::Brightness, &[200]);
+        thread::sleep(duration);
+    }
+}
+
+fn blink_n_cmd(serialdevs: &Vec<String>, blink_n_times: u8) {
+    let duration = Duration::from_millis(500);
+    for _ in 0..blink_n_times {
         simple_cmd_multiple(serialdevs, Command::Brightness, &[0]);
         thread::sleep(duration);
         simple_cmd_multiple(serialdevs, Command::Brightness, &[200]);

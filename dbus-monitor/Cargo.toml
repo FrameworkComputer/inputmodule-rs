@@ -1,0 +1,21 @@
+[package]
+edition = "2021"
+name = "framework-inputmodule-dbus-monitor"
+version = "0.0.1"
+
+[dependencies]
+dbus = { version = "0.9.7", features = ["vendored"] }
+clap = { version = "4.4.6", features = ["derive"] }
+log = "0.4"
+env_logger = "0.10.0"
+serde = { version="1.0", features = ["derive"] }
+serde_json = "1.0"
+lazy_static = "1.4"
+
+[dependencies.libdbus-sys]
+default-features = false
+features = ["vendored"]
+version = "0.2.5"
+
+[dependencies.inputmodule-control]
+path = "../inputmodule-control"
