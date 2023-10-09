@@ -837,8 +837,10 @@ version = "0.0.1"
 dependencies = [
  "clap",
  "dbus",
+ "env_logger",
  "inputmodule-control",
  "libdbus-sys",
+ "log",
 ]
 
 [[package]]
