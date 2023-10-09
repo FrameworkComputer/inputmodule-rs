@@ -22,8 +22,7 @@ use clap::{Parser, Subcommand};
 fn handle_message(msg: &Message) {
     println!("Got message from DBus: {:?}", msg);
 
-    run_inputmodule_command(vec!["led-matrix", "--pattern", "all-on", "--blinking"]);
-    // Can't seem to get to this second command
+    run_inputmodule_command(vec!["led-matrix", "--pattern", "all-on", "--blink-n-times", "3"]);
     run_inputmodule_command(vec!["led-matrix", "--brightness", "0"]);
 
     println!("Message handled");

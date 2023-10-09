@@ -70,6 +70,10 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub blinking: bool,
 
+    /// Blink the current pattern once a second, n times
+    #[arg(long)]
+    pub blink_n_times: Option<u8>,
+
     /// Breathing brightness of the current pattern
     #[arg(long)]
     pub breathing: bool,

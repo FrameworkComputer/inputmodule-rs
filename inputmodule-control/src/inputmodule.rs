@@ -190,6 +190,9 @@ pub fn serial_commands(args: &ClapCli) {
                 if let Some(pattern) = ledmatrix_args.pattern {
                     pattern_cmd(serialdev, pattern);
                 }
+                if let Some(blink_n_times_arg) = ledmatrix_args.blink_n_times {
+                    blink_n_cmd(&serialdevs, blink_n_times_arg);
+                }
                 if ledmatrix_args.all_brightnesses {
                     all_brightnesses_cmd(serialdev);
                 }
@@ -549,6 +552,16 @@ fn all_brightnesses_cmd(serialdev: &str) {
 fn blinking_cmd(serialdevs: &Vec<String>) {
     let duration = Duration::from_millis(500);
     loop {
+        simple_cmd_multiple(serialdevs, Command::Brightness, &[0]);
+        thread::sleep(duration);
+        simple_cmd_multiple(serialdevs, Command::Brightness, &[200]);
+        thread::sleep(duration);
+    }
+}
+
+fn blink_n_cmd(serialdevs: &Vec<String>, blink_n_times: u8) {
+    let duration = Duration::from_millis(500);
+    for _ in 0..blink_n_times {
         simple_cmd_multiple(serialdevs, Command::Brightness, &[0]);
         thread::sleep(duration);
         simple_cmd_multiple(serialdevs, Command::Brightness, &[200]);
