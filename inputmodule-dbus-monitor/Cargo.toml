@@ -1,0 +1,7 @@
+[package]
+edition = "2021"
+name = "inputmodule-dbus-monitor"
+version = "0.0.1"
+
+[dependencies]
+dbus = { version = "0.9.7", features = ["vendored"] }
