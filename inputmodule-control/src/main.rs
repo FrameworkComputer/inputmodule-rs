@@ -2,12 +2,12 @@
 #![allow(clippy::single_match)]
 mod b1display;
 mod c1minimal;
+mod commands;
 mod font;
 mod inputmodule;
 mod ledmatrix;
-mod commands;
 
-use clap::{Parser};
+use clap::Parser;
 use inputmodule::find_serialdevs;
 
 use crate::inputmodule::serial_commands;

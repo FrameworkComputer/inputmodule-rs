@@ -1,8 +1,6 @@
 mod dbus_monitor;
-mod utils;
 
 extern crate log;
-use log::{debug};
 use env_logger;
 
 fn main() {

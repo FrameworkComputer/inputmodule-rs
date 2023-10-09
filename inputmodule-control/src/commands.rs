@@ -1,9 +1,9 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::single_match)]
 
-use crate::inputmodule::{B1_LCD_PID, LED_MATRIX_PID};
 use crate::b1display::B1DisplaySubcommand;
 use crate::c1minimal::C1MinimalSubcommand;
+use crate::inputmodule::{B1_LCD_PID, LED_MATRIX_PID};
 use crate::ledmatrix::LedMatrixSubcommand;
 
 use clap::{Parser, Subcommand};

@@ -9,15 +9,11 @@ use dbus::message::MatchRule;
 use dbus::Message;
 use dbus::MessageType;
 
-use std::process::Command;
 use std::time::Duration;
 
-use crate::utils;
-
-use inputmodule_control::inputmodule::find_serialdevs;
+use clap::Parser;
 use inputmodule_control::commands::ClapCli;
-use inputmodule_control::inputmodule::{serial_commands};
-use clap::{Parser, Subcommand};
+use inputmodule_control::inputmodule::serial_commands;
 
 use log::debug;
 
@@ -30,8 +26,14 @@ fn handle_message(msg: &Message) {
             let string_value: String = string_ref.to_string();
             debug!("String value: {}", string_value);
 
-            if string_value.contains("calendar.google.com"){
-                run_inputmodule_command(vec!["led-matrix", "--pattern", "all-on", "--blink-n-times", "3"]);
+            if string_value.contains("calendar.google.com") {
+                run_inputmodule_command(vec![
+                    "led-matrix",
+                    "--pattern",
+                    "all-on",
+                    "--blink-n-times",
+                    "3",
+                ]);
                 run_inputmodule_command(vec!["led-matrix", "--brightness", "0"]);
             }
         }
@@ -41,11 +43,11 @@ fn handle_message(msg: &Message) {
     debug!("DBus Message handled");
 }
 
-pub fn run_inputmodule_command(args: Vec<&str>){
+pub fn run_inputmodule_command(args: Vec<&str>) {
     let bin_placeholder = vec!["bin-placeholder"];
     let full_args = [&bin_placeholder[..], &args[..]].concat();
     let args = ClapCli::parse_from(full_args);
-    
+
     serial_commands(&args);
 }
 

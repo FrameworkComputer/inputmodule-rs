@@ -10,9 +10,9 @@ use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 
 use crate::b1display::{B1Pattern, Fps, PowerMode};
 use crate::c1minimal::Color;
+use crate::commands::ClapCli;
 use crate::font::{convert_font, convert_symbol};
 use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
-use crate::commands::ClapCli;
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 pub const FRAMEWORK_VID: u16 = 0x32AC;
