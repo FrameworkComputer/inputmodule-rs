@@ -1,7 +1,9 @@
 // Mostly taken from https://github.com/diwic/dbus-rs/blob/366a6dca3d20745f5dcfa006b1b1311c376d420e/dbus/examples/monitor.rs
 
 // This programs implements the equivalent of running the "dbus-monitor" tool
-// modified to only search for messages in the org.freedesktop.Notifications interface
+// modified to only search for messages in the interface specificied in config.json,
+// and then run arbitary inputmodule-rs commands to react to them
+
 use dbus::blocking::Connection;
 use dbus::channel::MatchingReceiver;
 use dbus::message::MatchRule;
@@ -17,6 +19,40 @@ use inputmodule_control::inputmodule::serial_commands;
 
 use log::debug;
 
+use serde::{Deserialize, Serialize};
+use serde_json;
+use std::fs::File;
+use std::io::Read;
+
+use lazy_static::lazy_static;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Config {
+    dbus_interface: String,
+    dbus_member: String,
+    scan_args_for: String,
+    run_inputmodule_commands: Vec<String>,
+}
+
+fn read_config(file_path: &str) -> Result<Config, Box<dyn std::error::Error>> {
+    let mut file = File::open(file_path)?;
+    let mut config_data = String::new();
+    file.read_to_string(&mut config_data)?;
+
+    let config: Config = serde_json::from_str(&config_data)?;
+
+    Ok(config)
+}
+
+lazy_static! {
+    pub static ref CONFIG: Config = {
+        // Read and deserialize the JSON configuration
+        let config_file = "dbus-monitor/src/config.json";
+        let config = read_config(config_file).expect("Failed to read config");
+        config
+    };
+}
+
 fn handle_message(msg: &Message) {
     debug!("Got message from DBus: {:?}", msg);
 
@@ -26,15 +62,11 @@ fn handle_message(msg: &Message) {
             let string_value: String = string_ref.to_string();
             debug!("String value: {}", string_value);
 
-            if string_value.contains("calendar.google.com") {
-                run_inputmodule_command(vec![
-                    "led-matrix",
-                    "--pattern",
-                    "all-on",
-                    "--blink-n-times",
-                    "3",
-                ]);
-                run_inputmodule_command(vec!["led-matrix", "--brightness", "0"]);
+            if string_value.contains(&CONFIG.scan_args_for) {
+                for command in &CONFIG.run_inputmodule_commands {
+                    let command_vec: Vec<&str> = command.split_whitespace().collect();
+                    run_inputmodule_command(command_vec);
+                }
             }
         }
         iter.next();
@@ -56,12 +88,11 @@ pub fn run_dbus_monitor() {
     let conn = Connection::new_session().expect("D-Bus connection failed");
     debug!("Connection to DBus session monitor opened");
 
-    // Second create a rule to match messages we want to receive; in this example we add no
-    // further requirements, so all messages will match
+    // Second create a rule to match messages we want to receive
     let rule = MatchRule::new()
         .with_type(MessageType::MethodCall)
-        .with_interface("org.freedesktop.Notifications")
-        .with_member("Notify");
+        .with_interface(&CONFIG.dbus_interface)
+        .with_member(&CONFIG.dbus_member);
 
     // Try matching using new scheme
     let proxy = conn.with_proxy(

@@ -1,0 +1,10 @@
+{
+    "dbus_interface": "org.freedesktop.Notifications",
+    "dbus_member": "Notify",
+    "scan_args_for": "calendar.google.com",
+    "run_inputmodule_commands": [
+        "led-matrix --pattern all-on --blink-n-times 3",
+        "led-matrix --brightness 0"
+    ]
+}
+
