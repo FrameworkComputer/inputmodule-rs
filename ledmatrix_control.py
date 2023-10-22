@@ -573,10 +573,12 @@ def video(dev, video_file):
         scale_x = WIDTH/frame.shape[1]
         scale_y = HEIGHT/frame.shape[0]
         
-        # TODO: Currently assumes the video width is larger than the height
-        #print(frame.shape)
+        # Scale the video to 34 pixels height
         dim = (HEIGHT, int(round(frame.shape[1]*scale_y)))
-        crop_x = int(round(dim[1]/2-WIDTH/2))
+        # Find the starting position to crop the width to be centered
+        # For very narrow videos, make sure to stay in bounds
+        start_x = max(0, int(round(dim[1]/2-WIDTH/2)))
+        end_x = min(dim[1], start_x + WIDTH)
         
         processed = []
         
@@ -589,14 +591,14 @@ def video(dev, video_file):
             gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
             
             resized = cv2.resize(gray, (dim[1], dim[0]))
-            cropped = resized[0:HEIGHT, crop_x:crop_x+WIDTH]
+            cropped = resized[0:HEIGHT, start_x:end_x]
             
             processed.append(cropped)
         
         # Write it out to the module one frame at a time
         # TODO: actually control for framerate
         for frame in processed:
-            for x in range(0, WIDTH):
+            for x in range(0, cropped.shape[1]):
                 vals = [0 for _ in range(HEIGHT)]
 
                 for y in range(0, HEIGHT):
