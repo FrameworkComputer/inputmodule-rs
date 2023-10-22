@@ -197,6 +197,8 @@ def main():
                         type=argparse.FileType('rb'))
     parser.add_argument("--image-grey", help="Display a PNG or GIF image in greyscale",
                         type=argparse.FileType('rb'))
+    parser.add_argument("--video", help="Play a video",
+                        type=str)
     parser.add_argument("--percentage", help="Fill a percentage of the screen",
                         type=int)
     parser.add_argument("--clock", help="Display the current time",
@@ -340,6 +342,8 @@ def main():
         image_bl(dev, args.image)
     elif args.image_grey is not None:
         image_greyscale(dev, args.image_grey)
+    elif args.video is not None:
+        video(dev, args.video)
     elif args.all_brightnesses:
         all_brightnesses(dev)
     elif args.set_color:
@@ -558,6 +562,49 @@ def image_bl(dev, image_file):
 
     send_command(dev, CommandVals.Draw, vals)
 
+def video(dev, video_file):
+    """Resize and play back a video"""
+    with serial.Serial(dev.device, 115200) as s:
+        import cv2
+        
+        capture = cv2.VideoCapture(video_file)
+        ret, frame = capture.read()
+        
+        scale_x = WIDTH/frame.shape[1]
+        scale_y = HEIGHT/frame.shape[0]
+        
+        # TODO: Currently assumes the video width is larger than the height
+        #print(frame.shape)
+        dim = (HEIGHT, int(round(frame.shape[1]*scale_y)))
+        crop_x = int(round(dim[1]/2-WIDTH/2))
+        
+        processed = []
+        
+        # Pre-process the video into resized, cropped, grayscale frames
+        while True:
+            ret, frame = capture.read()
+            if not ret:
+                break
+                
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+            
+            resized = cv2.resize(gray, (dim[1], dim[0]))
+            cropped = resized[0:HEIGHT, crop_x:crop_x+WIDTH]
+            
+            processed.append(cropped)
+        
+        # Write it out to the module one frame at a time
+        # TODO: actually control for framerate
+        for frame in processed:
+            for x in range(0, WIDTH):
+                vals = [0 for _ in range(HEIGHT)]
+
+                for y in range(0, HEIGHT):
+                    vals[y] = frame[y, x]
+
+                send_col(s, x, vals)
+            commit_cols(s)
+    
 
 def pixel_to_brightness(pixel):
     """Calculate pixel brightness from an RGB triple"""
@@ -825,7 +872,7 @@ def game_over(dev):
         time.sleep(0.75)
 
 
-def pong_embedded():
+def pong_embedded(dev):
     # Start game
     send_command(dev, CommandVals.StartGame, [Game.Pong])
 
