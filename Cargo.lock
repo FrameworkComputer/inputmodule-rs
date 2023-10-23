@@ -1033,9 +1033,9 @@ dependencies = [
 
 [[package]]
 name = "is31fl3741"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "954e34e51c5456ad555979abfdf34ee0574fdfdde2d2499404800cb51929eceb"
+checksum = "66d02b7bcb58e9f5ef8562cec1914198f71a35aa8f90e23326b77d12502ab860"
 dependencies = [
  "embedded-graphics-core",
  "embedded-hal",
