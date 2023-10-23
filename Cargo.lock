@@ -1161,6 +1161,7 @@ dependencies = [
 name = "keyboard"
 version = "0.1.7"
 dependencies = [
+ "cfg-if",
  "cortex-m",
  "cortex-m-rt",
  "defmt",

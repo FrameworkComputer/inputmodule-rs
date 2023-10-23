@@ -367,19 +367,27 @@ fn main() -> ! {
 
     let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
 
-    matrix.set_address(0b0100000);
-    matrix
-        .setup(&mut delay)
-        .expect("failed to setup RGB controller");
-    matrix.set_scaling(0xFF).expect("failed to set scaling");
-    matrix.device.fill(0xFF);
+    cfg_if::cfg_if! {
+        if #[cfg(any(feature = "ansi", feature = "macropad"))] {
+            matrix.set_address(0b0100000);
+            matrix
+                .setup(&mut delay)
+                .expect("failed to setup RGB controller");
+            matrix.set_scaling(0xFF).expect("failed to set scaling");
+            matrix.device.fill(0xFF);
+        }
+    }
 
-    matrix.set_address(0b0100011);
-    matrix
-        .setup(&mut delay)
-        .expect("failed to setup RGB controller");
-    matrix.set_scaling(0xFF).expect("failed to set scaling");
-    matrix.device.fill(0xFF);
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "ansi")] {
+            matrix.set_address(0b0100011);
+            matrix
+                .setup(&mut delay)
+                .expect("failed to setup RGB controller");
+            matrix.set_scaling(0xFF).expect("failed to set scaling");
+            matrix.device.fill(0xFF);
+        }
+    }
 
     let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut scan_timer = timer.get_counter().ticks();
@@ -427,49 +435,61 @@ fn main() -> ! {
 
         let mut keycode: Option<Keyboard> = None;
         if timer.get_counter().ticks() > scan_timer + 250_000 {
-            let left = scanner.measure_key(6, 11);
-            let up = scanner.measure_key(1, 13);
-            let down = scanner.measure_key(1, 8);
-            let right = scanner.measure_key(2, 15);
-            let caps = scanner.measure_key(4, 4);
+            cfg_if::cfg_if! {
+                if #[cfg(any(feature = "ansi", feature = "iso", feature = "jis"))] {
+                    let left = scanner.measure_key(6, 11);
+                    let up = scanner.measure_key(1, 13);
+                    let down = scanner.measure_key(1, 8);
+                    let right = scanner.measure_key(2, 15);
+                    let caps = scanner.measure_key(4, 4);
 
-            // let mut text: String<64> = String::new();
-            // write!(
-            //     &mut text,
-            //     "L:{}.{:0>3}V, R:{}.{:0>3}V, U:{}.{:0>3}V, D:{}.{:0>3}V\r\n",
-            //     left.0, left.1, right.0, right.1, up.0, up.1, down.0, down.1
-            // )
-            // .unwrap();
-            // let _ = serial.write(text.as_bytes());
+                    let left_p = left.0 < 2 || (left.0 == 2 && left.1 < 290);
+                    let right_p = right.0 < 2 || (right.0 == 2 && right.1 < 290);
+                    let up_p = up.0 < 2 || (up.0 == 2 && up.1 < 290);
+                    let down_p = down.0 < 2 || (down.0 == 2 && down.1 < 290);
+                    let caps_p = caps.0 < 2 || (caps.0 == 2 && caps.1 < 290);
 
-            let left_p = left.0 < 2 || (left.0 == 2 && left.1 < 290);
-            let right_p = right.0 < 2 || (right.0 == 2 && right.1 < 290);
-            let up_p = up.0 < 2 || (up.0 == 2 && up.1 < 290);
-            let down_p = down.0 < 2 || (down.0 == 2 && down.1 < 290);
-            let caps_p = caps.0 < 2 || (caps.0 == 2 && caps.1 < 290);
+                    if left_p {
+                        keycode = Some(Keyboard::LeftArrow);
+                    } else if right_p {
+                        keycode = Some(Keyboard::RightArrow);
+                    } else if up_p {
+                        keycode = Some(Keyboard::UpArrow);
+                    } else if down_p {
+                        keycode = None;
+                        rp2040_hal::rom_data::reset_to_usb_boot(0, 0);
+                    } else if caps_p {
+                        keycode = Some(Keyboard::CapsLock);
+                    } else {
+                        keycode = None;
+                    }
+                }
+            }
 
-            // let mut text: String<64> = String::new();
-            // write!(
-            //     &mut text,
-            //     "L:{:5}, R:{:5}, U:{:5}, D:{:5}\r\n",
-            //     left_p, right_p, up_p, down_p
-            // )
-            // .unwrap();
-            // let _ = serial.write(text.as_bytes());
+            cfg_if::cfg_if! {
+                if #[cfg(any(feature = "numapd", feature = "macropad"))] {
+                    let one = scanner.measure_key(0, 3);
+                    let two = scanner.measure_key(0, 7);
+                    let three = scanner.measure_key(1, 4);
+                    let four = scanner.measure_key(2, 6);
 
-            if left_p {
-                keycode = Some(Keyboard::LeftArrow);
-            } else if right_p {
-                keycode = Some(Keyboard::RightArrow);
-            } else if up_p {
-                keycode = Some(Keyboard::UpArrow);
-            } else if down_p {
-                keycode = None;
-                rp2040_hal::rom_data::reset_to_usb_boot(0, 0);
-            } else if caps_p {
-                keycode = Some(Keyboard::CapsLock);
-            } else {
-                keycode = None;
+                    let one_p = one.0 < 2 || (one.0 == 2 && one.1 < 290);
+                    let two_p = two.0 < 2 || (two.0 == 2 && two.1 < 290);
+                    let three_p = three.0 < 2 || (three.0 == 2 && three.1 < 290);
+                    let four_p = four.0 < 2 || (four.0 == 2 && four.1 < 290);
+
+                    if one_p {
+                        keycode = Some(Keyboard::Keyboard1);
+                    } else if two_p {
+                        keycode = Some(Keyboard::Keyboard2);
+                    } else if three_p {
+                        keycode = Some(Keyboard::Keyboard3);
+                    } else if four_p {
+                        keycode = Some(Keyboard::Keyboard4);
+                    } else {
+                        keycode = None;
+                    }
+                }
             }
 
             scan_timer = timer.get_counter().ticks();

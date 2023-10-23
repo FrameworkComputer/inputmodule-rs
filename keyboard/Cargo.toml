@@ -37,6 +37,8 @@ fugit.workspace = true
 usbd-human-interface-device = "0.3.1"
 is31fl3741.workspace = true
 
+cfg-if = "1.0.0"
+
 [dependencies.fl16-inputmodules]
 path = "../fl16-inputmodules"
 features = ["keyboard"]
