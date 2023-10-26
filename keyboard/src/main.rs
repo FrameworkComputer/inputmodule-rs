@@ -365,7 +365,7 @@ fn main() -> ! {
         &clocks.peripheral_clock,
     );
 
-    let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
+    let mut matrix = LedMatrix::new(i2c, |_, _| 0x00);
 
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "ansi", feature = "macropad"))] {
