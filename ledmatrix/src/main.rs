@@ -106,6 +106,7 @@ const MAX_BRIGHTNESS: u8 = 255;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
+use fl16_inputmodules::animations::*;
 #[cfg(not(feature = "evt"))]
 use fl16_inputmodules::fl16::DVT2_CALC_PIXEL;
 #[cfg(feature = "evt")]
@@ -234,6 +235,10 @@ fn main() -> ! {
         animation_period: 31_250, // 31,250 us = 32 FPS
         pwm_freq: PwmFreqArg::P29k,
         debug_mode: false,
+        //upcoming_frames: Some(StartupPercentageIterator::new()),
+        //upcoming_frames: Some(ZigZagIterator::new(34)),
+        //upcoming_frames: Some(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 60)),
+        upcoming_frames: Some(BreathingIterator::new(64)),
     };
     state.debug_mode = dip1.is_low().unwrap();
     if !show_startup_animation(&state) {
@@ -275,8 +280,6 @@ fn main() -> ! {
     let mut animation_timer = timer.get_counter().ticks();
     let mut game_timer = timer.get_counter().ticks();
     let mut sleep_timer = timer.get_counter().ticks();
-
-    let mut startup_percentage = Some(0);
 
     // Detect whether the sleep pin is connected
     // Early revisions of the hardware didn't have it wired up, if that is the
@@ -367,13 +370,10 @@ fn main() -> ! {
         // Handle period display updates. Don't do it too often
         let render_again = timer.get_counter().ticks() > animation_timer + state.animation_period;
         if matches!(state.sleeping, SleepState::Awake) && render_again {
-            // On startup slowly turn the screen on - it's a pretty effect :)
-            match startup_percentage {
-                Some(p) if p <= 100 && show_startup_animation(&state) => {
-                    state.grid = percentage(p);
-                    startup_percentage = Some(p + 5);
+            if let Some(ref mut upcoming) = state.upcoming_frames {
+                if let Some(next_frame) = upcoming.next() {
+                    state.grid = next_frame;
                 }
-                _ => {}
             }
 
             fill_grid_pixels(&state, &mut matrix);
@@ -453,7 +453,7 @@ fn main() -> ! {
                             );
 
                             // If there's a very early command, cancel the startup animation
-                            startup_percentage = None;
+                            state.upcoming_frames = None;
 
                             // Reset sleep timer when interacting with the device
                             // Very easy way to keep the device from going to sleep

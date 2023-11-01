@@ -1,3 +1,4 @@
+use crate::animations::*;
 use crate::control::PwmFreqArg;
 use crate::games::game_of_life::GameOfLifeState;
 use crate::games::pong::PongState;
@@ -12,6 +13,14 @@ pub struct Grid(pub [[u8; HEIGHT]; WIDTH]);
 impl Default for Grid {
     fn default() -> Self {
         Grid([[0; HEIGHT]; WIDTH])
+    }
+}
+
+impl Grid {
+    pub fn rotate(&mut self, rotations: usize) {
+        for x in 0..WIDTH {
+            self.0[x].rotate_right(rotations);
+        }
     }
 }
 
@@ -38,6 +47,11 @@ pub struct LedmatrixState {
     /// - Sleep/wake transition is instant, no animation/fading
     /// - No automatic sleeping
     pub debug_mode: bool,
+    //pub upcoming_frames: dyn Iterator<Item = Grid>,
+    //pub upcoming_frames: Option<ZigZagIterator>,
+    //pub upcoming_frames: Option<StartupPercentageIterator>,
+    //pub upcoming_frames: Option<GameOfLifeIterator>,
+    pub upcoming_frames: Option<BreathingIterator>,
 }
 
 #[allow(clippy::large_enum_variant)]

@@ -34,6 +34,7 @@ pub fn game_step(state: &mut LedmatrixState, _random: u8) {
 }
 
 impl GameOfLifeState {
+    // TODO: Integrate Grid into GameOfLifeStartParam because it's only used in one of the enum variants
     pub fn new(param: GameOfLifeStartParam, grid: &Grid) -> Self {
         match param {
             GameOfLifeStartParam::Beacon => Self::beacon(),
@@ -197,7 +198,7 @@ impl GameOfLifeState {
         self.cells = next_generation;
     }
 
-    fn draw_matrix(&self) -> Grid {
+    pub fn draw_matrix(&self) -> Grid {
         let mut grid = Grid::default();
 
         for row in 0..HEIGHT {
