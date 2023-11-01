@@ -9,6 +9,25 @@ use crate::patterns::*;
 // - [ ] Each one has a number of frames
 // - [ ] Each one might have a different frame-rate
 
+pub enum Animation {
+    ZigZag(ZigZagIterator),
+    Gof(GameOfLifeIterator),
+    Percentage(StartupPercentageIterator),
+    Breathing(BreathingIterator),
+}
+impl Iterator for Animation {
+    type Item = Grid;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Animation::ZigZag(x) => x.next(),
+            Animation::Gof(x) => x.next(),
+            Animation::Percentage(x) => x.next(),
+            Animation::Breathing(x) => x.next(),
+        }
+    }
+}
+
 pub struct ZigZagIterator {
     frames: usize,
     current_frame: usize,

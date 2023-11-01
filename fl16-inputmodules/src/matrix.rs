@@ -47,11 +47,7 @@ pub struct LedmatrixState {
     /// - Sleep/wake transition is instant, no animation/fading
     /// - No automatic sleeping
     pub debug_mode: bool,
-    //pub upcoming_frames: dyn Iterator<Item = Grid>,
-    //pub upcoming_frames: Option<ZigZagIterator>,
-    //pub upcoming_frames: Option<StartupPercentageIterator>,
-    //pub upcoming_frames: Option<GameOfLifeIterator>,
-    pub upcoming_frames: Option<BreathingIterator>,
+    pub upcoming_frames: Option<Animation>,
 }
 
 #[allow(clippy::large_enum_variant)]

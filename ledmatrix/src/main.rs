@@ -235,13 +235,18 @@ fn main() -> ! {
         animation_period: 31_250, // 31,250 us = 32 FPS
         pwm_freq: PwmFreqArg::P29k,
         debug_mode: false,
-        //upcoming_frames: Some(StartupPercentageIterator::new()),
-        //upcoming_frames: Some(ZigZagIterator::new(34)),
-        //upcoming_frames: Some(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 60)),
-        upcoming_frames: Some(BreathingIterator::new(64)),
+        upcoming_frames: None,
     };
     state.debug_mode = dip1.is_low().unwrap();
-    if !show_startup_animation(&state) {
+    if show_startup_animation(&state) {
+        state.upcoming_frames = Some(match get_random_byte(&rosc) % 4 {
+            0 => Animation::Percentage(StartupPercentageIterator::new()),
+            1 => Animation::ZigZag(ZigZagIterator::new(34)),
+            2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 60)),
+            3 => Animation::Breathing(BreathingIterator::new(64)),
+            _ => unreachable!(),
+        });
+    } else {
         // If no startup animation, render another pattern
         // Lighting up every second column is a good pattern to test for noise.
         state.grid = every_nth_col(2);
