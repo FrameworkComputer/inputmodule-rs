@@ -1,5 +1,6 @@
 use crate::control::*;
 use crate::games::game_of_life::*;
+use crate::games::pong_animation::*;
 use crate::matrix::Grid;
 use crate::matrix::*;
 use crate::patterns::*;
@@ -14,6 +15,7 @@ pub enum Animation {
     Gof(GameOfLifeIterator),
     Percentage(StartupPercentageIterator),
     Breathing(BreathingIterator),
+    Pong(PongIterator),
 }
 impl Iterator for Animation {
     type Item = Grid;
@@ -24,6 +26,7 @@ impl Iterator for Animation {
             Animation::Gof(x) => x.next(),
             Animation::Percentage(x) => x.next(),
             Animation::Breathing(x) => x.next(),
+            Animation::Pong(x) => x.next(),
         }
     }
 }
