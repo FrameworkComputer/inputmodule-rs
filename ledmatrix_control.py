@@ -793,7 +793,7 @@ def snake_keyscan():
             direction = key
 
 
-def snake_embedded_keyscan():
+def snake_embedded_keyscan(dev):
     from getkey import getkey, keys
 
     while True:
@@ -861,7 +861,7 @@ def snake_embedded(dev):
     # Start game
     send_command(dev, CommandVals.StartGame, [Game.Snake])
 
-    snake_embedded_keyscan()
+    snake_embedded_keyscan(dev)
 
 
 def snake(dev):
