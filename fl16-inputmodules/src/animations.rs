@@ -117,7 +117,10 @@ impl Iterator for GameOfLifeIterator {
     fn next(&mut self) -> Option<Self::Item> {
         if self.frames_remaining > 0 {
             self.frames_remaining -= 1;
-            self.state.tick();
+            // Only update every 4th frame, otherwise the animation is too fast
+            if self.frames_remaining % 4 == 0 {
+                self.state.tick();
+            }
             Some(self.state.draw_matrix())
         } else {
             None
