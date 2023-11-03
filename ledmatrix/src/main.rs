@@ -242,12 +242,12 @@ fn main() -> ! {
     state.debug_mode = dip1.is_low().unwrap();
     if show_startup_animation(&state) {
         state.upcoming_frames = Some(match get_random_byte(&rosc) % 6 {
-            0 => Animation::Percentage(StartupPercentageIterator::new()),
-            1 => Animation::ZigZag(ZigZagIterator::new(34)),
+            0 => Animation::Percentage(StartupPercentageIterator::default()),
+            1 => Animation::ZigZag(ZigZagIterator::default()),
             2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 60)),
-            3 => Animation::Breathing(BreathingIterator::new(64)),
-            4 => Animation::Pong(PongIterator::new()),
-            5 => Animation::Snake(SnakeIterator::new(64)),
+            3 => Animation::Breathing(BreathingIterator::default()),
+            4 => Animation::Pong(PongIterator::default()),
+            5 => Animation::Snake(SnakeIterator::default()),
             _ => unreachable!(),
         });
     } else {

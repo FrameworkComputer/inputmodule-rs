@@ -48,6 +48,12 @@ impl ZigZagIterator {
     }
 }
 
+impl Default for ZigZagIterator {
+    fn default() -> Self {
+        Self::new(34)
+    }
+}
+
 impl Iterator for ZigZagIterator {
     type Item = Grid;
 
@@ -68,8 +74,8 @@ pub struct StartupPercentageIterator {
     current_frame: usize,
 }
 
-impl StartupPercentageIterator {
-    pub fn new() -> Self {
+impl Default for StartupPercentageIterator {
+    fn default() -> Self {
         Self {
             frames: 34,
             current_frame: 0,
@@ -130,6 +136,11 @@ impl BreathingIterator {
             frames_remaining: frames,
             current_brightness: 0,
         }
+    }
+}
+impl Default for BreathingIterator {
+    fn default() -> Self {
+        Self::new(64)
     }
 }
 

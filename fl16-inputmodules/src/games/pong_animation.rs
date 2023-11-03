@@ -8,10 +8,10 @@ pub struct PongIterator {
     current_command: usize,
 }
 
-impl PongIterator {
-    pub fn new() -> Self {
+impl Default for PongIterator {
+    fn default() -> Self {
         PongIterator {
-            state: PongState::new(),
+            state: PongState::default(),
             commands: SAMPLE_GAME,
             current_command: 0,
         }

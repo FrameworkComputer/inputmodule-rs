@@ -28,8 +28,8 @@ pub struct PongState {
     pub speed: u64,
 }
 
-impl PongState {
-    pub fn new() -> Self {
+impl Default for PongState {
+    fn default() -> Self {
         PongState {
             _score: Score {
                 _upper: 0,
@@ -43,7 +43,9 @@ impl PongState {
             speed: 0,
         }
     }
+}
 
+impl PongState {
     pub fn draw_matrix(&self) -> Grid {
         let mut grid = Grid::default();
 
@@ -123,7 +125,7 @@ impl PongState {
 }
 
 pub fn start_game(state: &mut LedmatrixState, _random: u8) {
-    state.game = Some(GameState::Pong(PongState::new()))
+    state.game = Some(GameState::Pong(PongState::default()))
 }
 pub fn handle_control(state: &mut LedmatrixState, arg: &GameControlArg) {
     if let Some(GameState::Pong(ref mut pong_state)) = state.game {

@@ -17,6 +17,11 @@ impl SnakeIterator {
         }
     }
 }
+impl Default for SnakeIterator {
+    fn default() -> Self {
+        Self::new(64)
+    }
+}
 
 impl Iterator for SnakeIterator {
     type Item = Grid;
