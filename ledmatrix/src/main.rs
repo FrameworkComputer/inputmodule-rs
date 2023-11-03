@@ -112,6 +112,7 @@ use fl16_inputmodules::fl16::DVT2_CALC_PIXEL;
 #[cfg(feature = "evt")]
 use fl16_inputmodules::fl16::EVT_CALC_PIXEL;
 use fl16_inputmodules::games::pong_animation::*;
+use fl16_inputmodules::games::snake_animation::*;
 use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
@@ -240,12 +241,13 @@ fn main() -> ! {
     };
     state.debug_mode = dip1.is_low().unwrap();
     if show_startup_animation(&state) {
-        state.upcoming_frames = Some(match get_random_byte(&rosc) % 5 {
+        state.upcoming_frames = Some(match get_random_byte(&rosc) % 6 {
             0 => Animation::Percentage(StartupPercentageIterator::new()),
             1 => Animation::ZigZag(ZigZagIterator::new(34)),
             2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 60)),
             3 => Animation::Breathing(BreathingIterator::new(64)),
             4 => Animation::Pong(PongIterator::new()),
+            5 => Animation::Snake(SnakeIterator::new(64)),
             _ => unreachable!(),
         });
     } else {
