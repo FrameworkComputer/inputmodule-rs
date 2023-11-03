@@ -98,7 +98,6 @@ impl SnakeState {
         let (x, y) = self.head;
         let mut grid = Grid::default();
 
-        // TODO: Why does it crash here? x out of range (9)
         grid.0[x as usize][y as usize] = 0xFF;
         grid.0[self.food.0 as usize][self.food.1 as usize] = 0xFF;
         for bodypart in &self.body {
@@ -137,7 +136,6 @@ pub fn game_step(state: &mut LedmatrixState, random: u8) -> (HeadDirection, bool
         if !snake_state.game_over {
             state.grid = snake_state.draw_matrix();
         }
-
         (
             snake_state.direction,
             snake_state.game_over,
