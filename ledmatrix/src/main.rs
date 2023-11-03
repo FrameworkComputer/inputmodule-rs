@@ -386,6 +386,9 @@ fn main() -> ! {
             if let Some(ref mut upcoming) = state.upcoming_frames {
                 if let Some(next_frame) = upcoming.next() {
                     state.grid = next_frame;
+                } else {
+                    // Animation is over. Clear screen
+                    state.grid = Grid::default();
                 }
             }
 
