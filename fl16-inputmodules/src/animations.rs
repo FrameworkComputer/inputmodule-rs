@@ -11,6 +11,7 @@ use crate::patterns::*;
 // - [ ] Each one has a number of frames
 // - [ ] Each one might have a different frame-rate
 
+#[allow(clippy::large_enum_variant)]
 pub enum Animation {
     ZigZag(ZigZagIterator),
     Gof(GameOfLifeIterator),
