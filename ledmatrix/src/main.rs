@@ -241,17 +241,15 @@ fn main() -> ! {
     };
     state.debug_mode = dip1.is_low().unwrap();
     if show_startup_animation(&state) {
-        state.upcoming_frames = Some(match get_random_byte(&rosc) % 10 {
+        state.upcoming_frames = Some(match get_random_byte(&rosc) % 8 {
             0 => Animation::Percentage(StartupPercentageIterator::default()),
             1 => Animation::ZigZag(ZigZagIterator::default()),
-            2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Pattern1, 60)),
-            3 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Blinker, 60)),
-            4 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Toad, 60)),
-            5 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Beacon, 60)),
-            6 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 60)),
-            7 => Animation::Breathing(BreathingIterator::default()),
-            8 => Animation::Pong(PongIterator::default()),
-            9 => Animation::Snake(SnakeIterator::default()),
+            2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Pattern1, 200)),
+            3 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::BeaconToadBlinker, 128)),
+            4 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 128)),
+            5 => Animation::Breathing(BreathingIterator::default()),
+            6 => Animation::Pong(PongIterator::default()),
+            7 => Animation::Snake(SnakeIterator::default()),
             _ => unreachable!(),
         });
     } else {
