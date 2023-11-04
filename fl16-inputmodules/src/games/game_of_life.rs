@@ -72,8 +72,9 @@ impl GameOfLifeState {
             GameOfLifeStartParam::Blinker => Self::blinker(),
             GameOfLifeStartParam::Toad => Self::toad(),
             GameOfLifeStartParam::Glider => Self::glider(),
-            GameOfLifeStartParam::BeaconToadBlinker =>
-                Self::beacon().combine(&Self::toad()).combine(&Self::blinker()),
+            GameOfLifeStartParam::BeaconToadBlinker => Self::beacon()
+                .combine(&Self::toad())
+                .combine(&Self::blinker()),
         }
     }
     fn pattern1() -> Self {

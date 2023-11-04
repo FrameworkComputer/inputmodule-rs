@@ -231,7 +231,7 @@ fn main() -> ! {
         grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
-        brightness: 51, // Default to 51/255 = 20% brightness
+        brightness: 26, // Default to 26/255 = 10% brightness
         sleeping: SleepState::Awake,
         game: None,
         animation_period: 31_250, // 31,250 us = 32 FPS
@@ -245,7 +245,10 @@ fn main() -> ! {
             0 => Animation::Percentage(StartupPercentageIterator::default()),
             1 => Animation::ZigZag(ZigZagIterator::default()),
             2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Pattern1, 200)),
-            3 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::BeaconToadBlinker, 128)),
+            3 => Animation::Gof(GameOfLifeIterator::new(
+                GameOfLifeStartParam::BeaconToadBlinker,
+                128,
+            )),
             4 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 128)),
             5 => Animation::Breathing(BreathingIterator::default()),
             6 => Animation::Pong(PongIterator::default()),
