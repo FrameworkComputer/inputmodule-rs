@@ -106,10 +106,13 @@ const MAX_BRIGHTNESS: u8 = 255;
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
+use fl16_inputmodules::animations::*;
 #[cfg(not(feature = "evt"))]
 use fl16_inputmodules::fl16::DVT2_CALC_PIXEL;
 #[cfg(feature = "evt")]
 use fl16_inputmodules::fl16::EVT_CALC_PIXEL;
+use fl16_inputmodules::games::pong_animation::*;
+use fl16_inputmodules::games::snake_animation::*;
 use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
@@ -228,15 +231,31 @@ fn main() -> ! {
         grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
-        brightness: 51, // Default to 51/255 = 20% brightness
+        brightness: 26, // Default to 26/255 = 10% brightness
         sleeping: SleepState::Awake,
         game: None,
         animation_period: 31_250, // 31,250 us = 32 FPS
         pwm_freq: PwmFreqArg::P29k,
         debug_mode: false,
+        upcoming_frames: None,
     };
     state.debug_mode = dip1.is_low().unwrap();
-    if !show_startup_animation(&state) {
+    if show_startup_animation(&state) {
+        state.upcoming_frames = Some(match get_random_byte(&rosc) % 8 {
+            0 => Animation::Percentage(StartupPercentageIterator::default()),
+            1 => Animation::ZigZag(ZigZagIterator::default()),
+            2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Pattern1, 200)),
+            3 => Animation::Gof(GameOfLifeIterator::new(
+                GameOfLifeStartParam::BeaconToadBlinker,
+                128,
+            )),
+            4 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 128)),
+            5 => Animation::Breathing(BreathingIterator::default()),
+            6 => Animation::Pong(PongIterator::default()),
+            7 => Animation::Snake(SnakeIterator::default()),
+            _ => unreachable!(),
+        });
+    } else {
         // If no startup animation, render another pattern
         // Lighting up every second column is a good pattern to test for noise.
         state.grid = every_nth_col(2);
@@ -275,8 +294,6 @@ fn main() -> ! {
     let mut animation_timer = timer.get_counter().ticks();
     let mut game_timer = timer.get_counter().ticks();
     let mut sleep_timer = timer.get_counter().ticks();
-
-    let mut startup_percentage = Some(0);
 
     // Detect whether the sleep pin is connected
     // Early revisions of the hardware didn't have it wired up, if that is the
@@ -367,13 +384,13 @@ fn main() -> ! {
         // Handle period display updates. Don't do it too often
         let render_again = timer.get_counter().ticks() > animation_timer + state.animation_period;
         if matches!(state.sleeping, SleepState::Awake) && render_again {
-            // On startup slowly turn the screen on - it's a pretty effect :)
-            match startup_percentage {
-                Some(p) if p <= 100 && show_startup_animation(&state) => {
-                    state.grid = percentage(p);
-                    startup_percentage = Some(p + 5);
+            if let Some(ref mut upcoming) = state.upcoming_frames {
+                if let Some(next_frame) = upcoming.next() {
+                    state.grid = next_frame;
+                } else {
+                    // Animation is over. Clear screen
+                    state.grid = Grid::default();
                 }
-                _ => {}
             }
 
             fill_grid_pixels(&state, &mut matrix);
@@ -453,7 +470,7 @@ fn main() -> ! {
                             );
 
                             // If there's a very early command, cancel the startup animation
-                            startup_percentage = None;
+                            state.upcoming_frames = None;
 
                             // Reset sleep timer when interacting with the device
                             // Very easy way to keep the device from going to sleep

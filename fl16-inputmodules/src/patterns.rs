@@ -277,6 +277,17 @@ pub fn percentage(percentage: u16) -> Grid {
     grid
 }
 
+/// Same as percentage but exactly n rows
+pub fn rows(n: usize) -> Grid {
+    let mut grid = Grid::default();
+    for y in (HEIGHT - n)..HEIGHT {
+        for x in 0..WIDTH {
+            grid.0[x][y] = 0xFF;
+        }
+    }
+    grid
+}
+
 /// Double sided gradient, bright in the middle, dim top and bottom
 pub fn double_gradient() -> Grid {
     let gradient_drop = 1; // Brightness drop between rows

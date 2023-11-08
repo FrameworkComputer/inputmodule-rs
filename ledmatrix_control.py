@@ -276,7 +276,7 @@ def main():
         popup(args.gui, "No device found")
         sys.exit(1)
     elif args.serial_dev is not None:
-        dev = [x for x in ports if ports.name == args.serial_dev]
+        dev = [port for port in ports if port.name == args.serial_dev][0]
     elif len(ports) == 1:
         dev = ports[0]
     elif len(ports) >= 1 and not args.gui:
@@ -793,7 +793,7 @@ def snake_keyscan():
             direction = key
 
 
-def snake_embedded_keyscan():
+def snake_embedded_keyscan(dev):
     from getkey import getkey, keys
 
     while True:
@@ -861,7 +861,7 @@ def snake_embedded(dev):
     # Start game
     send_command(dev, CommandVals.StartGame, [Game.Snake])
 
-    snake_embedded_keyscan()
+    snake_embedded_keyscan(dev)
 
 
 def snake(dev):

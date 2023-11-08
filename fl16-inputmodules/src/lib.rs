@@ -18,6 +18,8 @@ pub mod led_hal;
 #[rustfmt::skip]
 pub mod mapping;
 #[cfg(feature = "ledmatrix")]
+pub mod animations;
+#[cfg(feature = "ledmatrix")]
 pub mod matrix;
 #[cfg(feature = "ledmatrix")]
 pub mod patterns;

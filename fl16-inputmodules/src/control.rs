@@ -119,6 +119,7 @@ pub enum GameOfLifeStartParam {
     Toad = 0x03,
     Beacon = 0x04,
     Glider = 0x05,
+    BeaconToadBlinker = 0x06,
 }
 
 #[derive(Copy, Clone, num_derive::FromPrimitive)]
