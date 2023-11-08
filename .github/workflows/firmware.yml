@@ -3,7 +3,7 @@ name: Firmware
 on:
   push:
     branches:
-      - master
+      - main
       - dev-*
     paths-ignore:
       - '*.py'
