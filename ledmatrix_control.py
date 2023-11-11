@@ -197,6 +197,8 @@ def main():
                         type=argparse.FileType('rb'))
     parser.add_argument("--image-grey", help="Display a PNG or GIF image in greyscale",
                         type=argparse.FileType('rb'))
+    parser.add_argument("--camera", help="Stream from the webcam",
+                        action="store_true")
     parser.add_argument("--video", help="Play a video",
                         type=str)
     parser.add_argument("--percentage", help="Fill a percentage of the screen",
@@ -344,6 +346,8 @@ def main():
         image_bl(dev, args.image)
     elif args.image_grey is not None:
         image_greyscale(dev, args.image_grey)
+    elif args.camera:
+        camera(dev)
     elif args.video is not None:
         video(dev, args.video)
     elif args.all_brightnesses:
@@ -563,6 +567,44 @@ def image_bl(dev, image_file):
             vals[int(i/8)] |= (1 << i % 8)
 
     send_command(dev, CommandVals.Draw, vals)
+
+def camera(dev):
+    """Play a live view from the webcam, for fun"""
+    with serial.Serial(dev.device, 115200) as s:
+        import cv2
+        
+        capture = cv2.VideoCapture(0)
+        ret, frame = capture.read()
+        
+        scale_x = WIDTH/frame.shape[1]
+        scale_y = HEIGHT/frame.shape[0]
+        
+        # Scale the video to 34 pixels height
+        dim = (HEIGHT, int(round(frame.shape[1]*scale_y)))
+        # Find the starting position to crop the width to be centered
+        # For very narrow videos, make sure to stay in bounds
+        start_x = max(0, int(round(dim[1]/2-WIDTH/2)))
+        end_x = min(dim[1], start_x + WIDTH)
+                
+        # Pre-process the video into resized, cropped, grayscale frames
+        while True:
+            ret, frame = capture.read()
+            if not ret:
+                break
+                
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
+            resized = cv2.resize(gray, (dim[1], dim[0]))
+            cropped = resized[0:HEIGHT, start_x:end_x]
+            
+            for x in range(0, cropped.shape[1]):
+                vals = [0 for _ in range(HEIGHT)]
+
+                for y in range(0, HEIGHT):
+                    vals[y] = cropped[y, x]
+
+                send_col(s, x, vals)
+            commit_cols(s)
 
 def video(dev, video_file):
     """Resize and play back a video"""
