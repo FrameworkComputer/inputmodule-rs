@@ -277,7 +277,9 @@ def main():
         popup(args.gui, "No device found")
         sys.exit(1)
     elif args.serial_dev is not None:
-        dev = [x for x in ports if ports.name == args.serial_dev]
+        for x in ports:
+            if x.name == args.serial_dev:
+                dev = x
     elif len(ports) == 1:
         dev = ports[0]
     elif len(ports) >= 1 and not args.gui:
