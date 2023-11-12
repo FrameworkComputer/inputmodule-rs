@@ -1,7 +1,7 @@
 use crate::control::{GameControlArg, GameOfLifeStartParam};
 use crate::matrix::{GameState, Grid, LedmatrixState, HEIGHT, WIDTH};
 
-#[derive(Clone, Copy, num_derive::FromPrimitive)]
+#[derive(Clone, Copy, num_derive::FromPrimitive, PartialEq, Eq)]
 pub enum Cell {
     Dead = 0,
     Alive = 1,
@@ -10,6 +10,20 @@ pub enum Cell {
 #[derive(Clone)]
 pub struct GameOfLifeState {
     cells: [[Cell; WIDTH]; HEIGHT],
+}
+
+impl GameOfLifeState {
+    pub fn combine(&self, other: &Self) -> Self {
+        let mut state = self.clone();
+        for x in 0..WIDTH {
+            for y in 0..HEIGHT {
+                if other.cells[y][x] == Cell::Alive {
+                    state.cells[y][x] = Cell::Alive;
+                }
+            }
+        }
+        state
+    }
 }
 
 pub fn start_game(state: &mut LedmatrixState, _random: u8, param: GameOfLifeStartParam) {
@@ -34,6 +48,7 @@ pub fn game_step(state: &mut LedmatrixState, _random: u8) {
 }
 
 impl GameOfLifeState {
+    // TODO: Integrate Grid into GameOfLifeStartParam because it's only used in one of the enum variants
     pub fn new(param: GameOfLifeStartParam, grid: &Grid) -> Self {
         match param {
             GameOfLifeStartParam::Beacon => Self::beacon(),
@@ -57,6 +72,9 @@ impl GameOfLifeState {
             GameOfLifeStartParam::Blinker => Self::blinker(),
             GameOfLifeStartParam::Toad => Self::toad(),
             GameOfLifeStartParam::Glider => Self::glider(),
+            GameOfLifeStartParam::BeaconToadBlinker => Self::beacon()
+                .combine(&Self::toad())
+                .combine(&Self::blinker()),
         }
     }
     fn pattern1() -> Self {
@@ -81,12 +99,12 @@ impl GameOfLifeState {
         //      X
         //      X
         let mut cells = [[Cell::Dead; WIDTH]; HEIGHT];
-        cells[10][5] = Cell::Alive;
-        cells[10][6] = Cell::Alive;
-        cells[10][7] = Cell::Alive;
-        cells[14][5] = Cell::Alive;
-        cells[14][6] = Cell::Alive;
-        cells[14][7] = Cell::Alive;
+        cells[4][5] = Cell::Alive;
+        cells[4][6] = Cell::Alive;
+        cells[4][7] = Cell::Alive;
+        cells[8][5] = Cell::Alive;
+        cells[8][6] = Cell::Alive;
+        cells[8][7] = Cell::Alive;
         GameOfLifeState { cells }
     }
     fn toad() -> Self {
@@ -99,12 +117,12 @@ impl GameOfLifeState {
         // X  X
         //  X
         let mut cells = [[Cell::Dead; WIDTH]; HEIGHT];
-        cells[10][4] = Cell::Alive;
-        cells[10][5] = Cell::Alive;
-        cells[10][6] = Cell::Alive;
-        cells[11][5] = Cell::Alive;
-        cells[11][6] = Cell::Alive;
-        cells[11][7] = Cell::Alive;
+        cells[17][4] = Cell::Alive;
+        cells[17][5] = Cell::Alive;
+        cells[17][6] = Cell::Alive;
+        cells[18][5] = Cell::Alive;
+        cells[18][6] = Cell::Alive;
+        cells[18][7] = Cell::Alive;
         GameOfLifeState { cells }
     }
     fn beacon() -> Self {
@@ -119,15 +137,15 @@ impl GameOfLifeState {
         // X
         // XX
         let mut cells = [[Cell::Dead; WIDTH]; HEIGHT];
-        cells[10][4] = Cell::Alive;
-        cells[10][5] = Cell::Alive;
-        cells[11][4] = Cell::Alive;
-        cells[11][5] = Cell::Alive;
+        cells[26][4] = Cell::Alive;
+        cells[26][5] = Cell::Alive;
+        cells[27][4] = Cell::Alive;
+        cells[27][5] = Cell::Alive;
 
-        cells[12][6] = Cell::Alive;
-        cells[12][7] = Cell::Alive;
-        cells[13][6] = Cell::Alive;
-        cells[13][7] = Cell::Alive;
+        cells[28][6] = Cell::Alive;
+        cells[28][7] = Cell::Alive;
+        cells[29][6] = Cell::Alive;
+        cells[29][7] = Cell::Alive;
         GameOfLifeState { cells }
     }
 
@@ -197,7 +215,7 @@ impl GameOfLifeState {
         self.cells = next_generation;
     }
 
-    fn draw_matrix(&self) -> Grid {
+    pub fn draw_matrix(&self) -> Grid {
         let mut grid = Grid::default();
 
         for row in 0..HEIGHT {

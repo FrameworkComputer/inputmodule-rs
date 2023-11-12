@@ -11,8 +11,9 @@ See pages of the individual modules for details about how they work and how
 they're controlled.
 
 - [LED Matrix](ledmatrix/README.md)
-- [2nd Display](b1display/README.md)
 - [Minimal C1 Input Module](c1minimal/README.md)
+- [2nd Display](b1display/README.md)
+- [QT PY RP2040](qtpy/README.md)
 
 ## Generic Features
 

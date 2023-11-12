@@ -24,6 +24,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "adafruit-qt-py-rp2040"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e36e061b89c1354cab7a96173730928d67e9970ad509cd295af724abb30920b6"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "rp2040-boot2 0.2.1",
+ "rp2040-hal",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -197,7 +209,7 @@ checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
 
 [[package]]
 name = "b1display"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -208,7 +220,7 @@ dependencies = [
  "fl16-inputmodules",
  "fugit",
  "heapless",
- "rp2040-boot2",
+ "rp2040-boot2 0.3.0",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "st7306",
@@ -306,7 +318,7 @@ checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
 
 [[package]]
 name = "c1minimal"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -316,7 +328,7 @@ dependencies = [
  "fl16-inputmodules",
  "fugit",
  "heapless",
- "rp2040-boot2",
+ "rp2040-boot2 0.3.0",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
@@ -774,7 +786,7 @@ dependencies = [
 
 [[package]]
 name = "fl16-inputmodules"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -789,7 +801,7 @@ dependencies = [
  "num",
  "num-derive",
  "num-traits",
- "rp2040-boot2",
+ "rp2040-boot2 0.3.0",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
@@ -979,7 +991,7 @@ dependencies = [
 
 [[package]]
 name = "inputmodule-control"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "chrono",
  "clap",
@@ -1021,8 +1033,9 @@ dependencies = [
 
 [[package]]
 name = "is31fl3741"
-version = "0.2.1"
-source = "git+https://github.com/FrameworkComputer/is31fl3741-rs?branch=sw-enablement#fb88ad1baf28aa2a61bc85ff5db83c6e2b661ed5"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66d02b7bcb58e9f5ef8562cec1914198f71a35aa8f90e23326b77d12502ab860"
 dependencies = [
  "embedded-graphics-core",
  "embedded-hal",
@@ -1103,7 +1116,7 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "ledmatrix"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -1114,7 +1127,7 @@ dependencies = [
  "fugit",
  "heapless",
  "is31fl3741",
- "rp2040-boot2",
+ "rp2040-boot2 0.3.0",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "usb-device",
@@ -1616,6 +1629,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "qtpy"
+version = "0.1.8"
+dependencies = [
+ "adafruit-qt-py-rp2040",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt",
+ "defmt-rtt",
+ "embedded-hal",
+ "fl16-inputmodules",
+ "fugit",
+ "heapless",
+ "rp2040-boot2 0.3.0",
+ "rp2040-hal",
+ "rp2040-panic-usb-boot",
+ "smart-leds",
+ "usb-device",
+ "usbd-hid",
+ "usbd-serial",
+ "ws2812-pio",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1830,6 +1866,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20ec2d3e3fc7a92ced357df9cebd5a10b6fb2aa1ee797bf7e9ce2f17dffc8f59"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "rp2040-boot2"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c773ec49b836077aa144b58dc7654a243e1eecdb6cf0d25361ae7c7600fabd8"
+dependencies = [
+ "crc-any",
 ]
 
 [[package]]

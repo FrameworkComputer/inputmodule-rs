@@ -10,6 +10,7 @@ members = [
     "ledmatrix",
     "fl16-inputmodules",
     "inputmodule-control",
+    "qtpy",
 ]
 # Don't build all of them by default.
 # Because that'll lead to all features enabled in `fl16-inputmodules` and it
@@ -36,7 +37,7 @@ usbd-serial = "0.1.1"
 usbd-hid = "0.6.1"
 fugit = "0.3.7"
 # LED Matrix
-is31fl3741 = { git = "https://github.com/FrameworkComputer/is31fl3741-rs", branch = "sw-enablement" }
+is31fl3741 = "0.3.0"
 # B1 Display
 st7306 = { git = "https://github.com/FrameworkComputer/st7306-rs", branch = "update-deps" }
 embedded-graphics = "0.8"
@@ -58,6 +59,12 @@ incremental = true
 opt-level = 3
 
 [profile.dev.package.b1display]
+codegen-units = 1
+incremental = true
+# To allow single-stepping through code use 0. Will cause timing issues, though
+opt-level = 3
+
+[profile.dev.package.qtpy]
 codegen-units = 1
 incremental = true
 # To allow single-stepping through code use 0. Will cause timing issues, though

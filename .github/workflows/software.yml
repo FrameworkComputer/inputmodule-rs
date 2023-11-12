@@ -3,7 +3,7 @@ name: Software
 on:
   push:
     branches:
-      - master
+      - main
       - dev-*
     paths-ignore:
       - 'b1display/**'

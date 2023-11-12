@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "c1minimal"
+name = "qtpy"
 version = "0.1.8"
 
 [dependencies]
@@ -29,6 +29,10 @@ fugit.workspace = true
 smart-leds.workspace = true
 ws2812-pio.workspace = true
 
+# QT Py
+adafruit-qt-py-rp2040 = "0.6.0"
+
 [dependencies.fl16-inputmodules]
 path = "../fl16-inputmodules"
-features = [ "c1minimal" ]
+# Same feature as c1minimal
+features = [ "c1minimal", "qtpy" ]

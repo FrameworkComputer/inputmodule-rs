@@ -18,6 +18,8 @@ pub mod led_hal;
 #[rustfmt::skip]
 pub mod mapping;
 #[cfg(feature = "ledmatrix")]
+pub mod animations;
+#[cfg(feature = "ledmatrix")]
 pub mod matrix;
 #[cfg(feature = "ledmatrix")]
 pub mod patterns;
@@ -27,7 +29,7 @@ pub mod graphics;
 #[cfg(feature = "b1display")]
 pub mod lcd_hal;
 
-#[cfg(feature = "c1minimal")]
+#[cfg(all(feature = "c1minimal", not(feature = "qtpy")))]
 pub mod minimal_hal;
 
 pub mod control;

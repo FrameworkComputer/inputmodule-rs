@@ -20,7 +20,8 @@ from serial.tools import list_ports
 FWK_MAGIC = [0x32, 0xAC]
 FWK_VID = 0x32AC
 LED_MATRIX_PID = 0x20
-INPUTMODULE_PIDS = [LED_MATRIX_PID]
+QTPY_PID = 0x001F
+INPUTMODULE_PIDS = [LED_MATRIX_PID, QTPY_PID]
 
 
 class CommandVals(IntEnum):
@@ -279,9 +280,7 @@ def main():
         popup(args.gui, "No device found")
         sys.exit(1)
     elif args.serial_dev is not None:
-        for x in ports:
-            if x.name == args.serial_dev:
-                dev = x
+        dev = [port for port in ports if port.name == args.serial_dev][0]
     elif len(ports) == 1:
         dev = ports[0]
     elif len(ports) >= 1 and not args.gui:
@@ -707,12 +706,12 @@ def commit_cols(s):
     send_serial(s, command)
 
 
-def get_color():
+def get_color(dev):
     res = send_command(dev, CommandVals.SetColor, with_response=True)
     return (int(res[0]), int(res[1]), int(res[2]))
 
 
-def set_color(color):
+def set_color(dev, color):
     rgb = None
     if color == 'white':
         rgb = [0xFF, 0xFF, 0xFF]
@@ -885,7 +884,7 @@ def snake_keyscan():
             direction = key
 
 
-def snake_embedded_keyscan():
+def snake_embedded_keyscan(dev):
     from getkey import getkey, keys
 
     while True:
@@ -942,18 +941,18 @@ def pong_embedded(dev):
             send_command(dev, CommandVals.GameControl, [key_arg])
 
 
-def game_of_life_embedded(arg):
+def game_of_life_embedded(dev, arg):
     # Start game
     # TODO: Add a way to stop it
     print("Game", int(arg))
     send_command(dev, CommandVals.StartGame, [Game.GameOfLife, int(arg)])
 
 
-def snake_embedded():
+def snake_embedded(dev):
     # Start game
     send_command(dev, CommandVals.StartGame, [Game.Snake])
 
-    snake_embedded_keyscan()
+    snake_embedded_keyscan(dev)
 
 
 def snake(dev):
@@ -1031,7 +1030,7 @@ def snake(dev):
         render_matrix(dev, matrix)
 
 
-def wpm_demo():
+def wpm_demo(dev):
     """Capture keypresses and calculate the WPM of the last 10 seconds
     TODO: I'm not sure my calculation is right."""
     from getkey import getkey, keys
@@ -1456,81 +1455,81 @@ def gui(devices):
         #sg.popup_error_with_traceback(f'An error happened.  Here is the info:', e)
 
 
-def display_string(disp_str):
+def display_string(dev, disp_str):
     b = [ord(x) for x in disp_str]
-    send_command(CommandVals.SetText, [len(disp_str)] + b)
+    send_command(dev, CommandVals.SetText, [len(disp_str)] + b)
 
 
-def display_on_cmd(on):
-    send_command(CommandVals.DisplayOn, [on])
+def display_on_cmd(dev, on):
+    send_command(dev, CommandVals.DisplayOn, [on])
 
 
-def invert_screen_cmd(invert):
-    send_command(CommandVals.InvertScreen, [invert])
+def invert_screen_cmd(dev, invert):
+    send_command(dev, CommandVals.InvertScreen, [invert])
 
 
-def screen_saver_cmd(on):
-    send_command(CommandVals.ScreenSaver, [on])
+def screen_saver_cmd(dev, on):
+    send_command(dev, CommandVals.ScreenSaver, [on])
 
 
-def set_fps_cmd(mode):
-    res = send_command(CommandVals.SetFps, with_response=True)
+def set_fps_cmd(dev, mode):
+    res = send_command(dev, CommandVals.SetFps, with_response=True)
     current_fps = res[0]
 
     if mode == 'quarter':
         fps = current_fps & ~LOW_FPS_MASK
         fps |= 0b000
-        send_command(CommandVals.SetFps, [fps])
+        send_command(dev, CommandVals.SetFps, [fps])
         set_power_mode_cmd('low')
     elif mode == 'half':
         fps = current_fps & ~LOW_FPS_MASK
         fps |= 0b001
-        send_command(CommandVals.SetFps, [fps])
+        send_command(dev, CommandVals.SetFps, [fps])
         set_power_mode_cmd('low')
     elif mode == 'one':
         fps = current_fps & ~LOW_FPS_MASK
         fps |= 0b010
-        send_command(CommandVals.SetFps, [fps])
+        send_command(dev, CommandVals.SetFps, [fps])
         set_power_mode_cmd('low')
     elif mode == 'two':
         fps = current_fps & ~LOW_FPS_MASK
         fps |= 0b011
-        send_command(CommandVals.SetFps, [fps])
+        send_command(dev, CommandVals.SetFps, [fps])
         set_power_mode_cmd('low')
     elif mode == 'four':
         fps = current_fps & ~LOW_FPS_MASK
         fps |= 0b100
-        send_command(CommandVals.SetFps, [fps])
+        send_command(dev, CommandVals.SetFps, [fps])
         set_power_mode_cmd('low')
     elif mode == 'eight':
         fps = current_fps & ~LOW_FPS_MASK
         fps |= 0b101
-        send_command(CommandVals.SetFps, [fps])
+        send_command(dev, CommandVals.SetFps, [fps])
         set_power_mode_cmd('low')
     elif mode == 'sixteen':
         fps = current_fps & ~HIGH_FPS_MASK
         fps |= 0b00000000
-        send_command(CommandVals.SetFps, [fps])
+        send_command(dev, CommandVals.SetFps, [fps])
         set_power_mode_cmd('high')
     elif mode == 'thirtytwo':
         fps = current_fps & ~HIGH_FPS_MASK
         fps |= 0b00010000
-        send_command(CommandVals.SetFps, [fps])
+        send_command(dev, CommandVals.SetFps, [fps])
         set_power_mode_cmd('high')
 
 
-def set_power_mode_cmd(mode):
+def set_power_mode_cmd(dev, mode):
     if mode == 'low':
-        send_command(CommandVals.SetPowerMode, [0])
+        send_command(dev, CommandVals.SetPowerMode, [0])
     elif mode == 'high':
-        send_command(CommandVals.SetPowerMode, [1])
+        send_command(dev, CommandVals.SetPowerMode, [1])
     else:
         print("Unsupported power mode")
         sys.exit(1)
 
 
-def get_power_mode_cmd():
-    res = send_command(CommandVals.SetPowerMode, with_response=True)
+def get_power_mode_cmd(dev):
+    res = send_command(dev, CommandVals.SetPowerMode, with_response=True)
     current_mode = int(res[0])
     if current_mode == 0:
         print(f"Current Power Mode: Low Power")
@@ -1538,10 +1537,10 @@ def get_power_mode_cmd():
         print(f"Current Power Mode: High Power")
 
 
-def get_fps_cmd():
-    res = send_command(CommandVals.SetFps, with_response=True)
+def get_fps_cmd(dev):
+    res = send_command(dev, CommandVals.SetFps, with_response=True)
     current_fps = res[0]
-    res = send_command(CommandVals.SetPowerMode, with_response=True)
+    res = send_command(dev, CommandVals.SetPowerMode, with_response=True)
     current_mode = int(res[0])
 
     if current_mode == 0:
@@ -2087,6 +2086,14 @@ def convert_font(num):
             0, 1, 0, 1, 0,
             0, 1, 0, 1, 0,
         ],
+        'X': [
+            1, 0, 0, 0, 1,
+            0, 1, 0, 1, 0,
+            0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0,
+            0, 1, 0, 1, 0,
+            1, 0, 0, 0, 1,
+        ],
         'Y': [
             1, 0, 0, 0, 1,
             1, 0, 0, 0, 1,
@@ -2101,6 +2108,30 @@ def convert_font(num):
             0, 0, 1, 0, 0,
             0, 1, 0, 0, 0,
             1, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+        ],
+        'Ä': [
+            0, 1, 0, 1, 0,
+            0, 0, 0, 0, 0,
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 1,
+            1, 1, 1, 1, 1,
+            1, 0, 0, 0, 1,
+        ],
+        'Ö': [
+            0, 1, 0, 1, 0,
+            0, 0, 0, 0, 0,
+            0, 1, 1, 1, 0,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            0, 1, 1, 1, 0,
+        ],
+        'Ü': [
+            0, 1, 0, 1, 0,
+            0, 0, 0, 0, 0,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
+            1, 0, 0, 0, 1,
             1, 1, 1, 1, 1,
         ],
     }

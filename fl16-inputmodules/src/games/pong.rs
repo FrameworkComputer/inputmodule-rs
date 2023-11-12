@@ -28,45 +28,110 @@ pub struct PongState {
     pub speed: u64,
 }
 
+impl Default for PongState {
+    fn default() -> Self {
+        PongState {
+            _score: Score {
+                _upper: 0,
+                _lower: 0,
+            },
+            ball: Ball {
+                pos: (4, 20),
+                direction: (0, 1),
+            },
+            paddles: (PADDLE_WIDTH / 2, PADDLE_WIDTH / 2),
+            speed: 0,
+        }
+    }
+}
+
+impl PongState {
+    pub fn draw_matrix(&self) -> Grid {
+        let mut grid = Grid::default();
+
+        for x in self.paddles.0..self.paddles.0 + PADDLE_WIDTH {
+            grid.0[x][0] = 0xFF;
+        }
+        for x in self.paddles.1..self.paddles.1 + PADDLE_WIDTH {
+            grid.0[x][HEIGHT - 1] = 0xFF;
+        }
+        grid.0[self.ball.pos.0][self.ball.pos.1] = 0xFF;
+
+        grid
+    }
+
+    pub fn tick(&mut self) {
+        self.ball.pos = {
+            let (vx, vy) = self.ball.direction;
+            let (x, y) = add_velocity(self.ball.pos, self.ball.direction);
+            let x = if x > WIDTH - 1 { WIDTH - 1 } else { x };
+            if x == 0 || x == WIDTH - 1 {
+                // Hit wall, bounce back
+                self.ball.direction = (-vx, vy);
+            }
+
+            let y = if y > HEIGHT - 1 { HEIGHT - 1 } else { y };
+            let (x, y) = if let Some(paddle_hit) = hit_paddle((x, y), self.paddles) {
+                // Hit paddle, bounce back
+                // TODO: Change vy direction slightly depending on where the paddle was hit
+                let (vx, vy) = self.ball.direction;
+                self.ball.direction = match paddle_hit {
+                    0 => (vx - 2, -vy),
+                    1 => (vx - 1, -vy),
+                    2 => (vx, -vy),
+                    3 => (vx + 1, -vy),
+                    4 => (vx + 2, -vy),
+                    // Shouldn't occur
+                    _ => (vx, -vy),
+                };
+                // TODO: Not sure if I want the speed to change. Speed by angle change is already high enough
+                //self.speed += 1;
+                (x, y)
+            } else if y == 0 || y == HEIGHT - 1 {
+                self.speed = 0;
+                self.ball.direction = (1, 1); //random_v(random);
+                (WIDTH / 2, HEIGHT / 2)
+            } else {
+                (x, y)
+            };
+            (x, y)
+        };
+    }
+    pub fn handle_control(&mut self, arg: &GameControlArg) {
+        match arg {
+            GameControlArg::Left => {
+                if self.paddles.0 + PADDLE_WIDTH < WIDTH {
+                    self.paddles.0 += 1;
+                }
+            }
+            GameControlArg::Right => {
+                if self.paddles.0 >= 1 {
+                    self.paddles.0 -= 1;
+                }
+            }
+            GameControlArg::SecondLeft => {
+                if self.paddles.1 + PADDLE_WIDTH < WIDTH {
+                    self.paddles.1 += 1;
+                }
+            }
+            GameControlArg::SecondRight => {
+                if self.paddles.1 >= 1 {
+                    self.paddles.1 -= 1;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 pub fn start_game(state: &mut LedmatrixState, _random: u8) {
-    state.game = Some(GameState::Pong(PongState {
-        _score: Score {
-            _upper: 0,
-            _lower: 0,
-        },
-        ball: Ball {
-            pos: (4, 20),
-            direction: (0, 1),
-        },
-        paddles: (PADDLE_WIDTH / 2, PADDLE_WIDTH / 2),
-        speed: 0,
-    }))
+    state.game = Some(GameState::Pong(PongState::default()))
 }
 pub fn handle_control(state: &mut LedmatrixState, arg: &GameControlArg) {
     if let Some(GameState::Pong(ref mut pong_state)) = state.game {
         match arg {
-            GameControlArg::Left => {
-                if pong_state.paddles.0 + PADDLE_WIDTH < WIDTH {
-                    pong_state.paddles.0 += 1;
-                }
-            }
-            GameControlArg::Right => {
-                if pong_state.paddles.0 >= 1 {
-                    pong_state.paddles.0 -= 1;
-                }
-            }
-            GameControlArg::SecondLeft => {
-                if pong_state.paddles.1 + PADDLE_WIDTH < WIDTH {
-                    pong_state.paddles.1 += 1;
-                }
-            }
-            GameControlArg::SecondRight => {
-                if pong_state.paddles.1 >= 1 {
-                    pong_state.paddles.1 -= 1;
-                }
-            }
             GameControlArg::Exit => state.game = None,
-            _ => {}
+            _ => pong_state.handle_control(arg),
         }
     }
 }
@@ -98,55 +163,7 @@ fn hit_paddle(ball: Position, paddles: (usize, usize)) -> Option<usize> {
 
 pub fn game_step(state: &mut LedmatrixState, _random: u8) {
     if let Some(GameState::Pong(ref mut pong_state)) = state.game {
-        pong_state.ball.pos = {
-            let (vx, vy) = pong_state.ball.direction;
-            let (x, y) = add_velocity(pong_state.ball.pos, pong_state.ball.direction);
-            let x = if x > WIDTH - 1 { WIDTH - 1 } else { x };
-            if x == 0 || x == WIDTH - 1 {
-                // Hit wall, bounce back
-                pong_state.ball.direction = (-vx, vy);
-            }
-
-            let y = if y > HEIGHT - 1 { HEIGHT - 1 } else { y };
-            let (x, y) = if let Some(paddle_hit) = hit_paddle((x, y), pong_state.paddles) {
-                // Hit paddle, bounce back
-                // TODO: Change vy direction slightly depending on where the paddle was hit
-                let (vx, vy) = pong_state.ball.direction;
-                pong_state.ball.direction = match paddle_hit {
-                    0 => (vx - 2, -vy),
-                    1 => (vx - 1, -vy),
-                    2 => (vx, -vy),
-                    3 => (vx + 1, -vy),
-                    4 => (vx + 2, -vy),
-                    // Shouldn't occur
-                    _ => (vx, -vy),
-                };
-                // TODO: Not sure if I want the speed to change. Speed by angle change is already high enough
-                //pong_state.speed += 1;
-                (x, y)
-            } else if y == 0 || y == HEIGHT - 1 {
-                pong_state.speed = 0;
-                pong_state.ball.direction = (1, 1); //random_v(random);
-                (WIDTH / 2, HEIGHT / 2)
-            } else {
-                (x, y)
-            };
-            (x, y)
-        };
-        state.grid = draw_matrix(pong_state);
+        pong_state.tick();
+        state.grid = pong_state.draw_matrix();
     }
-}
-
-fn draw_matrix(state: &PongState) -> Grid {
-    let mut grid = Grid::default();
-
-    for x in state.paddles.0..state.paddles.0 + PADDLE_WIDTH {
-        grid.0[x][0] = 0xFF;
-    }
-    for x in state.paddles.1..state.paddles.1 + PADDLE_WIDTH {
-        grid.0[x][HEIGHT - 1] = 0xFF;
-    }
-    grid.0[state.ball.pos.0][state.ball.pos.1] = 0xFF;
-
-    grid
 }
