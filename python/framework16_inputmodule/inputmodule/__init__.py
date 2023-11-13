@@ -2,7 +2,7 @@ from enum import IntEnum
 import serial
 
 # TODO: Make independent from GUI
-from framework16_inputmodules.gui.gui_threading import disconnect_dev
+from framework16_inputmodule.gui.gui_threading import disconnect_dev
 
 FWK_MAGIC = [0x32, 0xAC]
 FWK_VID = 0x32AC

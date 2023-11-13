@@ -4,13 +4,13 @@ from datetime import datetime, timedelta
 import time
 import threading
 
-from framework16_inputmodules.inputmodule import (
+from framework16_inputmodule.inputmodule import (
     GameControlVal,
     send_command,
     CommandVals,
     Game,
 )
-from framework16_inputmodules.inputmodule.ledmatrix import (
+from framework16_inputmodule.inputmodule.ledmatrix import (
     show_string,
     WIDTH,
     HEIGHT,

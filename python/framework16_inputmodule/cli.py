@@ -6,8 +6,8 @@ import sys
 from serial.tools import list_ports
 
 # Local dependencies
-from framework16_inputmodules import gui
-from framework16_inputmodules.inputmodule import (
+from framework16_inputmodule import gui
+from framework16_inputmodule.inputmodule import (
     INPUTMODULE_PIDS,
     send_command,
     get_version,
@@ -18,15 +18,15 @@ from framework16_inputmodules.inputmodule import (
     GameOfLifeStartParam,
     GameControlVal,
 )
-from framework16_inputmodules.gui.games import (
+from framework16_inputmodule.gui.games import (
     snake,
     snake_embedded,
     pong_embedded,
     game_of_life_embedded,
     wpm_demo,
 )
-from framework16_inputmodules.gui.ledmatrix import random_eq, clock, blinking
-from framework16_inputmodules.inputmodule.ledmatrix import (
+from framework16_inputmodule.gui.ledmatrix import random_eq, clock, blinking
+from framework16_inputmodule.inputmodule.ledmatrix import (
     eq,
     breathing,
     camera,
@@ -44,7 +44,7 @@ from framework16_inputmodules.inputmodule.ledmatrix import (
     image_bl,
     image_greyscale,
 )
-from framework16_inputmodules.inputmodule.b1display import (
+from framework16_inputmodule.inputmodule.b1display import (
     b1image_bl,
     invert_screen_cmd,
     screen_saver_cmd,
@@ -56,7 +56,7 @@ from framework16_inputmodules.inputmodule.b1display import (
     display_on_cmd,
     display_string,
 )
-from framework16_inputmodules.inputmodule.c1minimal import (
+from framework16_inputmodule.inputmodule.c1minimal import (
     set_color,
     get_color,
     RGB_COLORS,
