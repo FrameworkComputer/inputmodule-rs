@@ -43,11 +43,11 @@ ledmatrixctl = "framework16_inputmodule.cli:main_cli"
 [project.gui-scripts]
 ledmatrixgui = "framework16_inputmodule.cli:main_gui"
 
-[tool.hatch.version]
-source = "vcs"
-
-[tool.hatch.build.hooks.vcs]
-version-file = "framework16_inputmodule/_version.py"
+#[tool.hatch.version]
+#source = "vcs"
+#
+#[tool.hatch.build.hooks.vcs]
+#version-file = "framework16_inputmodule/_version.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = [
