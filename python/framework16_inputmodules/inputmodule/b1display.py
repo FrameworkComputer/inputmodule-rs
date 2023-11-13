@@ -1,6 +1,6 @@
 import sys
 
-from inputmodule import send_command, CommandVals, FWK_MAGIC
+from framework16_inputmodules.inputmodule import send_command, CommandVals, FWK_MAGIC
 
 B1_WIDTH = 300
 B1_HEIGHT = 400

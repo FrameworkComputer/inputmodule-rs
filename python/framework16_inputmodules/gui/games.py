@@ -4,8 +4,18 @@ from datetime import datetime, timedelta
 import time
 import threading
 
-from inputmodule import GameControlVal, send_command, CommandVals, Game
-from inputmodule.ledmatrix import show_string, WIDTH, HEIGHT, render_matrix
+from framework16_inputmodules.inputmodule import (
+    GameControlVal,
+    send_command,
+    CommandVals,
+    Game,
+)
+from framework16_inputmodules.inputmodule.ledmatrix import (
+    show_string,
+    WIDTH,
+    HEIGHT,
+    render_matrix,
+)
 
 # Constants
 ARG_UP = 0

@@ -21,6 +21,9 @@ message.bin
 # Python
 __pycache__
 
+# Hatch
+_version.py
+
 # pyinstaller
 build/
 dist/
