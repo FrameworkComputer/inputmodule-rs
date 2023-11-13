@@ -1,0 +1,136 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "framework16-inputmodule"
+dynamic = ["version"]
+description = 'A library to control input modules on the Framework 16 Laptop'
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT" }
+keywords = [
+  "hatch",
+]
+authors = [
+  { name = "Daniel Schaefer", email = "dhs@frame.work" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "pyserial>=3.5",
+]
+
+[project.urls]
+Issues = "https://github.com/FrameworkComputer/inputmodule-rs/issues"
+Source = "https://github.com/FrameworkComputer/inputmodule-rs"
+
+# TODO: Figure out how to add a runnable-script
+# [project.scripts]
+# hatch-showcase = "hatch_showcase.cli:hatch_showcase"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/hatch_showcase/_version.py"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.github",
+]
+
+# TODO: Maybe typing with mypy
+# [tool.hatch.build.targets.wheel.hooks.mypyc]
+# enable-by-default = false
+# dependencies = ["hatch-mypyc>=0.14.1"]
+# require-runtime-dependencies = true
+# mypy-args = [
+#   "--no-warn-unused-ignores",
+# ]
+# 
+# [tool.mypy]
+# disallow_untyped_defs = false
+# follow_imports = "normal"
+# ignore_missing_imports = true
+# pretty = true
+# show_column_numbers = true
+# warn_no_return = false
+# warn_unused_ignores = true
+
+# TODO: Code formatting
+# [tool.black]
+# target-version = ["py37"]
+# line-length = 120
+# skip-string-normalization = true
+# 
+# [tool.ruff]
+# target-version = "py37"
+# line-length = 120
+# select = [
+#   "A",
+#   "B",
+#   "C",
+#   "DTZ",
+#   "E",
+#   "EM",
+#   "F",
+#   "FBT",
+#   "I",
+#   "ICN",
+#   "ISC",
+#   "N",
+#   "PLC",
+#   "PLE",
+#   "PLR",
+#   "PLW",
+#   "Q",
+#   "RUF",
+#   "S",
+#   "SIM",
+#   "T",
+#   "TID",
+#   "UP",
+#   "W",
+#   "YTT",
+# ]
+# ignore = [
+#   # Allow non-abstract empty methods in abstract base classes
+#   "B027",
+#   # Allow boolean positional values in function calls, like `dict.get(... True)`
+#   "FBT003",
+#   # Ignore checks for possible passwords
+#   "S105", "S106", "S107",
+#   # Ignore complexity
+#   "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+#   "PLC1901", # empty string comparisons
+#   "PLW2901", # `for` loop variable overwritten
+#   "SIM114", # Combine `if` branches using logical `or` operator
+# ]
+# unfixable = [
+#   # Don't touch unused imports
+#   "F401",
+# ]
+# 
+# [tool.ruff.isort]
+# known-first-party = ["hatch_showcase"]
+# 
+# [tool.ruff.flake8-quotes]
+# inline-quotes = "single"
+# 
+# [tool.ruff.flake8-tidy-imports]
+# ban-relative-imports = "all"
+# 
+# [tool.ruff.per-file-ignores]
+# # Tests can use relative imports and assertions
+# "tests/**/*" = ["TID252", "S101"]
