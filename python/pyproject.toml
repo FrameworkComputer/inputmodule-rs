@@ -3,7 +3,7 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "framework16-inputmodule"
+name = "framework16_inputmodule"
 # TODO: Dynamic version from git (requires tags)
 #dynamic = ["version"]
 version = "0.1.0"
@@ -38,16 +38,16 @@ Source = "https://github.com/FrameworkComputer/inputmodule-rs"
 
 # TODO: Figure out how to add a runnable-script
 [project.scripts]
-ledmatrixctl = "framework16_inputmodules.cli:main_cli"
+ledmatrixctl = "framework16_inputmodule.cli:main_cli"
 
 [project.gui-scripts]
-ledmatrixgui = "framework16_inputmodules.cli:main_gui"
+ledmatrixgui = "framework16_inputmodule.cli:main_gui"
 
 [tool.hatch.version]
 source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
-version-file = "framework16_inputmodules/_version.py"
+version-file = "framework16_inputmodule/_version.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = [

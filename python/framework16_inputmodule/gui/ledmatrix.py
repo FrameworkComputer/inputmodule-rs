@@ -2,18 +2,18 @@ from datetime import datetime, timedelta
 import time
 import random
 
-from framework16_inputmodules.gui.gui_threading import (
+from framework16_inputmodule.gui.gui_threading import (
     reset_thread,
     is_thread_stopped,
     is_dev_disconnected,
 )
-from framework16_inputmodules.inputmodule.ledmatrix import (
+from framework16_inputmodule.inputmodule.ledmatrix import (
     light_leds,
     show_string,
     eq,
     breathing,
 )
-from framework16_inputmodules.inputmodule import brightness
+from framework16_inputmodule.inputmodule import brightness
 
 
 def countdown(dev, seconds):
