@@ -18,6 +18,9 @@ venv
 # Panic dump
 message.bin
 
+# Python
+__pycache__
+
 # pyinstaller
 build/
 dist/
