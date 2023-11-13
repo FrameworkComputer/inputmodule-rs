@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import math
 import os
 import random
 import sys
@@ -602,8 +601,8 @@ def camera(dev):
                 for y in range(0, HEIGHT):
                     vals[y] = cropped[y, x]
 
-                send_col(s, x, vals)
-            commit_cols(s)
+                send_col(dev, s, x, vals)
+            commit_cols(dev, s)
 
 def video(dev, video_file):
     """Resize and play back a video"""
@@ -613,7 +612,6 @@ def video(dev, video_file):
         capture = cv2.VideoCapture(video_file)
         ret, frame = capture.read()
         
-        scale_x = WIDTH/frame.shape[1]
         scale_y = HEIGHT/frame.shape[0]
         
         # Scale the video to 34 pixels height
@@ -648,8 +646,8 @@ def video(dev, video_file):
                 for y in range(0, HEIGHT):
                     vals[y] = frame[y, x]
 
-                send_col(s, x, vals)
-            commit_cols(s)
+                send_col(dev, s, x, vals)
+            commit_cols(dev, s)
     
 
 def pixel_to_brightness(pixel):
@@ -690,21 +688,21 @@ def image_greyscale(dev, image_file):
             for y in range(HEIGHT):
                 vals[y] = pixel_to_brightness(pixel_values[x+y*WIDTH])
 
-            send_col(s, x, vals)
-        commit_cols(s)
+            send_col(dev, s, x, vals)
+        commit_cols(dev, s)
 
 
-def send_col(s, x, vals):
+def send_col(dev, s, x, vals):
     """Stage greyscale values for a single column. Must be committed with commit_cols()"""
     command = FWK_MAGIC + [CommandVals.StageGreyCol, x] + vals
-    send_serial(s, command)
+    send_serial(dev, s, command)
 
 
-def commit_cols(s):
+def commit_cols(dev, s):
     """Commit the changes from sending individual cols with send_col(), displaying the matrix.
     This makes sure that the matrix isn't partially updated."""
     command = FWK_MAGIC + [CommandVals.DrawGreyColBuffer, 0x00]
-    send_serial(s, command)
+    send_serial(dev, s, command)
 
 
 def get_color(dev):
@@ -746,8 +744,8 @@ def checkerboard(dev, n):
                 # Rotate once
                 vals = vals[n:] + vals[:n]
 
-            send_col(s, x, vals)
-        commit_cols(s)
+            send_col(dev, s, x, vals)
+        commit_cols(dev, s)
 
 
 def every_nth_col(dev, n):
@@ -755,8 +753,8 @@ def every_nth_col(dev, n):
         for x in range(0, WIDTH):
             vals = [(0xFF if x % n == 0 else 0) for _ in range(HEIGHT)]
 
-            send_col(s, x, vals)
-        commit_cols(s)
+            send_col(dev, s, x, vals)
+        commit_cols(dev, s)
 
 
 def every_nth_row(dev, n):
@@ -764,8 +762,8 @@ def every_nth_row(dev, n):
         for x in range(0, WIDTH):
             vals = [(0xFF if y % n == 0 else 0) for y in range(HEIGHT)]
 
-            send_col(s, x, vals)
-        commit_cols(s)
+            send_col(dev, s, x, vals)
+        commit_cols(dev, s)
 
 
 def all_brightnesses(dev):
@@ -782,8 +780,8 @@ def all_brightnesses(dev):
                 else:
                     vals[y] = brightness
 
-            send_col(s, x, vals)
-        commit_cols(s)
+            send_col(dev, s, x, vals)
+        commit_cols(dev, s)
 
 
 def countdown(dev, seconds):
@@ -1034,7 +1032,7 @@ def snake(dev):
 def wpm_demo(dev):
     """Capture keypresses and calculate the WPM of the last 10 seconds
     TODO: I'm not sure my calculation is right."""
-    from getkey import getkey, keys
+    from getkey import getkey
     start = datetime.now()
     keypresses = []
     while True:
@@ -1236,17 +1234,17 @@ def send_command_raw(dev, command, with_response=False):
                 res = s.read(RESPONSE_SIZE)
                 # print(f"Received: {res}")
                 return res
-    except (IOError, OSError) as ex:
+    except (IOError, OSError) as _ex:
         global DISCONNECTED_DEVS
         DISCONNECTED_DEVS.append(dev.device)
         #print("Error: ", ex)
 
 
-def send_serial(s, command):
+def send_serial(dev, s, command):
     """Send serial command by using existing serial connection"""
     try:
         s.write(command)
-    except (IOError, OSError) as ex:
+    except (IOError, OSError) as _ex:
         global DISCONNECTED_DEVS
         DISCONNECTED_DEVS.append(dev.device)
         #print("Error: ", ex)
@@ -1533,9 +1531,9 @@ def get_power_mode_cmd(dev):
     res = send_command(dev, CommandVals.SetPowerMode, with_response=True)
     current_mode = int(res[0])
     if current_mode == 0:
-        print(f"Current Power Mode: Low Power")
+        print("Current Power Mode: Low Power")
     elif current_mode == 1:
-        print(f"Current Power Mode: High Power")
+        print("Current Power Mode: High Power")
 
 
 def get_fps_cmd(dev):
