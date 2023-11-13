@@ -6,8 +6,8 @@ import sys
 from serial.tools import list_ports
 
 # Local dependencies
-import gui
-from inputmodule import (
+from framework16_inputmodules import gui
+from framework16_inputmodules.inputmodule import (
     INPUTMODULE_PIDS,
     send_command,
     get_version,
@@ -18,15 +18,15 @@ from inputmodule import (
     GameOfLifeStartParam,
     GameControlVal,
 )
-from gui.games import (
+from framework16_inputmodules.gui.games import (
     snake,
     snake_embedded,
     pong_embedded,
     game_of_life_embedded,
     wpm_demo,
 )
-from gui.ledmatrix import random_eq, clock, blinking
-from inputmodule.ledmatrix import (
+from framework16_inputmodules.gui.ledmatrix import random_eq, clock, blinking
+from framework16_inputmodules.inputmodule.ledmatrix import (
     eq,
     breathing,
     camera,
@@ -44,7 +44,7 @@ from inputmodule.ledmatrix import (
     image_bl,
     image_greyscale,
 )
-from inputmodule.b1display import (
+from framework16_inputmodules.inputmodule.b1display import (
     b1image_bl,
     invert_screen_cmd,
     screen_saver_cmd,
@@ -56,14 +56,18 @@ from inputmodule.b1display import (
     display_on_cmd,
     display_string,
 )
-from inputmodule.c1minimal import set_color, get_color, RGB_COLORS
+from framework16_inputmodules.inputmodule.c1minimal import (
+    set_color,
+    get_color,
+    RGB_COLORS,
+)
 
 # Optional dependencies:
 # from PIL import Image
 # import PySimpleGUI as sg
 
 
-def main():
+def main_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-l", "--list", help="List all compatible devices", action="store_true"
@@ -387,5 +391,11 @@ def print_devs(ports):
         print(f"  Product: {port.product}")
 
 
+def main_gui():
+    devices = find_devs()  # show=False, verbose=False)
+    print("Found {} devices".format(len(devices)))
+    gui.run_gui(devices)
+
+
 if __name__ == "__main__":
-    main()
+    main_cli()

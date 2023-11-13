@@ -4,7 +4,7 @@ import sys
 
 import PySimpleGUI as sg
 
-from inputmodule import (
+from framework16_inputmodules.inputmodule import (
     send_command,
     get_version,
     brightness,
@@ -12,10 +12,10 @@ from inputmodule import (
     bootloader,
     CommandVals,
 )
-from gui.games import snake
-from gui.ledmatrix import countdown, random_eq, clock
-from gui.gui_threading import stop_thread, is_dev_disconnected
-from inputmodule.ledmatrix import (
+from framework16_inputmodules.gui.games import snake
+from framework16_inputmodules.gui.ledmatrix import countdown, random_eq, clock
+from framework16_inputmodules.gui.gui_threading import stop_thread, is_dev_disconnected
+from framework16_inputmodules.inputmodule.ledmatrix import (
     percentage,
     pattern,
     animate,
