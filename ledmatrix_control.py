@@ -589,6 +589,7 @@ def camera(dev):
         while True:
             ret, frame = capture.read()
             if not ret:
+                print("Failed to capture video frames")
                 break
                 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -629,6 +630,7 @@ def video(dev, video_file):
         while True:
             ret, frame = capture.read()
             if not ret:
+                print("Failed to read video frames")
                 break
                 
             gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
