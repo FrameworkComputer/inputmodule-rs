@@ -575,7 +575,6 @@ def camera(dev):
         capture = cv2.VideoCapture(0)
         ret, frame = capture.read()
         
-        scale_x = WIDTH/frame.shape[1]
         scale_y = HEIGHT/frame.shape[0]
         
         # Scale the video to 34 pixels height
