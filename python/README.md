@@ -1,43 +1,19 @@
-# Framework Laptop 16 - Input Module Firmware/Software
+# Framework Laptop 16 - Input Module Software
 
-This repository contains both the firmware for the Framework Laptop 16 input modules,
-as well as the tool to control them.
+This repository contains a python library and scripts to control the
+(non-keyboard) input modules, which is currently just the LED Matrix.
 
-Rust firmware project setup based off of: https://github.com/rp-rs/rp2040-project-template
+## Installing
 
-## Modules
+Pre-requisites: Python with pip
 
-See pages of the individual modules for details about how they work and how
-they're controlled.
-
-- [LED Matrix](ledmatrix/README.md)
-- [Minimal C1 Input Module](c1minimal/README.md)
-- [2nd Display](b1display/README.md)
-- [QT PY RP2040](qtpy/README.md)
-
-## Generic Features
-
-All modules are built with an RP2040 microcontroller
-Features that all modules share
-
-- Firmware written in bare-metal Rust
-- Reset into RP2040 bootloader when firmware crashes/panics
-- Sleep Mode to save power
-- API over USB ACM Serial Port - Requires no Drivers on Windows and Linux
-  - Go to sleep
-  - Reset into bootloader
-  - Control and read module state (brightness, displayed image, ...)
+```sh
+python3 -m pip install framework16_inputmodule
+```
 
 ## Control from the host
 
-To build your own application see the: [API command documentation](commands.md)
-
-Or use our `inputmodule-control` app, which you can download from the latest
-[GH Actions](https://github.com/FrameworkComputer/led_matrix_fw/actions) run or
-the [release page](https://github.com/FrameworkComputer/led_matrix_fw/releases).
-Optionally there are is also a [Python script](python.md).
-
-For device specific commands, see their individual documentation pages.
+To build your own application see the: [API command documentation](https://github.com/FrameworkComputer/inputmodule-rs/tree/main/commands.md)
 
 ###### Permissions on Linux
 To ensure that the input module's port is accessible, install the `udev` rule and trigger a reload:
@@ -52,126 +28,131 @@ sudo udevadm control --reload && sudo udevadm trigger
 ###### Listing available devices
 
 ```sh
-> inputmodule-control --list
-/dev/ttyACM0
-  VID     0x32AC
-  PID     0x0020
-  SN      FRAKDEAM0020110001
-  Product LED_Matrix
+> ledmatrixctl
+More than 1 compatible device found. Please choose with --serial-dev ...
+Example on Windows: --serial-dev COM3
+Example on Linux:   --serial-dev /dev/ttyACM0
 /dev/ttyACM1
-  VID     0x32AC
-  PID     0x0021
-  SN      FRAKDEAM0000000000
-  Product B1_Display
+  VID:     0x32AC
+  PID:     0x0020
+  SN:      FRAKDEBZ0100000000
+  Product: LED Matrix Input Module
+/dev/ttyACM0
+  VID:     0x32AC
+  PID:     0x0020
+  SN:      FRAKDEBZ0100000000
+  Product: LED Matrix Input Module
 ```
 
 ###### Apply command to single device
 
-By default a command will be sent to all devices that can be found, to apply it
-to a single device, specify the COM port.
-In this example the command is targeted at `b1-display`, so it will only apply
-to this module type.
+When there are multiple devices you need to select which one to control.
 
 ```
 # Example on Linux
-> inputmodule-control --serial-dev /dev/ttyACM0 b1-display --pattern black
+> ledmatrixctl --serial-dev /dev/ttyACM0 --percentage 33
 
 # Example on Windows
-> inputmodule-control.exe --serial-dev COM5 b1-display --pattern black
+> ledmatrixctl --serial-dev COM5 --percentage 33
 ```
 
-###### Send command when device connects
+### Graphical Application
 
-By default the app tries to connect with the device and aborts if it can't
-connect. But you might want to start the app, have it wait until the device is
-connected and then send the command.
+Launch the graphical application
+
+```sh
+# Either via the commandline
+ledmatrixctl --gui
+
+# Or using the standanlone application
+ledmatrixgui
+```
+
+### Other example commands
+
+```sh
+
+# Show current time and keep updating it
+ledmatrixctl --clock
+
+# Draw PNG or GIF
+ledmatrixctl --image stripe.gif
+ledmatrixctl --image stripe.png
+
+# Change brightness (0-255)
+ledmatrixctl --brightness 50
+```
+
+### All commandline options
 
 ```
-> inputmodule-control b1-display --pattern black
-Failed to find serial devivce. Please manually specify with --serial-dev
-
-# No failure, waits until the device is connected, sends command and exits
-> inputmodule-control --wait-for-device b1-display --pattern black
-
-# If the device is already connected, it does nothing, just wait 1s.
-# This means you can run this command by a system service and restart it when
-# it finishes. Then it will only ever do anything if the device reconnects.
-> inputmodule-control --wait-for-device b1-display --pattern black
-Device already present. No need to wait. Not executing command.
+> ledmatrixctl --help
+options:
+  -h, --help            show this help message and exit
+  -l, --list            List all compatible devices
+  --bootloader          Jump to the bootloader to flash new firmware
+  --sleep, --no-sleep   Simulate the host going to sleep or waking up
+  --is-sleeping         Check current sleep state
+  --brightness BRIGHTNESS
+                        Adjust the brightness. Value 0-255
+  --get-brightness      Get current brightness
+  --animate, --no-animate
+                        Start/stop vertical scrolling
+  --get-animate         Check if currently animating
+  --pwm {29000,3600,1800,900}
+                        Adjust the PWM frequency. Value 0-255
+  --get-pwm             Get current PWM Frequency
+  --pattern {...}       Display a pattern
+  --image IMAGE         Display a PNG or GIF image in black and white only)
+  --image-grey IMAGE_GREY
+                        Display a PNG or GIF image in greyscale
+  --camera              Stream from the webcam
+  --video VIDEO         Play a video
+  --percentage PERCENTAGE
+                        Fill a percentage of the screen
+  --clock               Display the current time
+  --string STRING       Display a string or number, like FPS
+  --symbols SYMBOLS [SYMBOLS ...]
+                        Show symbols (degF, degC, :), snow, cloud, ...)
+  --gui                 Launch the graphical version of the program
+  --panic               Crash the firmware (TESTING ONLY)
+  --blink               Blink the current pattern
+  --breathing           Breathing of the current pattern
+  --eq EQ [EQ ...]      Equalizer
+  --random-eq           Random Equalizer
+  --wpm                 WPM Demo
+  --snake               Snake
+  --snake-embedded      Snake on the module
+  --pong-embedded       Pong on the module
+  --game-of-life-embedded {currentmatrix,pattern1,blinker,toad,beacon,glider}
+                        Game of Life
+  --quit-embedded-game  Quit the current game
+  --all-brightnesses    Show every pixel in a different brightness
+  -v, --version         Get device version
+  --serial-dev SERIAL_DEV
+                        Change the serial dev. Probably /dev/ttyACM0 on Linux, COM0 on Windows
 ```
 
 ## Update the Firmware
 
 First, put the module into bootloader mode.
 
-This can be done either by pressing the bootsel button while plugging it in or
+This can be done either by flipping DIP switch #2 or
 by using one of the following commands: 
 
 ```sh
-inputmodule-control led-matrix --bootloader
-inputmodule-control b1-display --bootloader
-inputmodule-control c1-minimal --bootloader
+> ledmatrixctl --bootloader
 ```
 
 Then the module will present itself in the same way as a USB thumb drive.
 Copy the UF2 firmware file onto it and the device will flash and reset automatically.
-Alternatively when building from source, run one of the following commands:
-
-```sh
-cargo run -p ledmatrix
-cargo run -p b1display
-cargo run -p c1minimal
-```
-
-## Building the firmware
-
-Dependencies: Rust
-
-Prepare Rust toolchain (once):
-
-```sh
-rustup target install thumbv6m-none-eabi
-cargo install flip-link
-```
-
-Build:
-
-```sh
-cargo make --cwd ledmatrix
-cargo make --cwd b1display
-cargo make --cwd c1minimal
-```
-
-Generate the UF2 update file:
-
-```sh
-cargo make --cwd ledmatrix uf2
-cargo make --cwd b1display uf2
-cargo make --cwd c1minimal uf2
-```
-
-## Building the Application
-
-Dependencies: Rust, pkg-config, libudev
-
-Currently have to specify the build target because it's not possible to specify a per package build target.
-Tracking issue: https://github.com/rust-lang/cargo/issues/9406
-
-```
-# Build it
-> cargo make --cwd inputmodule-control
-
-# Build and run it, showing the tool version
-> cargo make --cwd inputmodule-control run -- --version
 ```
 
 ### Check the firmware version of the device
 
-###### In-band using commandline
-
 ```sh
-> inputmodule-control b1-display --version
-Device Version: 0.1.3
+> ledmatrixctl --version
+Device Version: 0.1.7
 ```
 
 ###### By looking at the USB descriptor
@@ -180,18 +161,7 @@ On Linux:
 
 ```sh
 > lsusb -d 32ac: -v 2> /dev/null | grep -P 'ID 32ac|bcdDevice'
-Bus 003 Device 078: ID 32ac:0021 Framework Laptop 16 B1 Display
-  bcdDevice            0.10
+Bus 003 Device 078: ID 32ac:0020 Framework Computer Inc LED Matrix Input Module
+  bcdDevice            0.17
 ```
 
-## Rust Panic
-
-When the Rust code panics, the RP2040 resets itself into bootloader mode.
-This means a new firmware can be written to overwrite the old one.
-
-Additionally the panic message is written to XIP RAM, which can be read with [picotool](https://github.com/raspberrypi/picotool):
-
-```sh
-sudo picotool save -r 0x15000000 0x15004000 message.bin
-strings message.bin | head
-```
