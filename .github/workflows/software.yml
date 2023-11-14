@@ -102,7 +102,6 @@ jobs:
   build-gui:
     name: Build GUI
     runs-on: windows-latest
-#    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
 
@@ -110,10 +109,23 @@ jobs:
       uses: Martin005/pyinstaller-action@main
       with:
         python_ver: '3.11'
-        spec: ledmatrix_control.py #'src/build.spec'
+        spec: python/framework16_inputmodule/cli.py #'src/build.spec'
         requirements: 'requirements.txt'
-        upload_exe_with_name: 'ledmatrix_control.py'
+        upload_exe_with_name: 'ledmatrixgui'
         options: --onefile, --windowed, --add-data 'res;res'
+
+  package-python:
+    name: Package Python
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - run: |
+        cd python
+        python3 -m pip install --upgrade build
+        python3 -m pip install --upgrade hatch
+        python3 -m pip install --upgrade twine
+        python3 -m build
 
   lints:
     name: Lints
