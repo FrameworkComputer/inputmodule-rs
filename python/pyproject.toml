@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "framework16_inputmodule"
 # TODO: Dynamic version from git (requires tags)
 #dynamic = ["version"]
-version = "0.1.0"
+version = "0.1.1"
 description = 'A library to control input modules on the Framework 16 Laptop'
 # TODO: Custom README for python project
 readme = "README.md"
