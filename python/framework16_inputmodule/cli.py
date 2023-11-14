@@ -236,7 +236,11 @@ def main_cli():
         gui.popup(args.gui, "No device found")
         sys.exit(1)
     elif args.serial_dev is not None:
-        dev = [port for port in ports if port.name == args.serial_dev][0]
+        filtered_devs = [port for port in ports if port.name in args.serial_dev]
+        if not filtered_devs:
+            print("Failed to find requested device")
+            sys.exit(1)
+        dev = filtered_devs[0]
     elif len(ports) == 1:
         dev = ports[0]
     elif len(ports) >= 1 and not args.gui:
