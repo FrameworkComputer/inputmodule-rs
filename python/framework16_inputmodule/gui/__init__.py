@@ -37,7 +37,6 @@ def update_brightness_slider(window, devices):
 
         br = get_brightness(dev)
         average_brightness += br
-        print(f"Brightness: {br}")
     if average_brightness:
         window["-BRIGHTNESS-"].update(average_brightness / len(devices))
 
