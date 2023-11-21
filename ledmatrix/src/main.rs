@@ -41,11 +41,13 @@ const MAX_CURRENT: usize = 500;
 
 /// Maximum brightness out of 255
 /// On HW Rev 1 from BizLink set to 94 to have just below 500mA current draw.
-/// BizLink HW Rev 2 has a larger current limiting resistor
+///
+/// BizLink HW Rev 2 has a larger current limiting resistor.
+/// 100/255 results in 250mA current draw which is plenty bright.
 #[cfg(feature = "10k")]
 const MAX_BRIGHTNESS: u8 = 94;
 #[cfg(not(feature = "10k"))]
-const MAX_BRIGHTNESS: u8 = 255;
+const MAX_BRIGHTNESS: u8 = 100;
 
 // TODO: Doesn't work yet, unless I panic right at the beginning of main
 //#[cfg(not(debug_assertions))]
