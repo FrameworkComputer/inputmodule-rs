@@ -22,7 +22,7 @@
 // - [ ] Persist brightness setting and FN lock through reset
 // - [ ] Media keys
 
-//use cortex_m::delay::Delay;
+use cortex_m::delay::Delay;
 //use defmt::*;
 use crate::rgb_matrix::{LedMatrix, DVT2_CALC_PIXEL};
 use defmt_rtt as _;
@@ -419,6 +419,8 @@ fn main() -> ! {
         if !usb_suspended {
             if caps_led.is_set_low().unwrap() {
                 caps_led.set_high().unwrap();
+                #[cfg(any(feature = "ansi", feature = "macropad"))]
+                matrix.device.fill(0xFF);
             }
         }
 
@@ -426,9 +428,13 @@ fn main() -> ! {
         // 500_000us = 500ms = 0.5s
         if usb_suspended && timer.get_counter().ticks() > capslock_timer + 500_000 {
             if caps_led.is_set_high().unwrap() {
+                #[cfg(any(feature = "ansi", feature = "macropad"))]
+                matrix.device.fill(0x00);
                 caps_led.set_low().unwrap();
             } else {
                 caps_led.set_high().unwrap();
+                #[cfg(any(feature = "ansi", feature = "macropad"))]
+                matrix.device.fill(0xFF);
             }
             capslock_timer = timer.get_counter().ticks();
         }
@@ -467,7 +473,7 @@ fn main() -> ! {
             }
 
             cfg_if::cfg_if! {
-                if #[cfg(any(feature = "numapd", feature = "macropad"))] {
+                if #[cfg(any(feature = "numpad", feature = "macropad"))] {
                     let one = scanner.measure_key(0, 3);
                     let two = scanner.measure_key(0, 7);
                     let three = scanner.measure_key(1, 4);
