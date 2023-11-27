@@ -1,12 +1,13 @@
 import sys
 
-from framework16_inputmodule.inputmodule import send_command, CommandVals, FWK_MAGIC
+from inputmodule.inputmodule import send_command, CommandVals, FWK_MAGIC
 
 B1_WIDTH = 300
 B1_HEIGHT = 400
 GREYSCALE_DEPTH = 32
 
-SCREEN_FPS = ["quarter", "half", "one", "two", "four", "eight", "sixteen", "thirtytwo"]
+SCREEN_FPS = ["quarter", "half", "one", "two",
+              "four", "eight", "sixteen", "thirtytwo"]
 HIGH_FPS_MASK = 0b00010000
 LOW_FPS_MASK = 0b00000111
 

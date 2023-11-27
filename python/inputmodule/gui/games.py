@@ -4,13 +4,13 @@ from datetime import datetime, timedelta
 import time
 import threading
 
-from framework16_inputmodule.inputmodule import (
+from inputmodule.inputmodule import (
     GameControlVal,
     send_command,
     CommandVals,
     Game,
 )
-from framework16_inputmodule.inputmodule.ledmatrix import (
+from inputmodule.inputmodule.ledmatrix import (
     show_string,
     WIDTH,
     HEIGHT,
@@ -181,7 +181,8 @@ def snake(dev):
         elif head == food:
             body.insert(0, oldhead)
             while food == head:
-                food = (random.randint(0, WIDTH - 1), random.randint(0, HEIGHT - 1))
+                food = (random.randint(0, WIDTH - 1),
+                        random.randint(0, HEIGHT - 1))
         elif body:
             body.pop()
             body.insert(0, oldhead)

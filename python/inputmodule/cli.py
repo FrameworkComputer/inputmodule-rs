@@ -6,8 +6,8 @@ import sys
 from serial.tools import list_ports
 
 # Local dependencies
-from framework16_inputmodule import gui
-from framework16_inputmodule.inputmodule import (
+from inputmodule import gui
+from inputmodule.inputmodule import (
     INPUTMODULE_PIDS,
     send_command,
     get_version,
@@ -18,15 +18,15 @@ from framework16_inputmodule.inputmodule import (
     GameOfLifeStartParam,
     GameControlVal,
 )
-from framework16_inputmodule.gui.games import (
+from inputmodule.gui.games import (
     snake,
     snake_embedded,
     pong_embedded,
     game_of_life_embedded,
     wpm_demo,
 )
-from framework16_inputmodule.gui.ledmatrix import random_eq, clock, blinking
-from framework16_inputmodule.inputmodule.ledmatrix import (
+from inputmodule.gui.ledmatrix import random_eq, clock, blinking
+from inputmodule.inputmodule.ledmatrix import (
     eq,
     breathing,
     camera,
@@ -44,7 +44,7 @@ from framework16_inputmodule.inputmodule.ledmatrix import (
     image_bl,
     image_greyscale,
 )
-from framework16_inputmodule.inputmodule.b1display import (
+from inputmodule.inputmodule.b1display import (
     b1image_bl,
     invert_screen_cmd,
     screen_saver_cmd,
@@ -56,7 +56,7 @@ from framework16_inputmodule.inputmodule.b1display import (
     display_on_cmd,
     display_string,
 )
-from framework16_inputmodule.inputmodule.c1minimal import (
+from inputmodule.inputmodule.c1minimal import (
     set_color,
     get_color,
     RGB_COLORS,
@@ -121,12 +121,14 @@ def main_cli():
         help="Display a PNG or GIF image in greyscale",
         type=argparse.FileType("rb"),
     )
-    parser.add_argument("--camera", help="Stream from the webcam", action="store_true")
+    parser.add_argument(
+        "--camera", help="Stream from the webcam", action="store_true")
     parser.add_argument("--video", help="Play a video", type=str)
     parser.add_argument(
         "--percentage", help="Fill a percentage of the screen", type=int
     )
-    parser.add_argument("--clock", help="Display the current time", action="store_true")
+    parser.add_argument(
+        "--clock", help="Display the current time", action="store_true")
     parser.add_argument(
         "--string", help="Display a string or number, like FPS", type=str
     )
@@ -146,7 +148,8 @@ def main_cli():
         "--breathing", help="Breathing of the current pattern", action="store_true"
     )
     parser.add_argument("--eq", help="Equalizer", nargs="+", type=int)
-    parser.add_argument("--random-eq", help="Random Equalizer", action="store_true")
+    parser.add_argument(
+        "--random-eq", help="Random Equalizer", action="store_true")
     parser.add_argument("--wpm", help="WPM Demo", action="store_true")
     parser.add_argument("--snake", help="Snake", action="store_true")
     parser.add_argument(
@@ -207,7 +210,8 @@ def main_cli():
     parser.add_argument(
         "--set-power-mode", help="Set screen power mode", choices=["high", "low"]
     )
-    parser.add_argument("--get-fps", help="Set screen FPS", action="store_true")
+    parser.add_argument("--get-fps", help="Set screen FPS",
+                        action="store_true")
     parser.add_argument(
         "--get-power-mode", help="Set screen power mode", action="store_true"
     )
@@ -236,7 +240,8 @@ def main_cli():
         gui.popup(args.gui, "No device found")
         sys.exit(1)
     elif args.serial_dev is not None:
-        filtered_devs = [port for port in ports if port.name in args.serial_dev]
+        filtered_devs = [
+            port for port in ports if port.name in args.serial_dev]
         if not filtered_devs:
             print("Failed to find requested device")
             sys.exit(1)
