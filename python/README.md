@@ -8,7 +8,7 @@ This repository contains a python library and scripts to control the
 Pre-requisites: Python with pip
 
 ```sh
-python3 -m pip install framework16_inputmodule
+python3 -m pip install inputmodule
 ```
 
 ## Control from the host

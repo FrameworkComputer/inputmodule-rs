@@ -4,7 +4,7 @@ import sys
 
 import PySimpleGUI as sg
 
-from framework16_inputmodule.inputmodule import (
+from inputmodule.inputmodule import (
     send_command,
     get_version,
     brightness,
@@ -12,10 +12,10 @@ from framework16_inputmodule.inputmodule import (
     bootloader,
     CommandVals,
 )
-from framework16_inputmodule.gui.games import snake
-from framework16_inputmodule.gui.ledmatrix import countdown, random_eq, clock
-from framework16_inputmodule.gui.gui_threading import stop_thread, is_dev_disconnected
-from framework16_inputmodule.inputmodule.ledmatrix import (
+from inputmodule.gui.games import snake
+from inputmodule.gui.ledmatrix import countdown, random_eq, clock
+from inputmodule.gui.gui_threading import stop_thread, is_dev_disconnected
+from inputmodule.inputmodule.ledmatrix import (
     percentage,
     pattern,
     animate,
@@ -98,7 +98,8 @@ def run_gui(devices):
             [sg.HorizontalSeparator()],
             [sg.Text("Countdown Timer")],
             [
-                sg.Spin([i for i in range(1, 60)], initial_value=10, k="-COUNTDOWN-"),
+                sg.Spin([i for i in range(1, 60)],
+                        initial_value=10, k="-COUNTDOWN-"),
                 sg.Text("Seconds"),
                 sg.Button("Start", k="-START-COUNTDOWN-"),
                 sg.Button("Stop", k="-STOP-COUNTDOWN-"),
@@ -115,13 +116,15 @@ def run_gui(devices):
                 sg.Column(
                     [
                         [sg.Text("Greyscale Image")],
-                        [sg.Button("Send greyscale.gif", k="-SEND-GREY-IMAGE-")],
+                        [sg.Button("Send greyscale.gif",
+                                   k="-SEND-GREY-IMAGE-")],
                     ]
                 ),
             ],
             [sg.HorizontalSeparator()],
             [sg.Text("Display Current Time")],
-            [sg.Button("Start", k="-START-TIME-"), sg.Button("Stop", k="-STOP-TIME-")],
+            [sg.Button("Start", k="-START-TIME-"),
+             sg.Button("Stop", k="-STOP-TIME-")],
             [sg.HorizontalSeparator()],
             [
                 sg.Column(
@@ -200,7 +203,8 @@ def run_gui(devices):
                     thread.start()
 
                 if event == "-START-TIME-":
-                    thread = threading.Thread(target=clock, args=(dev,), daemon=True)
+                    thread = threading.Thread(
+                        target=clock, args=(dev,), daemon=True)
                     thread.start()
 
                 if event == "-PLAY-SNAKE-":
@@ -249,7 +253,8 @@ def run_gui(devices):
                     image_bl(dev, path)
 
                 if event == "-SEND-GREY-IMAGE-":
-                    path = os.path.join(resource_path(), "res", "greyscale.gif")
+                    path = os.path.join(
+                        resource_path(), "res", "greyscale.gif")
                     image_greyscale(dev, path)
 
                 if event == "-SEND-TEXT-":

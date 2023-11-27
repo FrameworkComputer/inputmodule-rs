@@ -109,7 +109,7 @@ jobs:
       uses: Martin005/pyinstaller-action@main
       with:
         python_ver: '3.11'
-        spec: python/framework16_inputmodule/cli.py #'src/build.spec'
+        spec: python/inputmodule/cli.py #'src/build.spec'
         requirements: 'requirements.txt'
         upload_exe_with_name: 'ledmatrixgui'
         options: --onefile, --windowed, --add-data 'res;res'
