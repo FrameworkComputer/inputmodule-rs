@@ -1,8 +1,7 @@
 from enum import IntEnum
 import serial
 
-# TODO: Make independent from GUI
-from inputmodule.gui.gui_threading import disconnect_dev
+from inputmodule.thread_sync import disconnect_dev
 
 FWK_MAGIC = [0x32, 0xAC]
 FWK_VID = 0x32AC

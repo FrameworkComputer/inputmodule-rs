@@ -14,7 +14,7 @@ from inputmodule.inputmodule import (
 )
 from inputmodule.gui.games import snake
 from inputmodule.gui.ledmatrix import countdown, random_eq, clock
-from inputmodule.gui.gui_threading import stop_thread, is_dev_disconnected
+from inputmodule.thread_sync import stop_thread, is_dev_disconnected
 from inputmodule.inputmodule.ledmatrix import (
     percentage,
     pattern,

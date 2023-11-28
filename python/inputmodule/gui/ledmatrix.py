@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import time
 import random
 
-from inputmodule.gui.gui_threading import (
+from inputmodule.thread_sync import (
     reset_thread,
     is_thread_stopped,
     is_dev_disconnected,

@@ -1,6 +1,6 @@
 import time
 from datetime import datetime
-#from inputmodule.ledmatrix import LedMatrix, Pattern
+#from inputmodule.inputmodule.ledmatrix import LedMatrix, Pattern
 
 # TODO: Import
 from enum import IntEnum
