@@ -44,10 +44,11 @@ const MAX_CURRENT: usize = 500;
 ///
 /// BizLink HW Rev 2 has a larger current limiting resistor.
 /// 100/255 results in 250mA current draw which is plenty bright.
+///  50/255 results in 160mA current draw which is plenty bright.
 #[cfg(feature = "10k")]
 const MAX_BRIGHTNESS: u8 = 94;
 #[cfg(not(feature = "10k"))]
-const MAX_BRIGHTNESS: u8 = 100;
+const MAX_BRIGHTNESS: u8 = 50;
 
 // TODO: Doesn't work yet, unless I panic right at the beginning of main
 //#[cfg(not(debug_assertions))]
@@ -233,7 +234,7 @@ fn main() -> ! {
         grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
-        brightness: 26, // Default to 26/255 = 10% brightness
+        brightness: 51, // Default to 51/255 = 20% brightness
         sleeping: SleepState::Awake,
         game: None,
         animation_period: 31_250, // 31,250 us = 32 FPS
