@@ -233,15 +233,17 @@ DIP2 is the bootloader switch. To enter bootloader mode follow these steps:
 4. To exit bootloader mode, unplug the module to flip the switch back, and plug it back in
 5. Now the new firmware should be running
 
+As a side effect of being in bootloader mode, the LEDs all stay off.
+
 ###### DIP1 (General Purpose)
 
 DIP1 could serve many purposes. Currently it is configured to enable the debug mode.
 When debug mode is enabled and the module goes to sleep, it will not turn the LEDs off to save power.
 Instead it will display the reason why it went to sleep. This is useful for debugging module and host system behavior.
+Debug mode will start up to a fully lit matrix and never goes to sleep based on a timeout.
 
 Sleep Reasons can be:
 
 - `SLEEP#` pin: `SLP#`
 - USB Suspend: `USB`
 - Command: `CMD`
-- Idle timer: `TIME`
