@@ -258,9 +258,8 @@ fn main() -> ! {
             _ => unreachable!(),
         });
     } else {
-        // If no startup animation, render another pattern
-        // Lighting up every second column is a good pattern to test for noise.
-        state.grid = every_nth_col(2);
+        // If no startup animation, keep display always on
+        state.grid = percentage(100);
     };
 
     #[cfg(feature = "evt")]
