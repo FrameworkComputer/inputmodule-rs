@@ -170,8 +170,8 @@ Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 ###### In-band using commandline
 
 ```sh
-> inputmodule-control b1-display --version
-Device Version: 0.1.3
+> inputmodule-control led-matrix --version
+Device Version: 0.2.0
 ```
 
 ###### By looking at the USB descriptor
