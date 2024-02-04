@@ -34,7 +34,7 @@ usbd-serial.workspace = true
 usbd-hid.workspace = true
 fugit.workspace = true
 
-usbd-human-interface-device = "0.3.1"
+usbd-human-interface-device = "0.4.5"
 is31fl3743a.workspace = true
 
 cfg-if = "1.0.0"

@@ -30,9 +30,9 @@ use embedded_hal::adc::OneShot;
 use embedded_hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use rp2040_hal::gpio::bank0::Gpio28;
 use rp2040_hal::gpio::{self, Input, PullUp};
-use usbd_human_interface_device::device::keyboard::BootKeyboardInterface;
 use usbd_human_interface_device::page::Keyboard;
 use usbd_human_interface_device::prelude::UsbHidClassBuilder;
+use usbd_human_interface_device::prelude::*;
 use usbd_human_interface_device::UsbHidError;
 
 mod rgb_matrix;
@@ -274,7 +274,7 @@ fn main() -> ! {
     // Set up the USB Communications Class Device driver
     //let mut serial = SerialPort::new(&usb_bus);
     let mut keyboard_hid = UsbHidClassBuilder::new()
-        .add_interface(BootKeyboardInterface::default_config())
+        .add_device(usbd_human_interface_device::device::keyboard::BootKeyboardConfig::default())
         .build(&usb_bus);
 
     #[cfg(feature = "macropad")]
@@ -502,7 +502,7 @@ fn main() -> ! {
         }
 
         if !usb_suspended {
-            let _ = keyboard_hid.interface().read_report();
+            let _ = keyboard_hid.device().read_report();
 
             // Setup the report for the control channel
             let keycodes = if let Some(keycode) = keycode {
@@ -510,11 +510,11 @@ fn main() -> ! {
             } else {
                 [Keyboard::NoEventIndicated]
             };
-            match keyboard_hid.interface().write_report(keycodes) {
+            match keyboard_hid.device().write_report(keycodes) {
                 Err(UsbHidError::WouldBlock) | Err(UsbHidError::Duplicate) | Ok(_) => {}
                 Err(e) => panic!("Failed to write keyboard report: {:?}", e),
             }
-            match keyboard_hid.interface().tick() {
+            match keyboard_hid.tick() {
                 Err(UsbHidError::WouldBlock) | Ok(_) => {}
                 Err(e) => panic!("Failed to process keyboard tick: {:?}", e),
             }
