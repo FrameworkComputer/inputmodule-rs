@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "keyboard"
-version = "0.1.7"
+version = "0.2.0"
 
 [features]
 default = ["macropad"]
@@ -16,6 +16,7 @@ macropad = []
 cortex-m.workspace = true
 cortex-m-rt.workspace = true
 embedded-hal.workspace = true
+embedded-hal-02 = { package = "embedded-hal", version = "0.2.7", features = ["unproven"] }
 
 defmt.workspace = true
 defmt-rtt.workspace = true
@@ -31,10 +32,9 @@ rp2040-boot2.workspace = true
 usb-device.workspace = true
 heapless.workspace = true
 usbd-serial.workspace = true
-usbd-hid.workspace = true
 fugit.workspace = true
 
-usbd-human-interface-device = "0.3.1"
+usbd-human-interface-device = "0.6.0"
 is31fl3743a.workspace = true
 
 cfg-if = "1.0.0"

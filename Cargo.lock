@@ -256,6 +256,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
+name = "bitvec"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ddcec3d12c579d40898fe0a9a358a803c23e9c52ca3c425707f81c9436211837"
+dependencies = [
+ "funty",
+ "radium",
+ "tap",
+ "wyz",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -835,8 +847,18 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28aef0f9aa070bce60767c12ba9cb41efeaf1a2bc6427f87b7d83f11239a16d7"
 dependencies = [
- "frunk_core",
- "frunk_derives",
+ "frunk_core 0.4.4",
+ "frunk_derives 0.4.4",
+]
+
+[[package]]
+name = "frunk"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6eb8c34bdcab8c1ebc7fee7af3d99913932a9f29acf9017250fb02604cda9507"
+dependencies = [
+ "frunk_core 0.5.0",
+ "frunk_derives 0.5.0",
 ]
 
 [[package]]
@@ -844,6 +866,12 @@ name = "frunk_core"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "476eeaa382e3462b84da5d6ba3da97b5786823c2d0d3a0d04ef088d073da225c"
+
+[[package]]
+name = "frunk_core"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bd3c9ba2e323e8b19e77f15873f60974a7d82f89b80e50c53be44b8b92927c1"
 
 [[package]]
 name = "frunk_derives"
@@ -857,12 +885,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "frunk_proc_macro_helpers"
-version = "0.1.4"
+name = "frunk_derives"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1952b802269f2db12ab7c0bd328d0ae8feaabf19f352a7b0af7bb0c5693abfce"
+checksum = "d91a723c961c87aa962bc3a8b6d1534064974c0e05e42306e219d5b0a7409bed"
 dependencies = [
- "frunk_core",
+ "frunk_proc_macro_helpers",
+ "quote",
+ "syn 2.0.114",
+]
+
+[[package]]
+name = "frunk_proc_macro_helpers"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b70229a1347a20d4af9c06116cc452acef34f798668c6b69e97dd5c8a88052bd"
+dependencies = [
+ "frunk_core 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.114",
@@ -882,6 +921,12 @@ checksum = "4e639847d312d9a82d2e75b0edcc1e934efcc64e6cb7aa94f0b1fbec0bc231d6"
 dependencies = [
  "gcd",
 ]
+
+[[package]]
+name = "funty"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
 name = "futures-core"
@@ -1110,6 +1155,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "is31fl3743a"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f57b8f71c0082095db2add777426021e4103bc872b6603b42a46bbb244ca68df"
+dependencies = [
+ "embedded-graphics-core",
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1177,22 +1232,24 @@ dependencies = [
 
 [[package]]
 name = "keyboard"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "cfg-if",
  "cortex-m",
  "cortex-m-rt",
- "defmt",
+ "defmt 0.3.100",
  "defmt-rtt",
- "embedded-hal",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
  "fl16-inputmodules",
  "fugit",
  "heapless",
+ "is31fl3743a",
  "rp2040-boot2",
  "rp2040-hal",
  "rp2040-panic-usb-boot",
  "usb-device",
- "usbd-hid",
+ "usbd-human-interface-device",
  "usbd-serial",
 ]
 
@@ -1567,6 +1624,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
+name = "option-block"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11c9704e085eb8d286265140cdb163c4a43d64ed0c479153a0b20411ca22c7e7"
+
+[[package]]
+name = "packed_struct"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36b29691432cc9eff8b282278473b63df73bea49bc3ec5e67f31a3ae9c3ec190"
+dependencies = [
+ "bitvec",
+ "packed_struct_codegen",
+]
+
+[[package]]
+name = "packed_struct_codegen"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cd6706dfe50d53e0f6aa09e12c034c44faacd23e966ae5a209e8bdb8f179f98"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1759,6 +1843,12 @@ name = "r-efi"
 version = "5.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
+
+[[package]]
+name = "radium"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
@@ -2013,7 +2103,7 @@ dependencies = [
  "embedded-hal-async",
  "embedded-hal-nb",
  "embedded-io",
- "frunk",
+ "frunk 0.4.4",
  "fugit",
  "itertools 0.10.5",
  "nb 1.1.0",
@@ -2032,8 +2122,10 @@ dependencies = [
 [[package]]
 name = "rp2040-hal-macros"
 version = "0.1.0"
-source = "git+https://github.com/FrameworkComputer/rp-hal?branch=adc-pull-down-up#ef80ceba220f0dc0f50cabeee4ed8fc3c597cf43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86479063e497efe1ae81995ef9071f54fd1c7427e04d6c5b84cde545ff672a5e"
 dependencies = [
+ "cortex-m-rt",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -2303,6 +2395,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tap"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
+
+[[package]]
 name = "termcolor"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2469,6 +2567,21 @@ checksum = "98816b1accafbb09085168b90f27e93d790b4bfa19d883466b5e53315b5f06a6"
 dependencies = [
  "heapless",
  "portable-atomic",
+]
+
+[[package]]
+name = "usbd-human-interface-device"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87193dfb19354bc7930d5d58e4f47792f41eeb472e71e73672609c345188996e"
+dependencies = [
+ "frunk 0.5.0",
+ "fugit",
+ "heapless",
+ "num_enum 0.7.5",
+ "option-block",
+ "packed_struct",
+ "usb-device",
 ]
 
 [[package]]
@@ -2928,6 +3041,15 @@ dependencies = [
  "rp2040-hal",
  "smart-leds-trait 0.2.1",
  "smart-leds-trait 0.3.2",
+]
+
+[[package]]
+name = "wyz"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
+dependencies = [
+ "tap",
 ]
 
 [[package]]

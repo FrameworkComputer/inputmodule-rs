@@ -37,8 +37,8 @@ jobs:
       - run: cargo make --cwd c1minimal
       - run: cargo make --cwd ledmatrix
       - run: cargo make --cwd qtpy
-      # Release version
       - run: cargo make --cwd keyboard
+      # Release version
       - run: cargo make --cwd ledmatrix build-release
       - run: cargo make --cwd ledmatrix build-release-10k
       - run: cargo make --cwd ledmatrix build-release-evt
@@ -99,9 +99,9 @@ jobs:
             target/thumbv6m-none-eabi/release/c1minimal.uf2
 
       - name: Upload keyboard files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: c1minimal_fw_${{github.sha}}
+          name: keyboard_fw_${{github.sha}}
           path: |
             target/thumbv6m-none-eabi/release/keyboard.bin
             target/thumbv6m-none-eabi/release/keyboard.uf2

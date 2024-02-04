@@ -76,7 +76,7 @@ hal::bsp_pins!(
         name: gpio26,
         aliases: {
             /// I2C Function alias for pin [crate::Pins::gpio26].
-            FunctionI2C: Gp26I2C1Sda
+            FunctionI2C, PullUp: Gp26I2C1Sda
         }
     },
     /// GPIO 27 is connected to I2C SCL of the LED controller
@@ -84,7 +84,7 @@ hal::bsp_pins!(
         name: gpio27,
         aliases: {
             /// I2C Function alias for pin [crate::Pins::gpio27].
-            FunctionI2C: Gp27I2C1Scl
+            FunctionI2C, PullUp: Gp27I2C1Scl
         }
     },
     /// Analog IN from mux

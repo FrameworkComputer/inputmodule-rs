@@ -26,13 +26,13 @@ use cortex_m::delay::Delay;
 //use defmt::*;
 use crate::rgb_matrix::{LedMatrix, DVT2_CALC_PIXEL};
 use defmt_rtt as _;
-use embedded_hal::adc::OneShot;
-use embedded_hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
+use embedded_hal::digital::{InputPin, OutputPin, StatefulOutputPin};
+use embedded_hal_02::adc::OneShot;
 use rp2040_hal::gpio::bank0::Gpio28;
-use rp2040_hal::gpio::{self, Input, PullUp};
-use usbd_human_interface_device::device::keyboard::BootKeyboardInterface;
+use rp2040_hal::gpio::{self, FunctionSioInput, PullUp};
 use usbd_human_interface_device::page::Keyboard;
 use usbd_human_interface_device::prelude::UsbHidClassBuilder;
+use usbd_human_interface_device::prelude::*;
 use usbd_human_interface_device::UsbHidError;
 
 mod rgb_matrix;
@@ -46,7 +46,7 @@ use rp2040_hal::{
             Gpio1, Gpio10, Gpio11, Gpio12, Gpio13, Gpio14, Gpio15, Gpio16, Gpio17, Gpio18, Gpio19,
             Gpio2, Gpio20, Gpio21, Gpio22, Gpio23, Gpio3, Gpio8, Gpio9,
         },
-        Output, Pin, PinState, PushPull,
+        FunctionSioOutput, Pin, PinState, PullDown,
     },
     Adc, Timer,
 };
@@ -90,11 +90,11 @@ const MATRIX_ROWS: usize = 8;
 const ADC_THRESHOLD: usize = 2900;
 
 struct Mux {
-    a: Pin<Gpio1, Output<PushPull>>,
-    b: Pin<Gpio2, Output<PushPull>>,
-    c: Pin<Gpio3, Output<PushPull>>,
+    a: Pin<Gpio1, FunctionSioOutput, PullDown>,
+    b: Pin<Gpio2, FunctionSioOutput, PullDown>,
+    c: Pin<Gpio3, FunctionSioOutput, PullDown>,
     // TODO
-    // x: Pin<Gpio3, Output<PushPull>>,
+    // x: Pin<Gpio3, FunctionSioOutput, PullDown>,
 }
 impl Mux {
     pub fn select_row(&mut self, row: usize) {
@@ -138,28 +138,31 @@ impl Display for Col {
 }
 
 type Kso = (
-    Pin<Gpio8, Output<PushPull>>,
-    Pin<Gpio9, Output<PushPull>>,
-    Pin<Gpio10, Output<PushPull>>,
-    Pin<Gpio11, Output<PushPull>>,
-    Pin<Gpio12, Output<PushPull>>,
-    Pin<Gpio13, Output<PushPull>>,
-    Pin<Gpio14, Output<PushPull>>,
-    Pin<Gpio15, Output<PushPull>>,
-    Pin<Gpio21, Output<PushPull>>,
-    Pin<Gpio20, Output<PushPull>>,
-    Pin<Gpio19, Output<PushPull>>,
-    Pin<Gpio18, Output<PushPull>>,
-    Pin<Gpio17, Output<PushPull>>,
-    Pin<Gpio16, Output<PushPull>>,
-    Pin<Gpio23, Output<PushPull>>,
-    Pin<Gpio22, Output<PushPull>>,
+    Pin<Gpio8, FunctionSioOutput, PullDown>,
+    Pin<Gpio9, FunctionSioOutput, PullDown>,
+    Pin<Gpio10, FunctionSioOutput, PullDown>,
+    Pin<Gpio11, FunctionSioOutput, PullDown>,
+    Pin<Gpio12, FunctionSioOutput, PullDown>,
+    Pin<Gpio13, FunctionSioOutput, PullDown>,
+    Pin<Gpio14, FunctionSioOutput, PullDown>,
+    Pin<Gpio15, FunctionSioOutput, PullDown>,
+    Pin<Gpio21, FunctionSioOutput, PullDown>,
+    Pin<Gpio20, FunctionSioOutput, PullDown>,
+    Pin<Gpio19, FunctionSioOutput, PullDown>,
+    Pin<Gpio18, FunctionSioOutput, PullDown>,
+    Pin<Gpio17, FunctionSioOutput, PullDown>,
+    Pin<Gpio16, FunctionSioOutput, PullDown>,
+    Pin<Gpio23, FunctionSioOutput, PullDown>,
+    Pin<Gpio22, FunctionSioOutput, PullDown>,
 );
 
 struct Scanner {
     kso: Kso,
     mux: Mux,
-    adc: (Adc, Pin<Gpio28, Input<PullUp>>),
+    adc: (
+        Adc,
+        rp2040_hal::adc::AdcPin<Pin<Gpio28, FunctionSioInput, PullUp>>,
+    ),
 }
 impl Scanner {
     fn drive_col(&mut self, col: usize, state: PinState) {
@@ -253,7 +256,7 @@ fn main() -> ! {
     let rosc = rp2040_hal::rosc::RingOscillator::new(pac.ROSC);
     let _rosc = rosc.initialize();
 
-    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    let mut timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
 
     let pins = bsp::Pins::new(
         pac.IO_BANK0,
@@ -274,7 +277,7 @@ fn main() -> ! {
     // Set up the USB Communications Class Device driver
     //let mut serial = SerialPort::new(&usb_bus);
     let mut keyboard_hid = UsbHidClassBuilder::new()
-        .add_interface(BootKeyboardInterface::default_config())
+        .add_device(usbd_human_interface_device::device::keyboard::BootKeyboardConfig::default())
         .build(&usb_bus);
 
     #[cfg(feature = "macropad")]
@@ -300,14 +303,17 @@ fn main() -> ! {
     let product = "Rust JIS Keyboard";
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, pid))
-        .manufacturer("Framework Computer Inc")
-        .product(product)
+        .strings(&[usb_device::device::StringDescriptors::new(LangID::EN_US)
+            .manufacturer("Framework Computer Inc")
+            .product(product)
+            .serial_number("testing")])
+        .unwrap()
         .supports_remote_wakeup(true)
         .device_class(0)
         .device_sub_class(0)
         .device_protocol(0)
         .max_power(MAX_CURRENT)
-        .serial_number("testing")
+        .unwrap()
         .device_release(device_release())
         .build();
 
@@ -350,7 +356,7 @@ fn main() -> ! {
     let _ = pins.ksi5_reserved.into_floating_input();
     let _ = pins.ksi6_reserved.into_floating_input();
 
-    let sleep = pins.sleep.into_floating_input();
+    let mut sleep = pins.sleep.into_floating_input();
 
     // Enable LED controller
     let mut led_enable = pins.sdb.into_push_pull_output();
@@ -358,8 +364,12 @@ fn main() -> ! {
 
     let i2c = bsp::hal::I2C::i2c1(
         pac.I2C1,
-        pins.gpio26.into_mode::<gpio::FunctionI2C>(),
-        pins.gpio27.into_mode::<gpio::FunctionI2C>(),
+        pins.gpio26
+            .into_function::<gpio::FunctionI2C>()
+            .into_pull_type::<PullUp>(),
+        pins.gpio27
+            .into_function::<gpio::FunctionI2C>()
+            .into_pull_type::<PullUp>(),
         1000.kHz(),
         &mut pac.RESETS,
         &clocks.peripheral_clock,
@@ -371,7 +381,7 @@ fn main() -> ! {
         if #[cfg(any(feature = "ansi", feature = "macropad"))] {
             matrix.set_address(0b0100000);
             matrix
-                .setup(&mut delay)
+                .setup(&mut timer)
                 .expect("failed to setup RGB controller");
             matrix.set_scaling(0xFF).expect("failed to set scaling");
             matrix.device.fill(0xFF);
@@ -382,20 +392,19 @@ fn main() -> ! {
         if #[cfg(feature = "ansi")] {
             matrix.set_address(0b0100011);
             matrix
-                .setup(&mut delay)
+                .setup(&mut timer)
                 .expect("failed to setup RGB controller");
             matrix.set_scaling(0xFF).expect("failed to set scaling");
             matrix.device.fill(0xFF);
         }
     }
 
-    let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut scan_timer = timer.get_counter().ticks();
     let mut capslock_timer = timer.get_counter().ticks();
     caps_led.set_high().unwrap();
 
     let adc = Adc::new(pac.ADC, &mut pac.RESETS);
-    let adc_x = pins.analog_in.into_pull_up_input();
+    let adc_x = rp2040_hal::adc::AdcPin::new(pins.analog_in.into_pull_up_input()).unwrap();
 
     let mut scanner = Scanner {
         kso: (
@@ -502,7 +511,7 @@ fn main() -> ! {
         }
 
         if !usb_suspended {
-            let _ = keyboard_hid.interface().read_report();
+            let _ = keyboard_hid.device().read_report();
 
             // Setup the report for the control channel
             let keycodes = if let Some(keycode) = keycode {
@@ -510,11 +519,11 @@ fn main() -> ! {
             } else {
                 [Keyboard::NoEventIndicated]
             };
-            match keyboard_hid.interface().write_report(keycodes) {
+            match keyboard_hid.device().write_report(keycodes) {
                 Err(UsbHidError::WouldBlock) | Err(UsbHidError::Duplicate) | Ok(_) => {}
                 Err(e) => panic!("Failed to write keyboard report: {:?}", e),
             }
-            match keyboard_hid.interface().tick() {
+            match keyboard_hid.tick() {
                 Err(UsbHidError::WouldBlock) | Ok(_) => {}
                 Err(e) => panic!("Failed to process keyboard tick: {:?}", e),
             }

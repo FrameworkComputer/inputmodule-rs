@@ -2,9 +2,9 @@
 #[allow(unused_imports)]
 use core::convert::TryFrom;
 #[allow(unused_imports)]
-use embedded_hal::blocking::delay::DelayMs;
-use embedded_hal::blocking::i2c::Read;
-use embedded_hal::blocking::i2c::Write;
+use embedded_hal::delay::DelayNs;
+use embedded_hal::i2c::I2c;
+
 #[allow(unused_imports)]
 use is31fl3743a::{Error, IS31FL3743};
 
@@ -332,8 +332,7 @@ pub struct LedMatrix<I2C> {
 
 impl<I2C, I2cError> LedMatrix<I2C>
 where
-    I2C: Write<Error = I2cError>,
-    I2C: Read<Error = I2cError>,
+    I2C: I2c<Error = I2cError>,
     I2cError: core::fmt::Debug,
 {
     pub fn unwrap(self) -> I2C {
@@ -361,7 +360,7 @@ where
         }
     }
 
-    pub fn setup<DEL: DelayMs<u8>>(&mut self, delay: &mut DEL) -> Result<(), Error<I2cError>> {
+    pub fn setup<DEL: DelayNs>(&mut self, delay: &mut DEL) -> Result<(), Error<I2cError>> {
         self.device.setup(delay)?;
         Ok(())
     }
