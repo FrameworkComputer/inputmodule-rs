@@ -109,6 +109,8 @@ def get_brightness(dev):
 def get_version(dev):
     """Get the device's firmware version"""
     res = send_command(dev, CommandVals.Version, with_response=True)
+    if not res:
+        return 'Unknown'
     major = res[0]
     minor = (res[1] & 0xF0) >> 4
     patch = res[1] & 0xF
