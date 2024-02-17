@@ -127,11 +127,15 @@ cargo run -p c1minimal
 
 Dependencies: Rust
 
+Download and install [rustup](https://rustup.rs/) if necessary.
+
 Prepare Rust toolchain (once):
 
 ```sh
 rustup target install thumbv6m-none-eabi
 cargo install flip-link
+cargo install cargo-make
+cargo install elf2uf2-rs
 ```
 
 Build:
