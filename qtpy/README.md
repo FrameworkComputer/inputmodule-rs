@@ -16,3 +16,15 @@ Current brightness: 255
 > ./ledmatrix_control.py --get-color
 Current color: RGB:(255, 255, 0)
 ```
+
+### Pinout
+
+The neopixel is built-in and can display RGB color.
+The UART pins are for debugging, with baud rate 115200.
+
+| QtPy Label        | RP2040 GPIO | Function      |
+|-------------------|-------------|---------------|
+| Built-in Neopixel | GPIO11      | Neopixel Pwr  |
+| Built-in Neopixel | GPIO12      | Neopixel Data |
+| TX                | GPIO20      | UART1 TX      |
+| RX                | GPIO5       | UART1 RX      |

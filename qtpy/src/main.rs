@@ -9,13 +9,17 @@
 #![allow(clippy::needless_range_loop)]
 
 use bsp::entry;
+use core::fmt::Write;
 use cortex_m::delay::Delay;
 use defmt_rtt as _;
+use heapless::String;
 
-use rp2040_hal::gpio::bank0::Gpio12;
 use rp2040_hal::pio::PIOExt;
+use rp2040_hal::uart::StopBits;
+use rp2040_hal::{gpio::bank0::Gpio12, uart::UartConfig};
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
+use fugit::RateExtU32;
 use rp2040_panic_usb_boot as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
@@ -25,9 +29,11 @@ use adafruit_qt_py_rp2040 as bsp;
 
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
-    gpio::PinState,
+    gpio::{FunctionUart, PinState},
     pac,
     sio::Sio,
+    uart::DataBits,
+    uart::UartPeripheral,
     usb,
     watchdog::Watchdog,
     Timer,
@@ -95,6 +101,17 @@ fn main() -> ! {
         &mut pac.RESETS,
     ));
 
+    let uart_pins = (
+        pins.tx.into_mode::<FunctionUart>(),
+        pins.rx.into_mode::<FunctionUart>(),
+    );
+    let mut uart = UartPeripheral::new(pac.UART1, uart_pins, &mut pac.RESETS)
+        .enable(
+            UartConfig::new(115200.Hz(), DataBits::Eight, None, StopBits::One),
+            clocks.peripheral_clock.freq(),
+        )
+        .unwrap();
+
     // Set up the USB Communications Class Device driver
     let mut serial = SerialPort::new(&usb_bus);
 
@@ -133,9 +150,16 @@ fn main() -> ! {
         ))
         .unwrap();
 
+    uart.write_full_blocking(b"UART example\r\n");
+
     loop {
         // Handle period LED updates. Don't do it too often or USB will get stuck
         if timer.get_counter().ticks() > prev_timer + 20_000 {
+            writeln!(uart, "Hello World\r\n").unwrap();
+            let mut text: String<64> = String::new();
+            write!(&mut text, "Hello World\r\n",).unwrap();
+            let _ = serial.write(text.as_bytes());
+
             // TODO: Can do animations here
             prev_timer = timer.get_counter().ticks();
         }
