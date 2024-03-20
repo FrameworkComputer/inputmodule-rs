@@ -678,6 +678,8 @@ where
         Ok(())
     }
 
+    /// Fills the matrix with a _raw_ brightness value, i.e. without gamma
+    /// correction, to show the native PWM values.
     pub fn fill_brightness(&mut self, brightness: u8) -> Result<(), Error<I2cError>> {
         for x in 0..self.device.width {
             for y in 0..self.device.height {
