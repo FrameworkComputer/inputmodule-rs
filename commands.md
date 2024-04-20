@@ -10,7 +10,7 @@ Simple example in Python:
 import serial
 
 def send_command(command_id, parameters, with_response=False):
-  with serial.Serial("COM4", 115200) as s:
+  with serial.Serial("/dev/ttyACM0", 115200) as s:
       s.write([0x32, 0xAC, command_id] + parameters)
 
       if with_response:
