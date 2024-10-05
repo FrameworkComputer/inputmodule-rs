@@ -182,7 +182,7 @@ If you want to display something else, either reset the module (unplugging) or
 run the stop command.
 
 ```sh
-inputmodule-control led-amtrix --stop-game
+inputmodule-control led-matrix --stop-game
 ```
 
 ## Sleep Behavior
