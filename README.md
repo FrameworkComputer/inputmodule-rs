@@ -142,7 +142,7 @@ cargo make --cwd b1display
 cargo make --cwd c1minimal
 ```
 
-Generate the UF2 update file:
+Generate the UF2 update file into `target/thumbv6m-none-eabi/release/`:
 
 ```sh
 cargo make --cwd ledmatrix uf2
