@@ -105,7 +105,7 @@ Device already present. No need to wait. Not executing command.
 First, put the module into bootloader mode.
 
 This can be done either by pressing the bootsel button while plugging it in or
-by using one of the following commands: 
+by using one of the following commands:
 
 ```sh
 inputmodule-control led-matrix --bootloader
