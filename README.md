@@ -42,7 +42,7 @@ For device specific commands, see their individual documentation pages.
 ###### Permissions on Linux
 To ensure that the input module's port is accessible, install the `udev` rule and trigger a reload:
 
-```
+```sh
 sudo cp release/50-framework-inputmodule.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
@@ -72,7 +72,7 @@ to a single device, specify the COM port.
 In this example the command is targeted at `b1-display`, so it will only apply
 to this module type.
 
-```
+```sh
 # Example on Linux
 > inputmodule-control --serial-dev /dev/ttyACM0 b1-display --pattern black
 
@@ -157,7 +157,7 @@ Dependencies: Rust, pkg-config, libudev
 Currently have to specify the build target because it's not possible to specify a per package build target.
 Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 
-```
+```sh
 # Build it
 > cargo make --cwd inputmodule-control
 
