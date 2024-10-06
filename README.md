@@ -88,7 +88,7 @@ connected and then send the command.
 
 ```
 > inputmodule-control b1-display --pattern black
-Failed to find serial devivce. Please manually specify with --serial-dev
+Failed to find serial device. Please manually specify with --serial-dev
 
 # No failure, waits until the device is connected, sends command and exits
 > inputmodule-control --wait-for-device b1-display --pattern black
