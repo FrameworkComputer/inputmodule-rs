@@ -90,7 +90,8 @@ fn match_serialdevs(
         // Find all supported Framework devices
         for p in ports {
             if let SerialPortType::UsbPort(usbinfo) = &p.port_type {
-                // On macOS should use /dev/cu.* without restriction rather than /dev/tty.*
+                // macOS creates a /dev/cu.* and /dev/tty.* device.
+                // The latter can only be used for reading, not writing, so we have to ignore it.
                 #[cfg(target_os = "macos")]
                 if !p.port_name.starts_with("/dev/tty.") {
                     continue;
