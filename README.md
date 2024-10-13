@@ -42,7 +42,7 @@ For device specific commands, see their individual documentation pages.
 ###### Permissions on Linux
 To ensure that the input module's port is accessible, install the `udev` rule and trigger a reload:
 
-```
+```sh
 sudo cp release/50-framework-inputmodule.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
@@ -72,7 +72,7 @@ to a single device, specify the COM port.
 In this example the command is targeted at `b1-display`, so it will only apply
 to this module type.
 
-```
+```sh
 # Example on Linux
 > inputmodule-control --serial-dev /dev/ttyACM0 b1-display --pattern black
 
@@ -88,7 +88,7 @@ connected and then send the command.
 
 ```
 > inputmodule-control b1-display --pattern black
-Failed to find serial devivce. Please manually specify with --serial-dev
+Failed to find serial device. Please manually specify with --serial-dev
 
 # No failure, waits until the device is connected, sends command and exits
 > inputmodule-control --wait-for-device b1-display --pattern black
@@ -105,7 +105,7 @@ Device already present. No need to wait. Not executing command.
 First, put the module into bootloader mode.
 
 This can be done either by pressing the bootsel button while plugging it in or
-by using one of the following commands: 
+by using one of the following commands:
 
 ```sh
 inputmodule-control led-matrix --bootloader
@@ -144,7 +144,7 @@ cargo make --cwd b1display
 cargo make --cwd c1minimal
 ```
 
-Generate the UF2 update file:
+Generate the UF2 update file into `target/thumbv6m-none-eabi/release/`:
 
 ```sh
 cargo make --cwd ledmatrix uf2
@@ -159,7 +159,7 @@ Dependencies: [Rust/rustup](https://rustup.rs/), pkg-config, libudev
 Currently have to specify the build target because it's not possible to specify a per package build target.
 Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 
-```
+```sh
 # Install cargo-make to help build it
 cargo install cargo-make
 
