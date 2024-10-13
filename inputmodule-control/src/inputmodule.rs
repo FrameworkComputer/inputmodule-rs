@@ -90,6 +90,11 @@ fn match_serialdevs(
         // Find all supported Framework devices
         for p in ports {
             if let SerialPortType::UsbPort(usbinfo) = &p.port_type {
+                // On macOS should use /dev/cu.* without restriction rather than /dev/tty.*
+                #[cfg(target_os = "macos")]
+                if !p.port_name.starts_with("/dev/tty.") {
+                    continue;
+                }
                 if usbinfo.vid == FRAMEWORK_VID && pids.contains(&usbinfo.pid) {
                     compatible_devs.push(p.port_name.clone());
                 }
