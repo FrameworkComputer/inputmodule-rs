@@ -125,9 +125,7 @@ cargo run -p c1minimal
 
 ## Building the firmware
 
-Dependencies: Rust
-
-Download and install [rustup](https://rustup.rs/) if necessary.
+Dependencies: [Rust/rustup](https://rustup.rs/), pkg-config, libudev
 
 Prepare Rust toolchain (once):
 
@@ -156,12 +154,15 @@ cargo make --cwd c1minimal uf2
 
 ## Building the Application
 
-Dependencies: Rust, pkg-config, libudev
+Dependencies: [Rust/rustup](https://rustup.rs/), pkg-config, libudev
 
 Currently have to specify the build target because it's not possible to specify a per package build target.
 Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 
 ```
+# Install cargo-make to help build it
+cargo install cargo-make
+
 # Build it
 > cargo make --cwd inputmodule-control
 
