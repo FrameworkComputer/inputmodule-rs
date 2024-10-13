@@ -1000,7 +1000,13 @@ fn animation_fps_cmd(serialdev: &str, arg: Option<u16>) {
         .expect("Failed to open port");
 
     if let Some(fps) = arg {
-        let period = (1000 / fps).to_le_bytes();
+        const MS: u16 = 1000;
+        if fps < MS {
+            // It would need to set the animation period lower than 1ms
+            println!("Unable to set FPS over 1000");
+            return;
+        }
+        let period = (MS / fps).to_le_bytes();
         simple_cmd_port(&mut port, Command::AnimationPeriod, &[period[0], period[1]]);
     } else {
         simple_cmd_port(&mut port, Command::AnimationPeriod, &[]);

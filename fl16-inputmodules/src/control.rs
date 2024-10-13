@@ -202,7 +202,9 @@ pub enum Command {
     GetFps,
     SetPowerMode(u8),
     GetPowerMode,
+    /// Set the animation period in milliseconds
     SetAnimationPeriod(u16),
+    /// Get the animation period in milliseconds
     GetAnimationPeriod,
     #[cfg(feature = "ledmatrix")]
     SetPwmFreq(PwmFreqArg),
@@ -249,6 +251,7 @@ pub struct B1DIsplayState {
     pub screensaver: Option<ScreenSaverState>,
     pub power_mode: PowerMode,
     pub fps_config: FpsConfig,
+    /// Animation period in microseconds
     pub animation_period: u64,
 }
 
