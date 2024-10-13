@@ -11,6 +11,7 @@ from inputmodule.inputmodule import (
     send_serial,
     brightness,
 )
+from inputmodule.gui.gui_threading import get_status, set_status
 
 WIDTH = 9
 HEIGHT = 34
@@ -69,6 +70,8 @@ def percentage(dev, p):
 def animate(dev, b: bool):
     """Tell the firmware to start/stop animation.
     Scrolls the currently saved grid vertically down."""
+    if b:
+        set_status('animate')
     send_command(dev, CommandVals.Animate, [b])
 
 
@@ -104,6 +107,7 @@ def image_bl(dev, image_file):
 
 def camera(dev):
     """Play a live view from the webcam, for fun"""
+    set_status('camera')
     with serial.Serial(dev.device, 115200) as s:
         import cv2
 
@@ -120,7 +124,7 @@ def camera(dev):
         end_x = min(dim[1], start_x + WIDTH)
 
         # Pre-process the video into resized, cropped, grayscale frames
-        while True:
+        while get_status() == 'camera':
             ret, frame = capture.read()
             if not ret:
                 print("Failed to capture video frames")
@@ -142,6 +146,7 @@ def camera(dev):
 
 
 def video(dev, video_file):
+    set_status('video')
     """Resize and play back a video"""
     with serial.Serial(dev.device, 115200) as s:
         import cv2
@@ -161,7 +166,7 @@ def video(dev, video_file):
         processed = []
 
         # Pre-process the video into resized, cropped, grayscale frames
-        while True:
+        while get_status() == 'video':
             ret, frame = capture.read()
             if not ret:
                 print("Failed to read video frames")
@@ -294,8 +299,9 @@ def all_brightnesses(dev):
 def breathing(dev):
     """Animate breathing brightness.
     Keeps currently displayed grid"""
+    set_status('breathing')
     # Bright ranges appear similar, so we have to go through those faster
-    while True:
+    while get_status() == 'breathing':
         # Go quickly from 250 to 50
         for i in range(10):
             time.sleep(0.03)
