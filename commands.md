@@ -9,8 +9,8 @@ Simple example in Python:
 ```python
 import serial
 
-def send_command(command_id, parameters, with_response=False)
-  with serial.Serial(/dev/ttyACM0, 115200) as s:
+def send_command(command_id, parameters, with_response=False):
+  with serial.Serial("/dev/ttyACM0", 115200) as s:
       s.write([0x32, 0xAC, command_id] + parameters)
 
       if with_response:
@@ -20,7 +20,7 @@ def send_command(command_id, parameters, with_response=False)
 # Go to sleep and check the status
 send_command(0x03, [True])
 res = send_command(0x03, [], with_response=True)
-print(f"Is currently sleeping: {bool(res[0])})
+print(f"Is currently sleeping: {bool(res[0])}")
 ```
 
 Many commands support setting and writing a value, with the same command ID.

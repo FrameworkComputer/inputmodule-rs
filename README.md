@@ -33,8 +33,8 @@ Features that all modules share
 To build your own application see the: [API command documentation](commands.md)
 
 Or use our `inputmodule-control` app, which you can download from the latest
-[GH Actions](https://github.com/FrameworkComputer/led_matrix_fw/actions) run or
-the [release page](https://github.com/FrameworkComputer/led_matrix_fw/releases).
+[GH Actions](https://github.com/FrameworkComputer/inputmodule-rs/actions) run or
+the [release page](https://github.com/FrameworkComputer/inputmodule-rs/releases).
 Optionally there are is also a [Python script](python.md).
 
 For device specific commands, see their individual documentation pages.
@@ -125,13 +125,15 @@ cargo run -p c1minimal
 
 ## Building the firmware
 
-Dependencies: Rust
+Dependencies: [Rust/rustup](https://rustup.rs/), pkg-config, libudev
 
 Prepare Rust toolchain (once):
 
 ```sh
 rustup target install thumbv6m-none-eabi
 cargo install flip-link
+cargo install cargo-make
+cargo install elf2uf2-rs
 ```
 
 Build:
@@ -152,12 +154,15 @@ cargo make --cwd c1minimal uf2
 
 ## Building the Application
 
-Dependencies: Rust, pkg-config, libudev
+Dependencies: [Rust/rustup](https://rustup.rs/), pkg-config, libudev
 
 Currently have to specify the build target because it's not possible to specify a per package build target.
 Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 
 ```sh
+# Install cargo-make to help build it
+cargo install cargo-make
+
 # Build it
 > cargo make --cwd inputmodule-control
 
