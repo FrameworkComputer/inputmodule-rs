@@ -310,7 +310,8 @@ pub fn double_gradient() -> Grid {
 pub fn _fill_grid(grid: &Grid, matrix: &mut Foo) {
     for y in 0..HEIGHT {
         for x in 0..WIDTH {
-            matrix.device.pixel(x as u8, y as u8, grid.0[x][y]).unwrap();
+            let p = gamma::correct(grid.0[x][y]);
+            matrix.device.pixel(x as u8, y as u8, p).unwrap();
         }
     }
 }
@@ -327,9 +328,11 @@ pub fn fill_grid_pixels(state: &LedmatrixState, matrix: &mut Foo) {
     for y in 0..HEIGHT {
         for x in 0..WIDTH {
             let (register, page) = (matrix.device.calc_pixel)(x as u8, y as u8);
-            brightnesses[(page as usize) * 0xB4 + (register as usize)] =
+            let uncorrected =
                 ((state.grid.0[x][y] as u64) * (state.brightness as u64)
                     / (BRIGHTNESS_LEVELS as u64)) as u8;
+            brightnesses[(page as usize) * 0xB4 + (register as usize)] =
+                gamma::correct(uncorrected);
         }
     }
     matrix.device.fill_matrix(&brightnesses).unwrap();
@@ -383,4 +386,12 @@ pub fn every_nth_col(n: usize) -> Grid {
     }
 
     grid
+}
+
+pub mod gamma {
+    pub const fn correct(value: u8) -> u8 {
+        GAMMA[value as usize]
+    }
+
+    include!(concat!(env!("OUT_DIR"), "/gamma.rs"));
 }
