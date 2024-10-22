@@ -110,13 +110,14 @@ const MAX_BRIGHTNESS: u8 = 50;
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 use bsp::entry;
 use fl16_inputmodules::animations::*;
-#[cfg(not(feature = "evt"))]
-use fl16_inputmodules::fl16::DVT2_CALC_PIXEL;
 #[cfg(feature = "evt")]
 use fl16_inputmodules::fl16::EVT_CALC_PIXEL;
 use fl16_inputmodules::games::pong_animation::*;
 use fl16_inputmodules::games::snake_animation::*;
 use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
+use is31fl3741::devices::LedMatrix;
+#[cfg(not(feature = "evt"))]
+use is31fl3741::devices::CALC_PIXEL;
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
@@ -141,7 +142,6 @@ use core::fmt::Write;
 use heapless::String;
 
 use fl16_inputmodules::control::*;
-use fl16_inputmodules::fl16::LedMatrix;
 use fl16_inputmodules::games::{pong, snake};
 use fl16_inputmodules::matrix::*;
 use fl16_inputmodules::patterns::*;
@@ -266,7 +266,7 @@ fn main() -> ! {
     #[cfg(feature = "evt")]
     let mut matrix = LedMatrix::new(i2c, EVT_CALC_PIXEL);
     #[cfg(not(feature = "evt"))]
-    let mut matrix = LedMatrix::new(i2c, DVT2_CALC_PIXEL);
+    let mut matrix = LedMatrix::new(i2c, CALC_PIXEL);
     matrix
         .setup(&mut delay)
         .expect("failed to setup RGB controller");
