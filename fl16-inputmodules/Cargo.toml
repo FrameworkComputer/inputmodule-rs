@@ -15,7 +15,7 @@ defmt-rtt.workspace = true
 #panic-probe.workspace = true
 rp2040-panic-usb-boot.workspace = true
 
-# Not using an external BSP, we've got the Framework Laptop 16 BSPs locally in this crate
+framework-ledmatrix.workspace = true
 rp2040-hal.workspace = true
 rp2040-boot2.workspace = true
 

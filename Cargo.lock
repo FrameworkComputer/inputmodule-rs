@@ -32,7 +32,7 @@ dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "rp2040-boot2 0.2.1",
- "rp2040-hal",
+ "rp2040-hal 0.8.2",
 ]
 
 [[package]]
@@ -216,16 +216,16 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "embedded-graphics",
- "embedded-hal",
+ "embedded-hal 0.2.7",
  "fl16-inputmodules",
  "fugit",
- "heapless",
+ "heapless 0.7.16",
  "rp2040-boot2 0.3.0",
- "rp2040-hal",
+ "rp2040-hal 0.8.2",
  "rp2040-panic-usb-boot",
  "st7306",
  "tinybmp",
- "usb-device",
+ "usb-device 0.2.9",
  "usbd-hid",
  "usbd-serial",
 ]
@@ -281,6 +281,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
 
 [[package]]
+name = "bitfield"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d7e60934ceec538daadb9d8432424ed043a904d8e0243f3c6446bce549a46ac"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -324,15 +330,15 @@ dependencies = [
  "cortex-m-rt",
  "defmt",
  "defmt-rtt",
- "embedded-hal",
+ "embedded-hal 0.2.7",
  "fl16-inputmodules",
  "fugit",
- "heapless",
+ "heapless 0.7.16",
  "rp2040-boot2 0.3.0",
- "rp2040-hal",
+ "rp2040-hal 0.8.2",
  "rp2040-panic-usb-boot",
  "smart-leds",
- "usb-device",
+ "usb-device 0.2.9",
  "usbd-hid",
  "usbd-serial",
  "ws2812-pio",
@@ -523,8 +529,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ec610d8f49840a5b376c69663b6369e71f4b34484b9b2eb29fb918d92516cb9"
 dependencies = [
  "bare-metal",
- "bitfield",
- "embedded-hal",
+ "bitfield 0.13.2",
+ "embedded-hal 0.2.7",
  "volatile-register",
 ]
 
@@ -715,6 +721,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-hal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
+
+[[package]]
+name = "embedded-hal-async"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c4c685bbef7fe13c3c6dd4da26841ed3980ef33e841cddfa15ce8a8fb3f1884"
+dependencies = [
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
+name = "embedded-hal-nb"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fba4268c14288c828995299e59b12babdbe170f6c6d73731af1b4648142e8605"
+dependencies = [
+ "embedded-hal 1.0.0",
+ "nb 1.1.0",
+]
+
+[[package]]
+name = "embedded-io"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
+
+[[package]]
 name = "encode_unicode"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -794,20 +831,21 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "embedded-graphics",
- "embedded-hal",
+ "embedded-hal 0.2.7",
+ "framework-ledmatrix",
  "fugit",
- "heapless",
+ "heapless 0.7.16",
  "is31fl3741",
  "num",
  "num-derive",
  "num-traits",
  "rp2040-boot2 0.3.0",
- "rp2040-hal",
+ "rp2040-hal 0.8.2",
  "rp2040-panic-usb-boot",
  "smart-leds",
  "st7306",
  "tinybmp",
- "usb-device",
+ "usb-device 0.2.9",
  "usbd-hid",
  "usbd-serial",
  "ws2812-pio",
@@ -830,6 +868,56 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "framework-ledmatrix"
+version = "0.1.0"
+source = "git+https://github.com/FrameworkComputer/rp-hal-boards?branch=framework16-hals#07255cdf693133a529984be4067f40bb3730775b"
+dependencies = [
+ "cortex-m-rt",
+ "fugit",
+ "rp2040-boot2 0.3.0",
+ "rp2040-hal 0.10.2",
+]
+
+[[package]]
+name = "frunk"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "874b6a17738fc273ec753618bac60ddaeac48cb1d7684c3e7bd472e57a28b817"
+dependencies = [
+ "frunk_core",
+ "frunk_derives",
+]
+
+[[package]]
+name = "frunk_core"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3529a07095650187788833d585c219761114005d5976185760cf794d265b6a5c"
+
+[[package]]
+name = "frunk_derives"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e99b8b3c28ae0e84b604c75f721c21dc77afb3706076af5e8216d15fd1deaae3"
+dependencies = [
+ "frunk_proc_macro_helpers",
+ "quote",
+ "syn 2.0.18",
+]
+
+[[package]]
+name = "frunk_proc_macro_helpers"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05a956ef36c377977e512e227dcad20f68c2786ac7a54dacece3746046fea5ce"
+dependencies = [
+ "frunk_core",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
 ]
 
 [[package]]
@@ -896,6 +984,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -908,9 +1005,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db04bc24a18b9ea980628ecf00e6c0264f3c1426dac36c00cb49b6fbad8b0743"
 dependencies = [
  "atomic-polyfill",
- "hash32",
+ "hash32 0.2.1",
  "rustc_version 0.4.0",
  "spin",
+ "stable_deref_trait",
+]
+
+[[package]]
+name = "heapless"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
+dependencies = [
+ "hash32 0.3.1",
  "stable_deref_trait",
 ]
 
@@ -1038,7 +1145,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc9abf02bbdd939fe7f46924002c004d8ab811f093392d8e354e8f583a40badf"
 dependencies = [
  "embedded-graphics-core",
- "embedded-hal",
+ "embedded-hal 0.2.7",
 ]
 
 [[package]]
@@ -1122,15 +1229,16 @@ dependencies = [
  "cortex-m-rt",
  "defmt",
  "defmt-rtt",
- "embedded-hal",
+ "embedded-hal 0.2.7",
  "fl16-inputmodules",
+ "framework-ledmatrix",
  "fugit",
- "heapless",
+ "heapless 0.7.16",
  "is31fl3741",
  "rp2040-boot2 0.3.0",
- "rp2040-hal",
+ "rp2040-hal 0.8.2",
  "rp2040-panic-usb-boot",
- "usb-device",
+ "usb-device 0.2.9",
  "usbd-hid",
  "usbd-serial",
 ]
@@ -1571,6 +1679,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "portable-atomic"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc9c68a3f6da06753e9335d63e27f6b9754dd1920d941135b7ea8224f141adb2"
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1637,15 +1751,15 @@ dependencies = [
  "cortex-m-rt",
  "defmt",
  "defmt-rtt",
- "embedded-hal",
+ "embedded-hal 0.2.7",
  "fl16-inputmodules",
  "fugit",
- "heapless",
+ "heapless 0.7.16",
  "rp2040-boot2 0.3.0",
- "rp2040-hal",
+ "rp2040-hal 0.8.2",
  "rp2040-panic-usb-boot",
  "smart-leds",
- "usb-device",
+ "usb-device 0.2.9",
  "usbd-hid",
  "usbd-serial",
  "ws2812-pio",
@@ -1895,7 +2009,7 @@ dependencies = [
  "cortex-m",
  "critical-section",
  "embedded-dma",
- "embedded-hal",
+ "embedded-hal 0.2.7",
  "fugit",
  "itertools",
  "nb 1.1.0",
@@ -1903,8 +2017,37 @@ dependencies = [
  "pio",
  "rand_core 0.6.4",
  "rp2040-hal-macros",
- "rp2040-pac",
- "usb-device",
+ "rp2040-pac 0.4.0",
+ "usb-device 0.2.9",
+ "vcell",
+ "void",
+]
+
+[[package]]
+name = "rp2040-hal"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d11e711940087f2cdff8aeae9f4b902e2014c06a00b39a1092686b81ec973d6f"
+dependencies = [
+ "bitfield 0.14.0",
+ "cortex-m",
+ "critical-section",
+ "embedded-dma",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+ "embedded-hal-nb",
+ "embedded-io",
+ "frunk",
+ "fugit",
+ "itertools",
+ "nb 1.1.0",
+ "paste",
+ "pio",
+ "rand_core 0.6.4",
+ "rp2040-hal-macros",
+ "rp2040-pac 0.6.0",
+ "usb-device 0.3.2",
  "vcell",
  "void",
 ]
@@ -1933,13 +2076,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "rp2040-pac"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83cbcd3f7a0ca7bbe61dc4eb7e202842bee4e27b769a7bf3a4a72fa399d6e404"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "critical-section",
+ "vcell",
+]
+
+[[package]]
 name = "rp2040-panic-usb-boot"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b311d2a72e5a63d5511345b61fe7dd02ce0990bd093ba3dc94b3e80b0a0e373"
 dependencies = [
  "cortex-m",
- "rp2040-hal",
+ "rp2040-hal 0.8.2",
 ]
 
 [[package]]
@@ -2137,7 +2292,7 @@ version = "0.8.2"
 source = "git+https://github.com/FrameworkComputer/st7306-rs?branch=update-deps#8283fcdb91a559fe3a12cb01bc6523d737c28be8"
 dependencies = [
  "embedded-graphics",
- "embedded-hal",
+ "embedded-hal 0.2.7",
  "nb 1.1.0",
 ]
 
@@ -2328,6 +2483,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f6cc3adc849b5292b4075fc0d5fdcf2f24866e88e336dd27a8943090a520508"
 
 [[package]]
+name = "usb-device"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98816b1accafbb09085168b90f27e93d790b4bfa19d883466b5e53315b5f06a6"
+dependencies = [
+ "heapless 0.8.0",
+ "portable-atomic",
+]
+
+[[package]]
 name = "usbd-hid"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2335,7 +2500,7 @@ checksum = "975bd411f4a939986751ea09992a24fa47c4d25c6ed108d04b4c2999a4fd0132"
 dependencies = [
  "serde",
  "ssmarshal",
- "usb-device",
+ "usb-device 0.2.9",
  "usbd-hid-macros",
 ]
 
@@ -2345,7 +2510,7 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcbee8c6735e90894fba04770bc41e11fd3c5256018856e15dc4dd1e6c8a3dd1"
 dependencies = [
- "bitfield",
+ "bitfield 0.13.2",
 ]
 
 [[package]]
@@ -2368,9 +2533,9 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db75519b86287f12dcf0d171c7cf4ecc839149fe9f3b720ac4cfce52959e1dfe"
 dependencies = [
- "embedded-hal",
+ "embedded-hal 0.2.7",
  "nb 0.1.3",
- "usb-device",
+ "usb-device 0.2.9",
 ]
 
 [[package]]
@@ -2720,10 +2885,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d219e3b43c1e14305b36363060c0348d560314e235d999cf492bbbab1f38e8d"
 dependencies = [
  "cortex-m",
- "embedded-hal",
+ "embedded-hal 0.2.7",
  "fugit",
  "nb 1.1.0",
  "pio",
- "rp2040-hal",
+ "rp2040-hal 0.8.2",
  "smart-leds-trait",
 ]

@@ -3,9 +3,9 @@ use rp2040_hal::{
     pac::I2C1,
 };
 
-use crate::led_hal as bsp;
 use crate::mapping::*;
 use crate::matrix::*;
+use framework_ledmatrix as bsp;
 use is31fl3741::devices::LedMatrix;
 
 /// Bytes needed to represent all LEDs with a single bit

@@ -112,9 +112,10 @@ use bsp::entry;
 use fl16_inputmodules::animations::*;
 #[cfg(feature = "evt")]
 use fl16_inputmodules::fl16::EVT_CALC_PIXEL;
+use fl16_inputmodules::games::game_of_life;
 use fl16_inputmodules::games::pong_animation::*;
 use fl16_inputmodules::games::snake_animation::*;
-use fl16_inputmodules::{games::game_of_life, led_hal as bsp};
+use framework_ledmatrix as bsp;
 use is31fl3741::devices::LedMatrix;
 #[cfg(not(feature = "evt"))]
 use is31fl3741::devices::CALC_PIXEL;
