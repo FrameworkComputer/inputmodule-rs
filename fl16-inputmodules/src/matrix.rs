@@ -37,7 +37,7 @@ pub struct LedmatrixState {
     pub sleeping: SleepState,
     /// State of the current game, if any
     pub game: Option<GameState>,
-    /// Animation perios in microseconds
+    /// Animation period in microseconds
     pub animation_period: u64,
     /// Current LED PWM frequency
     pub pwm_freq: PwmFreqArg,
