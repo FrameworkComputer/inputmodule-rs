@@ -6,22 +6,26 @@ from inputmodule.gui.gui_threading import (
     reset_thread,
     is_thread_stopped,
     is_dev_disconnected,
+    set_status,
+    get_status,
 )
 from inputmodule.inputmodule.ledmatrix import (
     light_leds,
     show_string,
     eq,
     breathing,
+    animate,
 )
 from inputmodule.inputmodule import brightness
-
 
 def countdown(dev, seconds):
     """Run a countdown timer. Lighting more LEDs every 100th of a seconds.
     Until the timer runs out and every LED is lit"""
+    animate(dev, False)
+    set_status('countdown')
     start = datetime.now()
     target = seconds * 1_000_000
-    while True:
+    while get_status() == 'countdown':
         if is_thread_stopped() or is_dev_disconnected(dev.device):
             reset_thread()
             return
@@ -37,15 +41,17 @@ def countdown(dev, seconds):
 
         time.sleep(0.01)
 
-    light_leds(dev, 306)
-    breathing(dev)
-    # blinking(dev)
+    if get_status() == 'countdown':
+        light_leds(dev, 306)
+        breathing(dev)
+        # blinking(dev)
 
 
 def blinking(dev):
     """Blink brightness high/off every second.
     Keeps currently displayed grid"""
-    while True:
+    set_status('blinking')
+    while get_status() == 'blinking':
         if is_thread_stopped() or is_dev_disconnected(dev.device):
             reset_thread()
             return
@@ -57,7 +63,9 @@ def blinking(dev):
 
 def random_eq(dev):
     """Display an equlizer looking animation with random values."""
-    while True:
+    animate(dev, False)
+    set_status('random_eq')
+    while get_status() == 'random_eq':
         if is_thread_stopped() or is_dev_disconnected(dev.device):
             reset_thread()
             return
@@ -72,7 +80,9 @@ def random_eq(dev):
 def clock(dev):
     """Render the current time and display.
     Loops forever, updating every second"""
-    while True:
+    animate(dev, False)
+    set_status('clock')
+    while get_status() == 'clock':
         if is_thread_stopped() or is_dev_disconnected(dev.device):
             reset_thread()
             return

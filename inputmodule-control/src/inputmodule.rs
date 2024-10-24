@@ -90,12 +90,6 @@ fn match_serialdevs(
         // Find all supported Framework devices
         for p in ports {
             if let SerialPortType::UsbPort(usbinfo) = &p.port_type {
-                // macOS creates a /dev/cu.* and /dev/tty.* device.
-                // The latter can only be used for reading, not writing, so we have to ignore it.
-                #[cfg(target_os = "macos")]
-                if !p.port_name.starts_with("/dev/tty.") {
-                    continue;
-                }
                 if usbinfo.vid == FRAMEWORK_VID && pids.contains(&usbinfo.pid) {
                     compatible_devs.push(p.port_name.clone());
                 }
@@ -1006,13 +1000,7 @@ fn animation_fps_cmd(serialdev: &str, arg: Option<u16>) {
         .expect("Failed to open port");
 
     if let Some(fps) = arg {
-        const MS: u16 = 1000;
-        if fps < MS {
-            // It would need to set the animation period lower than 1ms
-            println!("Unable to set FPS over 1000");
-            return;
-        }
-        let period = (MS / fps).to_le_bytes();
+        let period = (1000 / fps).to_le_bytes();
         simple_cmd_port(&mut port, Command::AnimationPeriod, &[period[0], period[1]]);
     } else {
         simple_cmd_port(&mut port, Command::AnimationPeriod, &[]);
