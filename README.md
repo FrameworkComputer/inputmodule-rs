@@ -35,7 +35,7 @@ To build your own application see the: [API command documentation](commands.md)
 Or use our `inputmodule-control` app, which you can download from the latest
 [GH Actions](https://github.com/FrameworkComputer/inputmodule-rs/actions) run or
 the [release page](https://github.com/FrameworkComputer/inputmodule-rs/releases).
-Optionally there are is also a [Python script](python.md).
+Optionally there are is also a [Python script](python/README.md).
 
 For device specific commands, see their individual documentation pages.
 
