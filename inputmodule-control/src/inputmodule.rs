@@ -160,7 +160,7 @@ pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<Str
 pub fn serial_commands(args: &crate::ClapCli) {
     let (serialdevs, waited): (Vec<String>, bool) = find_serialdevs(args, args.wait_for_device);
     if serialdevs.is_empty() {
-        println!("Failed to find serial devivce. Please manually specify with --serial-dev");
+        println!("Failed to find serial device. Please manually specify with --serial-dev");
         return;
     } else if args.wait_for_device && !waited {
         println!("Device already present. No need to wait. Not executing command. Sleep 1s");
@@ -843,7 +843,7 @@ fn show_font(serialdev: &str, font_items: &[Vec<u8>]) {
 }
 
 /// Render a list of up to five symbols
-/// Can use letters/numbers or symbol names, like 'sun', ':)'
+/// Can use letters/numbers or symbol names, like 'sun' ':)'
 fn show_symbols(serialdev: &str, symbols: &Vec<String>) {
     println!("Symbols: {symbols:?}");
     let font_items: Vec<Vec<u8>> = symbols.iter().map(|x| convert_symbol(x)).collect();

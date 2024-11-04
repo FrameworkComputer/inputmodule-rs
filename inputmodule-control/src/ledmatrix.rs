@@ -100,12 +100,12 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub clock: bool,
 
-    /// Display a string (max 5 chars)
-    #[arg(long)]
+    /// Display a string vertically (max 5 chars - letters, digits, punctuation)
+    #[arg(long, allow_hyphen_values = true)]
     pub string: Option<String>,
 
-    /// Display a string (max 5 symbols)
-    #[arg(long, num_args(0..6))]
+    /// Display a string vertically (up to 5 symbols as separate arguments by symbol name or string)
+    #[arg(long, allow_hyphen_values = true, num_args(0..6))]
     pub symbols: Option<Vec<String>>,
 
     /// Start a game
@@ -113,7 +113,7 @@ pub struct LedMatrixSubcommand {
     #[clap(value_enum)]
     pub start_game: Option<Game>,
 
-    /// Paramater for starting the game. Required for some games
+    /// Parameter for starting the game. Required for some games
     #[arg(long)]
     #[clap(value_enum)]
     pub game_param: Option<GameOfLifeStartParam>,
