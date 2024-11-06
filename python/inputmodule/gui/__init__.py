@@ -1,6 +1,7 @@
 import os
 import threading
 import sys
+import platform
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -53,7 +54,10 @@ def run_gui(devices):
     style.configure("TLabelframe", background="#2b2b2b", foreground="white")
     style.configure("TLabelframe.Label", background="#2b2b2b", foreground="white")
     style.configure("TCheckbutton", background="#2b2b2b", foreground="white")
-    style.configure("TButton", background="white", foreground="#2b2b2b")
+    if platform.system() == "Windows":  # On Windows, I don't know why background always stays white even if I set it to black 
+        style.configure("TButton", background="white", foreground="#2b2b2b")
+    else:
+        style.configure("TButton", background="#2b2b2b", foreground="white")
     style.configure("TEntry", fieldbackground="#2b2b2b", foreground="white")
     style.configure("TCombobox", fieldbackground="#2b2b2b", foreground="white")
     style.configure("TScale", background="#2b2b2b", troughcolor="gray")
