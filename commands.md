@@ -94,6 +94,10 @@ TODO
 Response:
 
 ```plain
+Byte 0: USB bcdDevice MSB
+Byte 1: USB bcdDevice LSB
+Byte 2: 1 if pre-release version, 0 otherwise
+
 +-- Major version
 |        +-- Minor version
 |        |   +-- Patch version
