@@ -56,7 +56,7 @@ When no parameters are given, the current value is queried and returned.
 | InvertScreen | 0x15 |   ` D ` |          |       bool | Invert scren on/off      |
 | SetPxCol     | 0x16 |   ` D ` |          |   50 Bytes | Send a column of pixels  |
 | FlushFB      | 0x17 |   ` D ` |          |            | Flush all columns        |
-| Version      | 0x20 |   ` D ` |  3 Bytes |            | Get firmware version     |
+| Version      | 0x20 |   `LDM` |  3 Bytes |            | Get firmware version     |
 
 #### Pattern (0x01)
 
@@ -93,8 +93,15 @@ TODO
 
 Response:
 
-```
+```plain
 Byte 0: USB bcdDevice MSB
 Byte 1: USB bcdDevice LSB
 Byte 2: 1 if pre-release version, 0 otherwise
+
++-- Major version
+|        +-- Minor version
+|        |   +-- Patch version
+|        |   |           +-- 1 if is pre-release,
+|        |   |           |   0 otherwise
+MMMMMMMM mmmmPPPP 0000000p
 ```
