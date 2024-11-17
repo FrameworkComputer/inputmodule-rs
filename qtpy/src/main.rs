@@ -39,9 +39,7 @@ use usb_device::{class_prelude::*, prelude::*, descriptor::lang_id};
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
-//use usbd_picotool_reset::PicoToolReset;
-mod usbd_picotool_reset;
-use crate::usbd_picotool_reset::PicoToolReset;
+use usbd_picotool_reset::PicoToolReset;
 
 // Used to demonstrate writing formatted strings
 // use core::fmt::Write;
