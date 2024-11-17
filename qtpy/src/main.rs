@@ -102,7 +102,7 @@ fn main() -> ! {
     // Set up the USB Communications Class Device driver
     let mut serial = SerialPort::new(&usb_bus);
 
-    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x2e8a, 0x000a))
+    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(FRAMEWORK_VID, COMMUNITY_PID))
         //.strings(&[StringDescriptors::new(lang_id::ENGLISH_US)
         //    .manufacturer("Adafruit")
         //    .product("QT PY - Framework 16 Inputmodule FW")])
