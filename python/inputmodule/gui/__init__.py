@@ -72,17 +72,6 @@ def run_gui(devices):
         checkbox.pack(anchor="w")
         device_checkboxes[dev.name] = checkbox_var
 
-    # Device Control Buttons
-    device_control_frame = ttk.LabelFrame(tab1, text="Device Control", style="TLabelframe")
-    device_control_frame.pack(fill="x", padx=10, pady=5)
-    control_buttons = {
-        "Bootloader": "bootloader",
-        "Sleep": "sleep",
-        "Wake": "wake"
-    }
-    for text, action in control_buttons.items():
-        ttk.Button(device_control_frame, text=text, command=lambda a=action: perform_action(devices, a), style="TButton").pack(side="left", padx=5, pady=5)
-
     # Brightness Slider
     brightness_frame = ttk.LabelFrame(tab1, text="Brightness", style="TLabelframe")
     brightness_frame.pack(fill="x", padx=10, pady=5)
@@ -159,6 +148,18 @@ def run_gui(devices):
     equalizer_frame.pack(fill="x", padx=10, pady=5)
     ttk.Button(equalizer_frame, text="Start random equalizer", command=lambda: perform_action(devices, "start_eq"), style="TButton").pack(side="left", padx=5, pady=5)
     ttk.Button(equalizer_frame, text="Stop", command=stop_thread, style="TButton").pack(side="left", padx=5, pady=5)
+
+    # Device Control Buttons
+    device_control_frame = ttk.LabelFrame(tab1, text="Device Control", style="TLabelframe")
+    device_control_frame.pack(fill="x", padx=10, pady=5)
+    control_buttons = {
+        "Bootloader": "bootloader",
+        "Sleep": "sleep",
+        "Wake": "wake"
+    }
+    for text, action in control_buttons.items():
+        ttk.Button(device_control_frame, text=text, command=lambda a=action: perform_action(devices, a), style="TButton").pack(side="left", padx=5, pady=5)
+
 
     root.mainloop()
 
