@@ -56,22 +56,6 @@ def run_gui(devices):
     tabControl.add(tab3, text="Advanced")
     tabControl.pack(expand=1, fill="both")
 
-    # Configure dark theme
-    style = ttk.Style()
-    root.configure(bg="#2b2b2b")
-    style.configure("TLabelframe", background="#2b2b2b", foreground="white")
-    style.configure("TLabelframe.Label", background="#2b2b2b", foreground="white")
-    style.configure("TCheckbutton", background="#2b2b2b", foreground="white")
-    if platform.system() == "Windows":  # On Windows, I don't know why background always stays white even if I set it to black 
-        style.configure("TButton", background="white", foreground="#2b2b2b")
-    else:
-        style.configure("TButton", background="#2b2b2b", foreground="white")
-    style.configure("TEntry", fieldbackground="#2b2b2b", foreground="white")
-    style.configure("TCombobox", fieldbackground="#2b2b2b", foreground="white")
-    style.configure("TScale", background="#2b2b2b", troughcolor="gray")
-    style.configure("TSpinbox", background="#2b2b2b", foreground="white")
-    style.map("TButton", background=[("active", "gray"), ("!active", "#2b2b2b")])
-    
     # Device Checkboxes
     detected_devices_frame = ttk.LabelFrame(root, text="Detected Devices", style="TLabelframe")
     detected_devices_frame.pack(fill="x", padx=10, pady=5)
@@ -103,7 +87,7 @@ def run_gui(devices):
     brightness_frame = ttk.LabelFrame(tab1, text="Brightness", style="TLabelframe")
     brightness_frame.pack(fill="x", padx=10, pady=5)
     global brightness_scale
-    brightness_scale = tk.Scale(brightness_frame, from_=0, to=255, orient='horizontal', command=lambda value: set_brightness(devices, value), bg="#2b2b2b", fg="white", troughcolor="gray", highlightbackground="#2b2b2b")
+    brightness_scale = tk.Scale(brightness_frame, from_=0, to=255, orient='horizontal', command=lambda value: set_brightness(devices, value))
     brightness_scale.set(120)  # Default value
     brightness_scale.pack(fill="x", padx=5, pady=5)
 
@@ -120,20 +104,20 @@ def run_gui(devices):
     # Pattern Combo Box
     pattern_frame = ttk.LabelFrame(tab1, text="Pattern", style="TLabelframe")
     pattern_frame.pack(fill="x", padx=10, pady=5)
-    pattern_combo = ttk.Combobox(pattern_frame, values=PATTERNS, style="TCombobox")
+    pattern_combo = ttk.Combobox(pattern_frame, values=PATTERNS, style="TCombobox", state="readonly")
     pattern_combo.pack(fill="x", padx=5, pady=5)
     pattern_combo.bind("<<ComboboxSelected>>", lambda event: set_pattern(devices, pattern_combo.get()))
 
     # Percentage Slider
     percentage_frame = ttk.LabelFrame(tab1, text="Fill screen X% (could be volume indicator)", style="TLabelframe")
     percentage_frame.pack(fill="x", padx=10, pady=5)
-    percentage_scale = tk.Scale(percentage_frame, from_=0, to=100, orient='horizontal', command=lambda value: set_percentage(devices, value), bg="#2b2b2b", fg="white", troughcolor="gray", highlightbackground="#2b2b2b")
+    percentage_scale = tk.Scale(percentage_frame, from_=0, to=100, orient='horizontal', command=lambda value: set_percentage(devices, value))
     percentage_scale.pack(fill="x", padx=5, pady=5)
 
     # Countdown Timer
     countdown_frame = ttk.LabelFrame(tab2, text="Countdown Timer", style="TLabelframe")
     countdown_frame.pack(fill="x", padx=10, pady=5)
-    countdown_spinbox = tk.Spinbox(countdown_frame, from_=1, to=60, width=5, bg="#2b2b2b", fg="white", textvariable=tk.StringVar(value=10))
+    countdown_spinbox = tk.Spinbox(countdown_frame, from_=1, to=60, width=5, textvariable=tk.StringVar(value=10))
     countdown_spinbox.pack(side="left", padx=5, pady=5)
     ttk.Label(countdown_frame, text="Seconds", style="TLabel").pack(side="left")
     ttk.Button(countdown_frame, text="Start", command=lambda: start_countdown(devices, countdown_spinbox.get()), style="TButton").pack(side="left", padx=5, pady=5)
@@ -166,7 +150,7 @@ def run_gui(devices):
     # PWM Frequency Combo Box
     pwm_freq_frame = ttk.LabelFrame(tab3, text="PWM Frequency", style="TLabelframe")
     pwm_freq_frame.pack(fill="x", padx=10, pady=5)
-    pwm_freq_combo = ttk.Combobox(pwm_freq_frame, values=PWM_FREQUENCIES, style="TCombobox")
+    pwm_freq_combo = ttk.Combobox(pwm_freq_frame, values=PWM_FREQUENCIES, style="TCombobox", state="readonly")
     pwm_freq_combo.pack(fill="x", padx=5, pady=5)
     pwm_freq_combo.bind("<<ComboboxSelected>>", lambda: set_pwm_freq(devices, pwm_freq_combo.get()))
 
