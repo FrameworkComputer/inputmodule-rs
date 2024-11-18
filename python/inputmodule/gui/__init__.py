@@ -46,7 +46,15 @@ def popup(message):
 def run_gui(devices):
     root = tk.Tk()
     root.title("LED Matrix Control")
-    root.geometry("400x900")
+
+    tabControl = ttk.Notebook(root)
+    tab1 = ttk.Frame(tabControl)
+    tab2 = ttk.Frame(tabControl)
+    tab3 = ttk.Frame(tabControl)
+    tabControl.add(tab1, text="Home")
+    tabControl.add(tab2, text="Dynamic Controls")
+    tabControl.add(tab3, text="Advanced")
+    tabControl.pack(expand=1, fill="both")
 
     # Configure dark theme
     style = ttk.Style()
@@ -81,7 +89,7 @@ def run_gui(devices):
         device_checkboxes[dev.name] = checkbox_var
 
     # Device Control Buttons
-    device_control_frame = ttk.LabelFrame(root, text="Device Control", style="TLabelframe")
+    device_control_frame = ttk.LabelFrame(tab1, text="Device Control", style="TLabelframe")
     device_control_frame.pack(fill="x", padx=10, pady=5)
     control_buttons = {
         "Bootloader": "bootloader",
@@ -92,7 +100,7 @@ def run_gui(devices):
         ttk.Button(device_control_frame, text=text, command=lambda a=action: perform_action(devices, a), style="TButton").pack(side="left", padx=5, pady=5)
 
     # Brightness Slider
-    brightness_frame = ttk.LabelFrame(root, text="Brightness", style="TLabelframe")
+    brightness_frame = ttk.LabelFrame(tab1, text="Brightness", style="TLabelframe")
     brightness_frame.pack(fill="x", padx=10, pady=5)
     global brightness_scale
     brightness_scale = tk.Scale(brightness_frame, from_=0, to=255, orient='horizontal', command=lambda value: set_brightness(devices, value), bg="#2b2b2b", fg="white", troughcolor="gray", highlightbackground="#2b2b2b")
@@ -100,7 +108,7 @@ def run_gui(devices):
     brightness_scale.pack(fill="x", padx=5, pady=5)
 
     # Animation Control
-    animation_frame = ttk.LabelFrame(root, text="Animation", style="TLabelframe")
+    animation_frame = ttk.LabelFrame(tab1, text="Animation", style="TLabelframe")
     animation_frame.pack(fill="x", padx=10, pady=5)
     animation_buttons = {
         "Start Animation": "start_animation",
@@ -110,20 +118,20 @@ def run_gui(devices):
         ttk.Button(animation_frame, text=text, command=lambda a=action: perform_action(devices, a), style="TButton").pack(side="left", padx=5, pady=5)
 
     # Pattern Combo Box
-    pattern_frame = ttk.LabelFrame(root, text="Pattern", style="TLabelframe")
+    pattern_frame = ttk.LabelFrame(tab1, text="Pattern", style="TLabelframe")
     pattern_frame.pack(fill="x", padx=10, pady=5)
     pattern_combo = ttk.Combobox(pattern_frame, values=PATTERNS, style="TCombobox")
     pattern_combo.pack(fill="x", padx=5, pady=5)
     pattern_combo.bind("<<ComboboxSelected>>", lambda event: set_pattern(devices, pattern_combo.get()))
 
     # Percentage Slider
-    percentage_frame = ttk.LabelFrame(root, text="Fill screen X% (could be volume indicator)", style="TLabelframe")
+    percentage_frame = ttk.LabelFrame(tab1, text="Fill screen X% (could be volume indicator)", style="TLabelframe")
     percentage_frame.pack(fill="x", padx=10, pady=5)
     percentage_scale = tk.Scale(percentage_frame, from_=0, to=100, orient='horizontal', command=lambda value: set_percentage(devices, value), bg="#2b2b2b", fg="white", troughcolor="gray", highlightbackground="#2b2b2b")
     percentage_scale.pack(fill="x", padx=5, pady=5)
 
     # Countdown Timer
-    countdown_frame = ttk.LabelFrame(root, text="Countdown Timer", style="TLabelframe")
+    countdown_frame = ttk.LabelFrame(tab2, text="Countdown Timer", style="TLabelframe")
     countdown_frame.pack(fill="x", padx=10, pady=5)
     countdown_spinbox = tk.Spinbox(countdown_frame, from_=1, to=60, width=5, bg="#2b2b2b", fg="white", textvariable=tk.StringVar(value=10))
     countdown_spinbox.pack(side="left", padx=5, pady=5)
@@ -132,38 +140,38 @@ def run_gui(devices):
     ttk.Button(countdown_frame, text="Stop", command=stop_thread, style="TButton").pack(side="left", padx=5, pady=5)
 
     # Black & White and Greyscale Images in same row
-    image_frame = ttk.LabelFrame(root, text="Black&White Images / Greyscale Images", style="TLabelframe")
+    image_frame = ttk.LabelFrame(tab1, text="Black&White Images / Greyscale Images", style="TLabelframe")
     image_frame.pack(fill="x", padx=10, pady=5)
     ttk.Button(image_frame, text="Send stripe.gif", command=lambda: send_image(devices, "stripe.gif", image_bl), style="TButton").pack(side="left", padx=5, pady=5)
     ttk.Button(image_frame, text="Send greyscale.gif", command=lambda: send_image(devices, "greyscale.gif", image_greyscale), style="TButton").pack(side="left", padx=5, pady=5)
 
     # Display Current Time
-    time_frame = ttk.LabelFrame(root, text="Display Current Time", style="TLabelframe")
+    time_frame = ttk.LabelFrame(tab2, text="Display Current Time", style="TLabelframe")
     time_frame.pack(fill="x", padx=10, pady=5)
     ttk.Button(time_frame, text="Start", command=lambda: perform_action(devices, "start_time"), style="TButton").pack(side="left", padx=5, pady=5)
     ttk.Button(time_frame, text="Stop", command=stop_thread, style="TButton").pack(side="left", padx=5, pady=5)
 
     # Custom Text
-    custom_text_frame = ttk.LabelFrame(root, text="Custom Text", style="TLabelframe")
+    custom_text_frame = ttk.LabelFrame(tab1, text="Custom Text", style="TLabelframe")
     custom_text_frame.pack(fill="x", padx=10, pady=5)
     custom_text_entry = ttk.Entry(custom_text_frame, width=20, style="TEntry")
     custom_text_entry.pack(side="left", padx=5, pady=5)
     ttk.Button(custom_text_frame, text="Show", command=lambda: show_custom_text(devices, custom_text_entry.get()), style="TButton").pack(side="left", padx=5, pady=5)
 
     # Display Text with Symbols
-    symbols_frame = ttk.LabelFrame(root, text="Display Text with Symbols", style="TLabelframe")
+    symbols_frame = ttk.LabelFrame(tab1, text="Display Text with Symbols", style="TLabelframe")
     symbols_frame.pack(fill="x", padx=10, pady=5)
     ttk.Button(symbols_frame, text="Send '2 5 degC thunder'", command=lambda: send_symbols(devices), style="TButton").pack(side="left", padx=5, pady=5)
 
     # PWM Frequency Combo Box
-    pwm_freq_frame = ttk.LabelFrame(root, text="PWM Frequency", style="TLabelframe")
+    pwm_freq_frame = ttk.LabelFrame(tab3, text="PWM Frequency", style="TLabelframe")
     pwm_freq_frame.pack(fill="x", padx=10, pady=5)
     pwm_freq_combo = ttk.Combobox(pwm_freq_frame, values=PWM_FREQUENCIES, style="TCombobox")
     pwm_freq_combo.pack(fill="x", padx=5, pady=5)
     pwm_freq_combo.bind("<<ComboboxSelected>>", lambda: set_pwm_freq(devices, pwm_freq_combo.get()))
 
     # Equalizer
-    equalizer_frame = ttk.LabelFrame(root, text="Equalizer", style="TLabelframe")
+    equalizer_frame = ttk.LabelFrame(tab2, text="Equalizer", style="TLabelframe")
     equalizer_frame.pack(fill="x", padx=10, pady=5)
     ttk.Button(equalizer_frame, text="Start random equalizer", command=lambda: perform_action(devices, "start_eq"), style="TButton").pack(side="left", padx=5, pady=5)
     ttk.Button(equalizer_frame, text="Stop", command=stop_thread, style="TButton").pack(side="left", padx=5, pady=5)
