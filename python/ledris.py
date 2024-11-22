@@ -5,6 +5,10 @@ import pygame
 import random
 import time
 
+from inputmodule import cli
+from inputmodule.gui.ledmatrix import show_string
+from inputmodule.inputmodule import ledmatrix
+
 # Initialize pygame
 pygame.init()
 
@@ -49,8 +53,19 @@ def get_board_state(board, current_shape, current_pos):
                     temp_board[off_y + y][off_x + x] = 1
     return temp_board
 
+def draw_ledmatrix(board, devices):
+    for dev in devices:
+        matrix = [[0 for _ in range(34)] for _ in range(9)]
+        for y in range(rows):
+            for x in range(cols):
+                matrix[x][y] = board[y][x]
+        ledmatrix.render_matrix(dev, matrix)
+        #vals = [0 for _ in range(39)]
+        #send_command(dev, CommandVals.Draw, vals)
+
 # Function to draw the game based on the board state
 def draw_board(board, devices):
+    draw_ledmatrix(board, devices)
     screen.fill(white)
     for y in range(rows):
         for x in range(cols):
@@ -189,9 +204,14 @@ def gameLoop(devices):
 
     # Flash the screen twice before waiting for restart
     for _ in range(2):
+        for dev in devices:
+            ledmatrix.percentage(dev, 0)
         screen.fill(black)
         pygame.display.update()
         time.sleep(0.3)
+
+        for dev in devices:
+            ledmatrix.percentage(dev, 100)
         screen.fill(white)
         pygame.display.update()
         time.sleep(0.3)
@@ -217,4 +237,8 @@ def gameLoop(devices):
     pygame.quit()
     quit()
 
-gameLoop(devices)
+if __name__ == "__main__":
+    devices = cli.find_devs()
+    for dev in devices:
+        show_string(dev, 'YAY')
+    gameLoop(devices)
