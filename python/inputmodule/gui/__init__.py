@@ -109,6 +109,7 @@ def run_gui(devices):
     # Games tab
     games_frame = ttk.LabelFrame(tab_games, text="Games", style="TLabelframe")
     games_frame.pack(fill="x", padx=10, pady=5)
+    ttk.Button(games_frame, text="Snake", command=lambda: perform_action(devices, 'game_snake'), style="TButton").pack(side="left", padx=5, pady=5)
     ttk.Button(games_frame, text="Ledris", command=lambda: perform_action(devices, 'game_ledris'), style="TButton").pack(side="left", padx=5, pady=5)
 
     # Countdown Timer
@@ -172,7 +173,8 @@ def run_gui(devices):
 
 def perform_action(devices, action):
     action_map = {
-        "game_ledris": ledris.main_devices
+        "game_snake": snake.main_devices,
+        "game_ledris": ledris.main_devices,
     }
     if action in action_map:
         threading.Thread(target=action_map[action], args=(devices,), daemon=True).start(),
