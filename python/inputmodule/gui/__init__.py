@@ -14,6 +14,7 @@ from inputmodule.inputmodule import (
     CommandVals,
 )
 from inputmodule.gui.games import snake
+from inputmodule.gui.games import ledris
 from inputmodule.gui.ledmatrix import countdown, random_eq, clock
 from inputmodule.gui.gui_threading import stop_thread, is_dev_disconnected
 from inputmodule.inputmodule.ledmatrix import (
@@ -49,9 +50,11 @@ def run_gui(devices):
 
     tabControl = ttk.Notebook(root)
     tab1 = ttk.Frame(tabControl)
+    tab_games = ttk.Frame(tabControl)
     tab2 = ttk.Frame(tabControl)
     tab3 = ttk.Frame(tabControl)
     tabControl.add(tab1, text="Home")
+    tabControl.add(tab_games, text="Games")
     tabControl.add(tab2, text="Dynamic Controls")
     tabControl.add(tab3, text="Advanced")
     tabControl.pack(expand=1, fill="both")
@@ -102,6 +105,11 @@ def run_gui(devices):
     percentage_frame.pack(fill="x", padx=10, pady=5)
     percentage_scale = tk.Scale(percentage_frame, from_=0, to=100, orient='horizontal', command=lambda value: set_percentage(devices, value))
     percentage_scale.pack(fill="x", padx=5, pady=5)
+
+    # Games tab
+    games_frame = ttk.LabelFrame(tab_games, text="Games", style="TLabelframe")
+    games_frame.pack(fill="x", padx=10, pady=5)
+    ttk.Button(games_frame, text="Ledris", command=lambda: perform_action(devices, 'game_ledris'), style="TButton").pack(side="left", padx=5, pady=5)
 
     # Countdown Timer
     countdown_frame = ttk.LabelFrame(tab2, text="Countdown Timer", style="TLabelframe")
@@ -160,10 +168,15 @@ def run_gui(devices):
     for text, action in control_buttons.items():
         ttk.Button(device_control_frame, text=text, command=lambda a=action: perform_action(devices, a), style="TButton").pack(side="left", padx=5, pady=5)
 
-
     root.mainloop()
 
 def perform_action(devices, action):
+    action_map = {
+        "game_ledris": ledris.main_devices
+    }
+    if action in action_map:
+        threading.Thread(target=action_map[action], args=(devices,), daemon=True).start(),
+
     action_map = {
         "bootloader": bootloader,
         "sleep": lambda dev: send_command(dev, CommandVals.Sleep, [True]),
@@ -171,7 +184,7 @@ def perform_action(devices, action):
         "start_animation": lambda dev: animate(dev, True),
         "stop_animation": lambda dev: animate(dev, False),
         "start_time": lambda dev: threading.Thread(target=clock, args=(dev,), daemon=True).start(),
-        "start_eq": lambda dev: threading.Thread(target=random_eq, args=(dev,), daemon=True).start()
+        "start_eq": lambda dev: threading.Thread(target=random_eq, args=(dev,), daemon=True).start(),
     }
     selected_devices = get_selected_devices(devices)
     for dev in selected_devices:
