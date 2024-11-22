@@ -12,6 +12,8 @@ from inputmodule.inputmodule import (
     get_brightness,
     bootloader,
     CommandVals,
+    Game,
+    GameControlVal
 )
 from inputmodule.gui.games import snake
 from inputmodule.gui.games import ledris
@@ -107,10 +109,23 @@ def run_gui(devices):
     percentage_scale.pack(fill="x", padx=5, pady=5)
 
     # Games tab
-    games_frame = ttk.LabelFrame(tab_games, text="Games", style="TLabelframe")
+    games_frame = ttk.LabelFrame(tab_games, text="Interactive", style="TLabelframe")
     games_frame.pack(fill="x", padx=10, pady=5)
     ttk.Button(games_frame, text="Snake", command=lambda: perform_action(devices, 'game_snake'), style="TButton").pack(side="left", padx=5, pady=5)
     ttk.Button(games_frame, text="Ledris", command=lambda: perform_action(devices, 'game_ledris'), style="TButton").pack(side="left", padx=5, pady=5)
+    gol_frame = ttk.LabelFrame(tab_games, text="Game of Life", style="TLabelframe")
+    gol_frame.pack(fill="x", padx=10, pady=5)
+    animation_buttons = {
+        "Current Matrix": "gol_current",
+        "Pattern 1": "gol_pattern1",
+        "Blinker": "gol_blinker",
+        "Toad": "gol_toad",
+        "Beacon": "gol_beacon",
+        "Glider": "gol_glider",
+        "Stop": "game_stop",
+    }
+    for text, action in animation_buttons.items():
+        ttk.Button(gol_frame, text=text, command=lambda a=action: perform_action(devices, a), style="TButton").pack(side="left", padx=5, pady=5)
 
     # Countdown Timer
     countdown_frame = ttk.LabelFrame(tab2, text="Countdown Timer", style="TLabelframe")
@@ -187,6 +202,13 @@ def perform_action(devices, action):
         "stop_animation": lambda dev: animate(dev, False),
         "start_time": lambda dev: threading.Thread(target=clock, args=(dev,), daemon=True).start(),
         "start_eq": lambda dev: threading.Thread(target=random_eq, args=(dev,), daemon=True).start(),
+        "gol_current": lambda dev: send_command(dev, CommandVals.StartGame, [Game.GameOfLife, 0]),
+        "gol_pattern1": lambda dev: send_command(dev, CommandVals.StartGame, [Game.GameOfLife, 1]),
+        "gol_blinker": lambda dev: send_command(dev, CommandVals.StartGame, [Game.GameOfLife, 2]),
+        "gol_toad": lambda dev: send_command(dev, CommandVals.StartGame, [Game.GameOfLife, 3]),
+        "gol_beacon": lambda dev: send_command(dev, CommandVals.StartGame, [Game.GameOfLife, 4]),
+        "gol_glider": lambda dev: send_command(dev, CommandVals.StartGame, [Game.GameOfLife, 5]),
+        "game_stop": lambda dev: send_command(dev, CommandVals.GameControl, [GameControlVal.Quit]),
     }
     selected_devices = get_selected_devices(devices)
     for dev in selected_devices:
