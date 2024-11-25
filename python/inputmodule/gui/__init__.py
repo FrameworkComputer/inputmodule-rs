@@ -1,7 +1,9 @@
 import os
-import threading
-import sys
 import platform
+import sys
+import threading
+import webbrowser
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -79,6 +81,21 @@ def run_gui(devices):
         checkbox = ttk.Checkbutton(detected_devices_frame, text=device_info, variable=checkbox_var, style="TCheckbutton")
         checkbox.pack(anchor="w")
         device_checkboxes[dev.name] = (checkbox_var, checkbox)
+
+    # Online Info
+    info_frame = ttk.LabelFrame(tab1, text="Online Info", style="TLabelframe")
+    info_frame.pack(fill="x", padx=10, pady=5)
+    infos = {
+        "Web Interface": "https://ledmatrix.frame.work",
+        "Latest Releases": "https://github.com/FrameworkComputer/inputmodule-rs/releases",
+        "Hardware Info": "https://github.com/FrameworkComputer/InputModules",
+    }
+    for (i, (text, url)) in enumerate(infos.items()):
+        # Organize in columns of three
+        row = int(i / 3)
+        column = i % 3
+        btn = ttk.Button(info_frame, text=text, command=lambda url=url: webbrowser.open(url), style="TButton")
+        btn.grid(row=row, column=column)
 
     # Brightness Slider
     brightness_frame = ttk.LabelFrame(tab1, text="Brightness", style="TLabelframe")
