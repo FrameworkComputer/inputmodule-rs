@@ -35,9 +35,13 @@ To build your own application see the: [API command documentation](commands.md)
 Or use our `inputmodule-control` app, which you can download from the latest
 [GH Actions](https://github.com/FrameworkComputer/inputmodule-rs/actions) run or
 the [release page](https://github.com/FrameworkComputer/inputmodule-rs/releases).
-Optionally there are is also a [Python script](python/README.md).
 
 For device specific commands, see their individual documentation pages.
+
+### GUI and Python
+There are also a python library and GUI tool. See their [README](python/README.md).
+
+![](res/ledmatrixgui-home.png)
 
 ###### Permissions on Linux
 To ensure that the input module's port is accessible, install the `udev` rule and trigger a reload:
