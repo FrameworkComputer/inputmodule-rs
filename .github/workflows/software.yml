@@ -108,7 +108,7 @@ jobs:
     - name: Create Executable
       uses: Martin005/pyinstaller-action@main
       with:
-        python_ver: '3.11'
+        python_ver: '3.12'
         spec: python/inputmodule/cli.py #'src/build.spec'
         requirements: 'requirements.txt'
         upload_exe_with_name: 'ledmatrixgui'
