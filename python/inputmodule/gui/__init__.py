@@ -44,8 +44,9 @@ def update_brightness_slider(devices):
     if average_brightness:
         brightness_scale.set(average_brightness)
 
-def popup(message):
-    messagebox.showinfo("Framework Laptop 16 LED Matrix", message)
+def popup(message, gui=True):
+    if gui:
+        messagebox.showinfo("Framework Laptop 16 LED Matrix", message)
 
 def run_gui(devices):
     root = tk.Tk()
