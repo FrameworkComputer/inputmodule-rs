@@ -119,7 +119,7 @@ def run_gui(devices):
     gol_frame = ttk.LabelFrame(tab_games, text="Game of Life", style="TLabelframe")
     gol_frame.pack(fill="x", padx=10, pady=5)
     animation_buttons = {
-        "Current Matrix": "gol_current",
+        "Current": "gol_current",
         "Pattern 1": "gol_pattern1",
         "Blinker": "gol_blinker",
         "Toad": "gol_toad",
@@ -127,8 +127,15 @@ def run_gui(devices):
         "Glider": "gol_glider",
         "Stop": "game_stop",
     }
-    for text, action in animation_buttons.items():
-        ttk.Button(gol_frame, text=text, command=lambda a=action: perform_action(devices, a), style="TButton").pack(side="left", padx=5, pady=5)
+    for (i, (text, action)) in enumerate(animation_buttons.items()):
+        # Organize in columns of three
+        row = int(i / 3)
+        column = i % 3
+        if action == "game_stop":
+            column = 0
+            row += 1
+        btn = ttk.Button(gol_frame, text=text, command=lambda a=action: perform_action(devices, a), style="TButton")
+        btn.grid(row=row, column=column)
 
     # Countdown Timer
     countdown_frame = ttk.LabelFrame(tab2, text="Countdown Timer", style="TLabelframe")
