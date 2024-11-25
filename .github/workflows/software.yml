@@ -112,7 +112,7 @@ jobs:
         Invoke-WebRequest -Uri https://github.com/FrameworkComputer/inputmodule-rs/releases/download/v0.2.0/ledmatrix.uf2  -OutFile releases\0.2.0\ledmatrix.uf2
 
     # To run locally, need to make sure to include the pywin32 DLL
-    # pyinstaller --onefile, --name "python/inputmodule/cli.py", --windowed, --add-data "releases;releases" --path C:\users\skype\appdata\local\packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\localcache\local-packages\Python312\site-packages\pywin32_system32  --add-data 'res;res'  -p python/inputmodule python/inputmodule/cli.py
+    # pyinstaller --onefile, --name "python/inputmodule/cli.py", --windowed, --add-data "releases;releases" --icon=res\framework_startmenuicon.ico --path C:\users\skype\appdata\local\packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\localcache\local-packages\Python312\site-packages\pywin32_system32  --add-data 'res;res'  -p python/inputmodule python/inputmodule/cli.py
     - name: Create Executable
       uses: JohnAZoidberg/pyinstaller-action@dont-clean
       with:
@@ -120,7 +120,7 @@ jobs:
         spec: python/inputmodule/cli.py #'src/build.spec'
         requirements: 'python/requirements.txt'
         upload_exe_with_name: 'ledmatrixgui.exe'
-        options: --onefile, --name "ledmatrixgui", --windowed, --add-data "releases;releases" --add-data 'res;res' -p python/inputmodule
+        options: --onefile, --name "ledmatrixgui", --windowed, --add-data "releases;releases" --icon=res/framework_startmenuicon.ico --add-data 'res;res' -p python/inputmodule
 
   package-python:
     name: Package Python
