@@ -220,7 +220,7 @@ def run_gui(devices):
     ttk.Button(equalizer_frame, text="Stop", command=stop_thread, style="TButton").pack(side="left", padx=5, pady=5)
 
     # Device Control Buttons
-    device_control_frame = ttk.LabelFrame(tab1, text="Device Control", style="TLabelframe")
+    device_control_frame = ttk.LabelFrame(tab3, text="Device Control", style="TLabelframe")
     device_control_frame.pack(fill="x", padx=10, pady=5)
     control_buttons = {
         "Sleep": "sleep",
