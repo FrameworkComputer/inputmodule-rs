@@ -24,7 +24,7 @@ jobs:
     name: Building
     runs-on: [ubuntu-latest]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Rust toolchain
         run: rustup show
@@ -66,7 +66,7 @@ jobs:
             cargo make --cwd ledmatrix bin
 
       - name: Upload ledmatrix files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ledmatrix_fw_${{github.sha}}
           path: |
@@ -79,7 +79,7 @@ jobs:
             target/thumbv6m-none-eabi/release/ledmatrix_evt.uf2
 
       - name: Upload b1display files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: b1display_fw_${{github.sha}}
           path: |
@@ -87,7 +87,7 @@ jobs:
             target/thumbv6m-none-eabi/release/b1display.uf2
 
       - name: Upload c1minimal files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: c1minimal_fw_${{github.sha}}
           path: |
@@ -98,7 +98,7 @@ jobs:
     name: Linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Rust toolchain
         run: rustup show
@@ -130,7 +130,7 @@ jobs:
     name: Formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Rust toolchain
         run: rustup show

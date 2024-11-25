@@ -29,7 +29,7 @@ jobs:
   #  name: Cross-Build for FreeBSD
   #  runs-on: 'ubuntu-22.04'
   #  steps:
-  #  - uses: actions/checkout@v3
+  #  - uses: actions/checkout@v4
 
   #  - name: Setup Rust toolchain
   #    run: rustup show
@@ -41,7 +41,7 @@ jobs:
   #    run: cross build --target=x86_64-unknown-freebsd
 
   #  - name: Upload FreeBSD App
-  #    uses: actions/upload-artifact@v3
+  #    uses: actions/upload-artifact@v4
   #    with:
   #      name: qmk_hid_freebsd
   #      path: target/x86_64-unknown-freebsd/debug/qmk_hid
@@ -50,7 +50,7 @@ jobs:
     name: Build Linux
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -69,7 +69,7 @@ jobs:
       run: cargo make --cwd inputmodule-control run -- --help | grep 'RAW HID and VIA commandline'
 
     - name: Upload Linux tool
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: inputmodule-control
         path: target/x86_64-unknown-linux-gnu/release/inputmodule-control
@@ -78,7 +78,7 @@ jobs:
     name: Build Windows
     runs-on: windows-2022
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Setup Rust toolchain
       run: rustup show
@@ -92,7 +92,7 @@ jobs:
       run: cargo make --cwd inputmodule-control run -- --help | grep 'RAW HID and VIA commandline'
 
     - name: Upload Windows App
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: inputmodule-control.exe
         path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
@@ -103,7 +103,7 @@ jobs:
     name: Build GUI
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Create Executable
       uses: Martin005/pyinstaller-action@main
@@ -118,7 +118,7 @@ jobs:
     name: Package Python
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - run: |
         cd python
@@ -131,7 +131,7 @@ jobs:
     name: Lints
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
