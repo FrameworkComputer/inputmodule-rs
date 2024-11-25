@@ -105,6 +105,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Download releases to bundle
+      run: |
+        mkdir releases
+        mkdir releases\0.2.0
+        Invoke-WebRequest -Uri https://github.com/FrameworkComputer/inputmodule-rs/releases/download/v0.2.0/ledmatrix.uf2  -OutFile releases\0.2.0\ledmatrix.uf2
+
     - name: Create Executable
       uses: Martin005/pyinstaller-action@main
       with:

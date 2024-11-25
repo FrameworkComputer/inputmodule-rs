@@ -14,7 +14,7 @@ from inputmodule.inputmodule import (
     brightness,
     get_brightness,
     CommandVals,
-    bootloader,
+    bootloader_jump,
     GameOfLifeStartParam,
     GameControlVal,
 )
@@ -272,7 +272,7 @@ def main_cli():
         sys.exit(1)
 
     if args.bootloader:
-        bootloader(dev)
+        bootloader_jump(dev)
     elif args.sleep is not None:
         send_command(dev, CommandVals.Sleep, [args.sleep])
     elif args.is_sleeping:
@@ -394,6 +394,7 @@ def find_devs():
 def print_devs(ports):
     for port in ports:
         print(f"{port.device}")
+        print(f"  {port.name}")
         print(f"  VID:     0x{port.vid:04X}")
         print(f"  PID:     0x{port.pid:04X}")
         print(f"  SN:      {port.serial_number}")

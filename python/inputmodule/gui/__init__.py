@@ -5,12 +5,13 @@ import platform
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+from inputmodule import firmware_update
 from inputmodule.inputmodule import (
     send_command,
     get_version,
     brightness,
     get_brightness,
-    bootloader,
+    bootloader_jump,
     CommandVals,
     Game,
     GameControlVal
@@ -54,10 +55,12 @@ def run_gui(devices):
     tab1 = ttk.Frame(tabControl)
     tab_games = ttk.Frame(tabControl)
     tab2 = ttk.Frame(tabControl)
+    tab_fw = ttk.Frame(tabControl)
     tab3 = ttk.Frame(tabControl)
     tabControl.add(tab1, text="Home")
     tabControl.add(tab_games, text="Games")
     tabControl.add(tab2, text="Dynamic Controls")
+    tabControl.add(tab_fw, text="Firmware Update")
     tabControl.add(tab3, text="Advanced")
     tabControl.pack(expand=1, fill="both")
 
@@ -75,7 +78,7 @@ def run_gui(devices):
         checkbox_var = tk.BooleanVar(value=True)
         checkbox = ttk.Checkbutton(detected_devices_frame, text=device_info, variable=checkbox_var, style="TCheckbutton")
         checkbox.pack(anchor="w")
-        device_checkboxes[dev.name] = checkbox_var
+        device_checkboxes[dev.name] = (checkbox_var, checkbox)
 
     # Brightness Slider
     brightness_frame = ttk.LabelFrame(tab1, text="Brightness", style="TLabelframe")
@@ -160,6 +163,26 @@ def run_gui(devices):
     symbols_frame.pack(fill="x", padx=10, pady=5)
     ttk.Button(symbols_frame, text="Send '2 5 degC thunder'", command=lambda: send_symbols(devices), style="TButton").pack(side="left", padx=5, pady=5)
 
+    # Firmware Update
+    bootloader_frame = ttk.LabelFrame(tab_fw, text="Bootloader", style="TLabelframe")
+    bootloader_frame.pack(fill="x", padx=10, pady=5)
+    ttk.Button(bootloader_frame, text="Enter Bootloader", command=lambda: perform_action(devices, "bootloader"), style="TButton").pack(side="left", padx=5, pady=5)
+
+    bundled_fw_frame = ttk.LabelFrame(tab_fw, text="Bundled Updates", style="TLabelframe")
+    bundled_fw_frame.pack(fill="x", padx=10, pady=5)
+    releases = firmware_update.find_releases(resource_path(), r'(ledmatrix).uf2')
+    if not releases:
+        tk.Label(bundled_fw_frame, text="Cannot find firmware updates").pack(side="top", padx=5, pady=5)
+    else:
+        versions = sorted(list(releases.keys()), reverse=True)
+
+        #tk.Label(fw_update_frame, text="Ignore user configured keymap").pack(side="top", padx=5, pady=5)
+        fw_ver_combo = ttk.Combobox(bundled_fw_frame, values=versions, style="TCombobox", state="readonly")
+        fw_ver_combo.pack(side=tk.LEFT, padx=5, pady=5)
+        fw_ver_combo.current(0)
+        flash_btn = ttk.Button(bundled_fw_frame, text="Update", command=lambda: tk_flash_firmware(devices, releases, fw_ver_combo.get(), 'ledmatrix'), style="TButton")
+        flash_btn.pack(side="left", padx=5, pady=5)
+
     # PWM Frequency Combo Box
     pwm_freq_frame = ttk.LabelFrame(tab3, text="PWM Frequency", style="TLabelframe")
     pwm_freq_frame.pack(fill="x", padx=10, pady=5)
@@ -177,7 +200,6 @@ def run_gui(devices):
     device_control_frame = ttk.LabelFrame(tab1, text="Device Control", style="TLabelframe")
     device_control_frame.pack(fill="x", padx=10, pady=5)
     control_buttons = {
-        "Bootloader": "bootloader",
         "Sleep": "sleep",
         "Wake": "wake"
     }
@@ -194,8 +216,12 @@ def perform_action(devices, action):
     if action in action_map:
         threading.Thread(target=action_map[action], args=(devices,), daemon=True).start(),
 
+    if action == "bootloader":
+        disable_devices(devices)
+        restart_hint()
+
     action_map = {
-        "bootloader": bootloader,
+        "bootloader": bootloader_jump,
         "sleep": lambda dev: send_command(dev, CommandVals.Sleep, [True]),
         "wake": lambda dev: send_command(dev, CommandVals.Sleep, [False]),
         "start_animation": lambda dev: animate(dev, True),
@@ -263,7 +289,7 @@ def set_pwm_freq(devices, freq):
         pwm_freq(dev, freq)
 
 def get_selected_devices(devices):
-    return [dev for dev in devices if dev.name in device_checkboxes and device_checkboxes[dev.name].get()]
+    return [dev for dev in devices if dev.name in device_checkboxes and device_checkboxes[dev.name][0].get()]
 
 def resource_path():
     """Get absolute path to resource, works for dev and for PyInstaller"""
@@ -271,6 +297,39 @@ def resource_path():
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        base_path = os.path.abspath("../../")
+        base_path = os.path.abspath(".")
 
     return base_path
+
+def info_popup(msg):
+    parent = tk.Tk()
+    parent.title("Info")
+    message = tk.Message(parent, text=msg, width=800)
+    message.pack(padx=20, pady=20)
+    parent.mainloop()
+
+def tk_flash_firmware(devices, releases, version, fw_type):
+    selected_devices = get_selected_devices(devices)
+    if len(selected_devices) != 1:
+        info_popup('To flash select exactly 1 device.')
+        return
+    dev = selected_devices[0]
+    firmware_update.flash_firmware(dev, releases[version][fw_type])
+    # Disable device that we just flashed
+    disable_devices(devices)
+    restart_hint()
+
+def restart_hint():
+    parent = tk.Tk()
+    parent.title("Restart Application")
+    message = tk.Message(parent, text="After updating a device,\n restart the application to reload the connections.", width=800)
+    message.pack(padx=20, pady=20)
+    parent.mainloop()
+
+def disable_devices(devices):
+    # Disable checkbox of selected devices
+    for dev in devices:
+        for name, (checkbox_var, checkbox) in device_checkboxes.items():
+            if name == dev.name:
+                checkbox_var.set(False)
+                checkbox.config(state=tk.DISABLED)
