@@ -110,7 +110,7 @@ jobs:
       with:
         python_ver: '3.12'
         spec: python/inputmodule/cli.py #'src/build.spec'
-        requirements: 'requirements.txt'
+        requirements: 'python/requirements.txt'
         upload_exe_with_name: 'ledmatrixgui'
         options: --onefile, --windowed, --add-data 'res;res'
 
