@@ -1647,6 +1647,7 @@ dependencies = [
  "smart-leds",
  "usb-device",
  "usbd-hid",
+ "usbd-picotool-reset",
  "usbd-serial",
  "ws2812-pio",
 ]
@@ -2360,6 +2361,15 @@ dependencies = [
  "serde",
  "syn 1.0.109",
  "usbd-hid-descriptors",
+]
+
+[[package]]
+name = "usbd-picotool-reset"
+version = "0.3.0"
+source = "git+https://github.com/JohnAZoidberg/usbd-picotool-reset?branch=rp-2040-hal-0.8#46cbb075a39031cd0fb8c4539aa9ed20dabff76d"
+dependencies = [
+ "rp2040-hal",
+ "usb-device",
 ]
 
 [[package]]

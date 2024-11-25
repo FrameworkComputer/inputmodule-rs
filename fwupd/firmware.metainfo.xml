@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="firmware">
+  <id>work.frame.inputmodule.qtpy</id>
+  <name>Framework QT Py</name>
+  <summary>Firmware for the Framework QT Py</summary>
+  <description>
+    <p>
+      Updating the firmware on your Framework QT Py improves performance and
+      adds new features.
+    </p>
+  </description>
+  <provides>
+    <!-- 32ac:0012 -->
+    <firmware type="flashed">5a5b58d0-9cb4-5f8b-a449-e7b7c820b0cb</firmware>
+  </provides>
+  <url type="homepage">https://github.com/FrameworkComputer/inputmodule-rs</url>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>proprietary</project_license>
+  <categories>
+    <category>X-Device</category>
+  </categories>
+  <releases>
+    <release urgency="normal" version="0.20" date="2024-11-17" install_duration="40">
+      <checksum filename="qtpy.uf2" target="content"/>
+      <description>
+        New firmware!
+      </description>
+    </release>
+  </releases>
+  <requires>{{ min_ver }}
+    <id compare="ge" version="1.9.2">org.freedesktop.fwupd</id>
+  </requires>
+  <custom>
+    <!--<value key="LVFS::VersionFormat">{{ version_format }}</value>-->
+    <value key="LVFS::UpdateProtocol">com.microsoft.uf2</value>
+  </custom>
+  <!--
+  <keywords>
+    <keyword>{{ keyword }}</keyword>
+    <keyword>{{ id }}</keyword>
+  </keywords>
+  -->
+</component>

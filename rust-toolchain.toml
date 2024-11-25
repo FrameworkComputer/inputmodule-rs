@@ -1,4 +1,6 @@
 [toolchain]
+# Needed for embeded-hal 1.0.0
+# channel = "1.75.0"
 channel = "1.74.0"
 targets = ["thumbv6m-none-eabi"]
 components = ["clippy", "rustfmt"]
