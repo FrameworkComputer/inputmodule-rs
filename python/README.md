@@ -165,3 +165,38 @@ Bus 003 Device 078: ID 32ac:0020 Framework Computer Inc LED Matrix Input Module
   bcdDevice            0.17
 ```
 
+## Developing
+
+One time setup
+
+```
+# Install dependencies on Ubuntu
+sudo apt install python3 python3-tk
+
+# Install dependencies on Fedora
+sudo dnf install python3 python3-tkinter
+
+# Create local venv and enter it
+python3 -m venv venv
+source venv/bin/activate
+
+# Install package into local env
+python3 -m pip install -e .
+```
+
+Developing
+
+```
+# In every new shell, source the virtual environment
+source venv/bin/activate
+
+# Launch GUI or commandline
+ledmatrixgui
+ledmatrixctl
+
+# Launch Python REPL and import the library
+# As example, launch the GUI
+> python3
+>>> from inputmodule import cli
+>>> cli.main_gui()
+```
