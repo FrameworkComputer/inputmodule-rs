@@ -16,8 +16,7 @@ from inputmodule.inputmodule import (
     Game,
     GameControlVal
 )
-from inputmodule.gui.games import snake
-from inputmodule.gui.games import ledris
+from inputmodule.gui.pygames import snake, ledris
 from inputmodule.gui.ledmatrix import countdown, random_eq, clock
 from inputmodule.gui.gui_threading import stop_thread, is_dev_disconnected
 from inputmodule.inputmodule.ledmatrix import (

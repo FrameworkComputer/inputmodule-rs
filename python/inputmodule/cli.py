@@ -18,7 +18,7 @@ from inputmodule.inputmodule import (
     GameOfLifeStartParam,
     GameControlVal,
 )
-from inputmodule.gui.games import (
+from inputmodule.games import (
     snake,
     snake_embedded,
     pong_embedded,
