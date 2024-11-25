@@ -62,10 +62,6 @@ from inputmodule.inputmodule.c1minimal import (
     RGB_COLORS,
 )
 
-# Optional dependencies:
-# from PIL import Image
-# import PySimpleGUI as sg
-
 
 def main_cli():
     parser = argparse.ArgumentParser()

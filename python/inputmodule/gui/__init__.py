@@ -18,7 +18,6 @@ from inputmodule.inputmodule import (
     Game,
     GameControlVal
 )
-from inputmodule.gui.pygames import snake, ledris
 from inputmodule.gui.ledmatrix import countdown, random_eq, clock
 from inputmodule.gui.gui_threading import stop_thread, is_dev_disconnected
 from inputmodule.inputmodule.ledmatrix import (
@@ -233,12 +232,14 @@ def run_gui(devices):
     root.mainloop()
 
 def perform_action(devices, action):
-    action_map = {
-        "game_snake": snake.main_devices,
-        "game_ledris": ledris.main_devices,
-    }
-    if action in action_map:
-        threading.Thread(target=action_map[action], args=(devices,), daemon=True).start(),
+    if action.startswith("game_"):
+        from inputmodule.gui.pygames import snake, ledris
+        action_map = {
+            "game_snake": snake.main_devices,
+            "game_ledris": ledris.main_devices,
+        }
+        if action in action_map:
+            threading.Thread(target=action_map[action], args=(devices,), daemon=True).start(),
 
     if action == "bootloader":
         disable_devices(devices)
