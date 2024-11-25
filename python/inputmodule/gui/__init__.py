@@ -52,6 +52,11 @@ def run_gui(devices):
     root = tk.Tk()
     root.title("LED Matrix Control")
 
+    ico = "framework_startmenuicon.ico"
+    res_path = resource_path()
+    if os.name == 'nt':
+        root.iconbitmap(f"{res_path}/res/{ico}")
+
     tabControl = ttk.Notebook(root)
     tab1 = ttk.Frame(tabControl)
     tab_games = ttk.Frame(tabControl)
