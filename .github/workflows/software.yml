@@ -29,7 +29,7 @@ jobs:
   #  name: Cross-Build for FreeBSD
   #  runs-on: 'ubuntu-22.04'
   #  steps:
-  #  - uses: actions/checkout@v3
+  #  - uses: actions/checkout@v4
 
   #  - name: Setup Rust toolchain
   #    run: rustup show
@@ -41,7 +41,7 @@ jobs:
   #    run: cross build --target=x86_64-unknown-freebsd
 
   #  - name: Upload FreeBSD App
-  #    uses: actions/upload-artifact@v3
+  #    uses: actions/upload-artifact@v4
   #    with:
   #      name: qmk_hid_freebsd
   #      path: target/x86_64-unknown-freebsd/debug/qmk_hid
@@ -50,7 +50,7 @@ jobs:
     name: Build Linux
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -69,7 +69,7 @@ jobs:
       run: cargo make --cwd inputmodule-control run -- --help | grep 'RAW HID and VIA commandline'
 
     - name: Upload Linux tool
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: inputmodule-control
         path: target/x86_64-unknown-linux-gnu/release/inputmodule-control
@@ -78,7 +78,7 @@ jobs:
     name: Build Windows
     runs-on: windows-2022
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Setup Rust toolchain
       run: rustup show
@@ -92,7 +92,7 @@ jobs:
       run: cargo make --cwd inputmodule-control run -- --help | grep 'RAW HID and VIA commandline'
 
     - name: Upload Windows App
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: inputmodule-control.exe
         path: target/x86_64-pc-windows-msvc/release/inputmodule-control.exe
@@ -103,22 +103,30 @@ jobs:
     name: Build GUI
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
+    - name: Download releases to bundle
+      run: |
+        mkdir releases
+        mkdir releases\0.2.0
+        Invoke-WebRequest -Uri https://github.com/FrameworkComputer/inputmodule-rs/releases/download/v0.2.0/ledmatrix.uf2  -OutFile releases\0.2.0\ledmatrix.uf2
+
+    # To run locally, need to make sure to include the pywin32 DLL
+    # pyinstaller --onefile, --name "python/inputmodule/cli.py", --windowed, --add-data "releases;releases" --icon=res\framework_startmenuicon.ico --path C:\users\skype\appdata\local\packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\localcache\local-packages\Python312\site-packages\pywin32_system32  --add-data 'res;res'  -p python/inputmodule python/inputmodule/cli.py
     - name: Create Executable
-      uses: Martin005/pyinstaller-action@main
+      uses: JohnAZoidberg/pyinstaller-action@dont-clean
       with:
-        python_ver: '3.11'
+        python_ver: '3.12'
         spec: python/inputmodule/cli.py #'src/build.spec'
-        requirements: 'requirements.txt'
-        upload_exe_with_name: 'ledmatrixgui'
-        options: --onefile, --windowed, --add-data 'res;res'
+        requirements: 'python/requirements.txt'
+        upload_exe_with_name: 'ledmatrixgui.exe'
+        options: --onefile, --name "ledmatrixgui", --windowed, --add-data "releases;releases" --icon=res/framework_startmenuicon.ico --add-data 'res;res' -p python/inputmodule
 
   package-python:
     name: Package Python
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - run: |
         cd python
@@ -131,7 +139,7 @@ jobs:
     name: Lints
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |

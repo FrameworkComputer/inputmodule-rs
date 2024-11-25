@@ -25,9 +25,10 @@ classifiers = [
 ]
 dependencies = [
   "pyserial",
-  # Optional for GUI
+  # Optional for CLI
   "getkey",
-  "PySimpleGUI",
+  # Optional for GUI
+  "pygame",
   # Optional for image operations
   "Pillow",
 ]
@@ -36,7 +37,6 @@ dependencies = [
 Issues = "https://github.com/FrameworkComputer/inputmodule-rs/issues"
 Source = "https://github.com/FrameworkComputer/inputmodule-rs"
 
-# TODO: Figure out how to add a runnable-script
 [project.scripts]
 ledmatrixctl = "inputmodule.cli:main_cli"
 

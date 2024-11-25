@@ -90,7 +90,7 @@ class GameControlVal(IntEnum):
 RESPONSE_SIZE = 32
 
 
-def bootloader(dev):
+def bootloader_jump(dev):
     """Reboot into the bootloader to flash new firmware"""
     send_command(dev, CommandVals.BootloaderReset, [0x00])
 

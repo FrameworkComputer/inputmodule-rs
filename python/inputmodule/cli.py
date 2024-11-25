@@ -14,11 +14,11 @@ from inputmodule.inputmodule import (
     brightness,
     get_brightness,
     CommandVals,
-    bootloader,
+    bootloader_jump,
     GameOfLifeStartParam,
     GameControlVal,
 )
-from inputmodule.gui.games import (
+from inputmodule.games import (
     snake,
     snake_embedded,
     pong_embedded,
@@ -61,10 +61,6 @@ from inputmodule.inputmodule.c1minimal import (
     get_color,
     RGB_COLORS,
 )
-
-# Optional dependencies:
-# from PIL import Image
-# import PySimpleGUI as sg
 
 
 def main_cli():
@@ -237,7 +233,7 @@ def main_cli():
 
     if not ports:
         print("No device found")
-        gui.popup(args.gui, "No device found")
+        gui.popup("No device found", gui=args.gui)
         sys.exit(1)
     elif args.serial_dev is not None:
         filtered_devs = [
@@ -250,10 +246,10 @@ def main_cli():
         dev = ports[0]
     elif len(ports) >= 1 and not args.gui:
         gui.popup(
-            args.gui,
             "More than 1 compatibles devices found. Please choose from the commandline with --serial-dev COMX.\nConnected ports:\n- {}".format(
                 "\n- ".join([port.device for port in ports])
             ),
+            gui=args.gui,
         )
         print(
             "More than 1 compatible device found. Please choose with --serial-dev ..."
@@ -268,11 +264,11 @@ def main_cli():
 
     if not args.gui and dev is None:
         print("No device selected")
-        gui.popup(args.gui, "No device selected")
+        gui.popup("No device selected", gui=args.gui)
         sys.exit(1)
 
     if args.bootloader:
-        bootloader(dev)
+        bootloader_jump(dev)
     elif args.sleep is not None:
         send_command(dev, CommandVals.Sleep, [args.sleep])
     elif args.is_sleeping:
@@ -394,6 +390,7 @@ def find_devs():
 def print_devs(ports):
     for port in ports:
         print(f"{port.device}")
+        print(f"  {port.name}")
         print(f"  VID:     0x{port.vid:04X}")
         print(f"  PID:     0x{port.pid:04X}")
         print(f"  SN:      {port.serial_number}")
@@ -407,4 +404,4 @@ def main_gui():
 
 
 if __name__ == "__main__":
-    main_cli()
+    main_gui()

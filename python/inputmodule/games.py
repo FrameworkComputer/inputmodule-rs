@@ -43,6 +43,7 @@ def opposite_direction(direction):
     return direction
 
 
+
 def snake_keyscan():
     global direction
     global body
