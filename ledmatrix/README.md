@@ -82,8 +82,8 @@ Those that require an argument or setup have examples here:
 
 ###### Percentage
 
-Light up a percentage of the module. From bottom to top.
-This could be used to show volume level, progress of something, or similar.
+Light up a percentage of the module from bottom to top.
+This can display volume level, progress of something, or similar.
 
 ```sh
 inputmodule-control led-matrix --percentage 30
@@ -140,7 +140,7 @@ inputmodule-control led-matrix --string "LOTUS"
 ```
 
 The symbols parameter is much more powerful, it can also show extra symbols.
-The full list of symbols is defined [here](https://github.com/FrameworkComputer/led_matrix_fw/blob/main/inputmodule-control/src/font.rs).
+The full list of symbols is defined [here](../inputmodule-control/src/font.rs).
 
 ```sh
 # Show 0 °C, a snow icon and a smiley
@@ -149,9 +149,9 @@ inputmodule-control led-matrix --symbols 0 degC ' ' snow ':)'
 
 ###### Games
 
-While the game commands are implemented, the controls don't take easy keyboard
-input.
-Instead try out the [Python script](../python.md):
+While the game commands are implemented,
+the controls don't take easy keyboard input.
+Instead, try out the [Python wrapper](../python):
 
 ```sh
 # Snake
@@ -178,8 +178,8 @@ inputmodule-control led-matrix --start-game game-of-life --game-param current-ma
 inputmodule-control led-matrix --start-game game-of-life --game-param glider
 ```
 
-If you want to display something else, either reset the module (unplugging) or
-run the stop command.
+If you want to display something else, either reset the module (unplugging)
+or run the stop command.
 
 ```sh
 inputmodule-control led-matrix --stop-game
@@ -190,9 +190,10 @@ inputmodule-control led-matrix --stop-game
 Currently sleeping means all LEDs and the LED controller are turned off.
 Transitions of sleep state slowly fade the LEDs on or off.
 
-Optionally the firmware can be configured, at build-time, to turn the LEDs
-on/off immediately. Or display "SLEEP" instead of turning the LEDs off, which
-is useful for debugging whether the device is sleeping or not powered.
+Optionally the firmware can be configured, at build-time,
+to turn the LEDs on/off immediately.
+Or display "SLEEP" instead of turning the LEDs off,
+which is useful for debugging whether the device is sleeping or not powered.
 
 
 ###### Changing Sleep State
@@ -209,8 +210,9 @@ What can change the sleep state
 Both of the hardware/OS triggers change the sleep state if they transition from one state to another.
 For example, if USB suspends, the LED matrix turns off. If it resumes, the LEDs come back on.
 Same for the `SLEEP#` pin.
-If either of them indicates sleep, even if they didn'td change state, the module goes to sleep.
-If they're active, they don't influence module state. That way sleep state can be controlled by commands and isn't overridden immediately.
+If either of them indicates sleep, even if they didn't change state, the module goes to sleep.
+If they're active, they don't influence module state.
+That way sleep state can be controlled by commands and isn't overridden immediately.
 
 The sleep/wake command always changes the state. But it can't be received when USB is suspended.
 Any other command will also wake up the device.
