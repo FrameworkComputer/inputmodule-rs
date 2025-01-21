@@ -449,9 +449,10 @@ fn main() -> ! {
                                     true,
                                     SleepReason::Command,
                                 );
-                            } else {
+                            } else if command.should_wake() {
                                 // If already sleeping, wake up.
-                                // This means every command will wake the device up.
+                                // Only certain commnads should wake the device - for example
+                                // StageGreyCol shouldn't
                                 // Much more convenient than having to send the wakeup commmand.
                                 sleep_reason = None;
                             }
@@ -493,8 +494,9 @@ fn main() -> ! {
                             )
                             .unwrap();
                             // let _ = serial.write(text.as_bytes());
-
-                            fill_grid_pixels(&state, &mut matrix);
+                            if command.should_wake() {
+                                fill_grid_pixels(&state, &mut matrix);
+                            }
                         }
                         (None, _) => {}
                     }
