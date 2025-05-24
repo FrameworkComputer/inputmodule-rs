@@ -437,8 +437,14 @@ fn main() -> ! {
                     match (parse_command(count, &buf), &state.sleeping) {
                         // Handle bootloader command without any delay
                         // No need, it'll reset the device anyways
-                        (Some(c @ Command::BootloaderReset), _) => {
-                            handle_command(&c, &mut state, &mut matrix, random);
+                        (Some(c @ Command::BootloaderReset), _)
+                        // Additionally, there's no point to IsSleeping if it needs to wake up first
+                        | (Some(c @ Command::IsSleeping), _) => {
+                            if let Some(response) =
+                                handle_command(&c, &mut state, &mut matrix, random)
+                            {
+                                let _ = serial.write(&response);
+                            };
                         }
                         (Some(command), _) => {
                             if let Command::Sleep(go_sleeping) = command {
