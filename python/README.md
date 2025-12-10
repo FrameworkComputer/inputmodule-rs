@@ -146,7 +146,6 @@ by using one of the following commands:
 
 Then the module will present itself in the same way as a USB thumb drive.
 Copy the UF2 firmware file onto it and the device will flash and reset automatically.
-```
 
 ### Check the firmware version of the device
 
