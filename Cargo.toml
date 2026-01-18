@@ -34,7 +34,6 @@ defmt-rtt = "0.4"
 usb-device = "0.2.9"
 heapless = "0.7.16"
 usbd-serial = "0.1.1"
-usbd-hid = "0.6.1"
 fugit = "0.3.7"
 is31fl3741 = { version = "0.4.0", features = ["framework_ledmatrix"] }
 # B1 Display
