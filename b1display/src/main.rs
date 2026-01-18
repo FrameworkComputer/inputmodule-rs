@@ -57,7 +57,7 @@ struct Delay(cortex_m::delay::Delay);
 impl DelayNs for Delay {
     fn delay_ns(&mut self, ns: u32) {
         // Round up to microseconds
-        self.0.delay_us((ns + 999) / 1000);
+        self.0.delay_us(ns.div_ceil(1000));
     }
 
     fn delay_us(&mut self, us: u32) {

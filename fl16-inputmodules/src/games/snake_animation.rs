@@ -32,7 +32,7 @@ impl Iterator for SnakeIterator {
         }
 
         // Slow down animation by a factor of 4
-        if self.current_tick % 4 == 0 {
+        if self.current_tick.is_multiple_of(4) {
             let (maybe_cmd, random) = self.commands[self.current_tick / 4];
             if let Some(command) = maybe_cmd {
                 self.state.handle_control(&command);

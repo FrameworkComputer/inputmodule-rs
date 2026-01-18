@@ -14,6 +14,7 @@ pub enum Pattern {
     //AllBrightnesses
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug, PartialEq, clap::ValueEnum)]
 #[repr(u8)]
 pub enum Game {

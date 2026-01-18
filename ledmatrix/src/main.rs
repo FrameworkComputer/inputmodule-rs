@@ -627,7 +627,7 @@ fn handle_sleep(
                 let mut brightness = state.brightness;
                 loop {
                     delay.delay_ms(100);
-                    brightness = if brightness <= 5 { 0 } else { brightness - 5 };
+                    brightness = brightness.saturating_sub(5);
                     set_brightness(state, brightness, matrix);
                     if brightness == 0 {
                         break;
