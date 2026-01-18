@@ -7,6 +7,7 @@ version = "0.2.0"
 cortex-m.workspace = true
 cortex-m-rt.workspace = true
 embedded-hal.workspace = true
+embedded-hal-bus.workspace = true
 
 defmt.workspace = true
 defmt-rtt.workspace = true

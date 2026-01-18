@@ -7,9 +7,7 @@ use crate::serialnum::{device_release, is_pre_release};
 #[cfg(feature = "b1display")]
 use crate::graphics::*;
 #[cfg(feature = "b1display")]
-use core::fmt::{Debug, Write};
-#[cfg(feature = "b1display")]
-use cortex_m::delay::Delay;
+use core::fmt::Write;
 #[cfg(feature = "b1display")]
 use embedded_graphics::Pixel;
 #[cfg(feature = "b1display")]
@@ -19,9 +17,11 @@ use embedded_graphics::{
     primitives::Rectangle,
 };
 #[cfg(feature = "b1display")]
-use embedded_hal::blocking::spi;
+use embedded_hal::delay::DelayNs;
 #[cfg(feature = "b1display")]
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::OutputPin;
+#[cfg(feature = "b1display")]
+use embedded_hal::spi::SpiDevice;
 #[cfg(feature = "b1display")]
 use heapless::String;
 #[cfg(feature = "b1display")]
@@ -640,19 +640,18 @@ pub fn handle_command(
 }
 
 #[cfg(feature = "b1display")]
-pub fn handle_command<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
+pub fn handle_command<SPI, DC, RST, DELAY, const COLS: usize, const ROWS: usize>(
     command: &Command,
     state: &mut B1DIsplayState,
     logo_rect: Rectangle,
-    disp: &mut ST7306<SPI, DC, CS, RST, COLS, ROWS>,
-    delay: &mut Delay,
+    disp: &mut ST7306<SPI, DC, RST, COLS, ROWS>,
+    delay: &mut DELAY,
 ) -> Option<[u8; 32]>
 where
-    SPI: spi::Write<u8>,
+    SPI: SpiDevice,
     DC: OutputPin,
-    CS: OutputPin,
     RST: OutputPin,
-    <SPI as spi::Write<u8>>::Error: Debug,
+    DELAY: DelayNs,
 {
     match command {
         // TODO: Move to handle_generic_command
