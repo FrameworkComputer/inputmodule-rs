@@ -28,3 +28,7 @@ _version.py
 build/
 dist/
 ledmatrix_control.spec
+
+# devenv
+.devenv/
+.devenv.flake.nix
