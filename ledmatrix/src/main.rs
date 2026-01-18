@@ -146,6 +146,7 @@ use fl16_inputmodules::games::{pong, snake};
 use fl16_inputmodules::matrix::*;
 use fl16_inputmodules::patterns::*;
 use fl16_inputmodules::serialnum::{device_release, get_serialnum};
+use fl16_inputmodules::storage;
 
 //                            FRA                - Framwork
 //                               KDE             - C1 LED Matrix
@@ -230,34 +231,50 @@ fn main() -> ! {
 
     let dip1 = pins.dip1.into_pull_up_input();
 
+    // Load stored configuration from flash
+    let stored_config = storage::load_config();
+
+    // Convert stored PWM frequency to PwmFreqArg
+    let pwm_freq = match stored_config.pwm_freq {
+        0 => PwmFreqArg::P29k,
+        1 => PwmFreqArg::P3k6,
+        2 => PwmFreqArg::P1k8,
+        3 => PwmFreqArg::P900,
+        _ => PwmFreqArg::P29k,
+    };
+
     let mut state = LedmatrixState {
         grid: percentage(0),
         col_buffer: Grid::default(),
         animate: false,
-        brightness: 51, // Default to 51/255 = 20% brightness
+        brightness: stored_config.brightness,
         sleeping: SleepState::Awake,
         game: None,
-        animation_period: 31_250, // 31,250 us = 32 FPS
-        pwm_freq: PwmFreqArg::P29k,
+        animation_period: stored_config.animation_period_us as u64,
+        pwm_freq,
         debug_mode: false,
         upcoming_frames: None,
     };
     state.debug_mode = dip1.is_low().unwrap();
-    if show_startup_animation(&state) {
-        state.upcoming_frames = Some(match get_random_byte(&rosc) % 8 {
-            0 => Animation::Percentage(StartupPercentageIterator::default()),
-            1 => Animation::ZigZag(ZigZagIterator::default()),
-            2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Pattern1, 200)),
-            3 => Animation::Gof(GameOfLifeIterator::new(
-                GameOfLifeStartParam::BeaconToadBlinker,
-                128,
-            )),
-            4 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 128)),
-            5 => Animation::Breathing(BreathingIterator::default()),
-            6 => Animation::Pong(PongIterator::default()),
-            7 => Animation::Snake(SnakeIterator::default()),
-            _ => unreachable!(),
-        });
+
+    // Check if a saved startup pattern should be displayed
+    let has_startup_pattern = stored_config.startup_pattern_idx != storage::config::NO_STARTUP_PATTERN;
+
+    if has_startup_pattern {
+        // Try to load the saved startup pattern
+        if let Some(pattern) = storage::load_pattern(stored_config.startup_pattern_idx) {
+            state.grid = pattern.first_frame();
+            // TODO: If pattern is an animation, set up upcoming_frames
+        } else {
+            // Pattern slot is empty, fall back to default behavior
+            if show_startup_animation(&state) && stored_config.startup_animation {
+                state.upcoming_frames = Some(random_startup_animation(&rosc));
+            } else {
+                state.grid = percentage(100);
+            }
+        }
+    } else if show_startup_animation(&state) && stored_config.startup_animation {
+        state.upcoming_frames = Some(random_startup_animation(&rosc));
     } else {
         // If no startup animation, keep display always on
         state.grid = percentage(100);
@@ -583,6 +600,23 @@ fn debug_mode(state: &LedmatrixState) -> bool {
 fn show_startup_animation(state: &LedmatrixState) -> bool {
     // Show startup animation
     STARTUP_ANIMATION && !debug_mode(state)
+}
+
+fn random_startup_animation(rosc: &RingOscillator<Enabled>) -> Animation {
+    match get_random_byte(rosc) % 8 {
+        0 => Animation::Percentage(StartupPercentageIterator::default()),
+        1 => Animation::ZigZag(ZigZagIterator::default()),
+        2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Pattern1, 200)),
+        3 => Animation::Gof(GameOfLifeIterator::new(
+            GameOfLifeStartParam::BeaconToadBlinker,
+            128,
+        )),
+        4 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Glider, 128)),
+        5 => Animation::Breathing(BreathingIterator::default()),
+        6 => Animation::Pong(PongIterator::default()),
+        7 => Animation::Snake(SnakeIterator::default()),
+        _ => Animation::Percentage(StartupPercentageIterator::default()),
+    }
 }
 
 fn assign_sleep_reason(

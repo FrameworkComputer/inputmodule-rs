@@ -50,6 +50,15 @@ enum Command {
     PwmFreq = 0x1E,
     DebugMode = 0x1F,
     Version = 0x20,
+    // Flash storage commands
+    SavePattern = 0x30,
+    LoadPattern = 0x31,
+    DeletePattern = 0x32,
+    ListPatterns = 0x33,
+    SaveConfig = 0x34,
+    GetConfig = 0x35,
+    ResetConfig = 0x36,
+    SetConfigValue = 0x37,
 }
 
 enum GameControlArg {
@@ -245,6 +254,49 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if ledmatrix_args.version {
                     get_device_version(serialdev);
+                }
+
+                // Flash storage commands
+                if let Some(slot) = ledmatrix_args.save_pattern {
+                    save_pattern_cmd(serialdev, slot);
+                }
+                if let Some(slot) = ledmatrix_args.load_pattern {
+                    load_pattern_cmd(serialdev, slot);
+                }
+                if let Some(slot) = ledmatrix_args.delete_pattern {
+                    delete_pattern_cmd(serialdev, slot);
+                }
+                if ledmatrix_args.list_patterns {
+                    list_patterns_cmd(serialdev);
+                }
+                if ledmatrix_args.save_config {
+                    save_config_cmd(serialdev);
+                }
+                if ledmatrix_args.get_config {
+                    get_config_cmd(serialdev);
+                }
+                if ledmatrix_args.reset_config {
+                    reset_config_cmd(serialdev);
+                }
+                if let Some(brightness) = ledmatrix_args.set_default_brightness {
+                    set_config_value_cmd(
+                        serialdev,
+                        ConfigKey::DefaultBrightness,
+                        brightness as u16,
+                    );
+                }
+                if let Some(timeout) = ledmatrix_args.set_sleep_timeout {
+                    set_config_value_cmd(serialdev, ConfigKey::SleepTimeout, timeout);
+                }
+                if let Some(slot) = ledmatrix_args.set_startup_pattern {
+                    set_config_value_cmd(serialdev, ConfigKey::StartupPattern, slot as u16);
+                }
+                if let Some(enable) = ledmatrix_args.set_startup_animation {
+                    set_config_value_cmd(
+                        serialdev,
+                        ConfigKey::StartupAnimation,
+                        if enable { 1 } else { 0 },
+                    );
                 }
             }
             // Commands that block and need manual looping
@@ -1180,5 +1232,231 @@ fn b1_display_pattern(serialdev: &str, pattern: B1Pattern) {
     match pattern {
         B1Pattern::Black => b1_display_color(serialdev, true),
         B1Pattern::White => b1_display_color(serialdev, false),
+    }
+}
+
+// Flash storage commands
+
+/// Config key identifiers for SetConfigValue command
+#[derive(Clone, Copy)]
+#[repr(u8)]
+enum ConfigKey {
+    DefaultBrightness = 0x01,
+    SleepTimeout = 0x02,
+    StartupPattern = 0x03,
+    StartupAnimation = 0x04,
+}
+
+fn save_pattern_cmd(serialdev: &str, slot: u8) {
+    if slot > 7 {
+        println!("Error: Pattern slot must be 0-7");
+        return;
+    }
+
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(Duration::from_millis(500)) // Flash operations take longer
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::SavePattern, &[slot]);
+
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    if response[0] == 1 {
+        println!("Pattern saved to slot {}", slot);
+    } else {
+        println!("Failed to save pattern to slot {}", slot);
+    }
+}
+
+fn load_pattern_cmd(serialdev: &str, slot: u8) {
+    if slot > 7 {
+        println!("Error: Pattern slot must be 0-7");
+        return;
+    }
+
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(Duration::from_millis(500))
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::LoadPattern, &[slot]);
+
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    if response[0] == 1 {
+        println!("Pattern loaded from slot {}", slot);
+    } else {
+        println!("No pattern found in slot {}", slot);
+    }
+}
+
+fn delete_pattern_cmd(serialdev: &str, slot: u8) {
+    if slot > 7 {
+        println!("Error: Pattern slot must be 0-7");
+        return;
+    }
+
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(Duration::from_millis(500))
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::DeletePattern, &[slot]);
+
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    if response[0] == 1 {
+        println!("Pattern deleted from slot {}", slot);
+    } else {
+        println!("Failed to delete pattern from slot {}", slot);
+    }
+}
+
+fn list_patterns_cmd(serialdev: &str) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::ListPatterns, &[]);
+
+    // Response: 8 x 4 bytes (occupied, type, frame_count, delay_ms)
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    println!("Pattern slots:");
+    for slot in 0..8 {
+        let base = slot * 4;
+        let occupied = response[base] == 1;
+        if occupied {
+            let pattern_type = if response[base + 1] == 0 {
+                "static"
+            } else {
+                "animation"
+            };
+            let frame_count = response[base + 2];
+            let delay_ms = response[base + 3];
+            if frame_count > 1 {
+                println!(
+                    "  Slot {}: {} ({} frames, {}ms delay)",
+                    slot, pattern_type, frame_count, delay_ms
+                );
+            } else {
+                println!("  Slot {}: {}", slot, pattern_type);
+            }
+        } else {
+            println!("  Slot {}: empty", slot);
+        }
+    }
+}
+
+fn save_config_cmd(serialdev: &str) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(Duration::from_millis(500))
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::SaveConfig, &[]);
+
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    if response[0] == 1 {
+        println!("Configuration saved to flash");
+    } else {
+        println!("Failed to save configuration");
+    }
+}
+
+fn get_config_cmd(serialdev: &str) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::GetConfig, &[]);
+
+    // Response: StoredConfig struct (16 bytes)
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    let version = response[0];
+    let brightness = response[1];
+    let sleep_timeout = u16::from_le_bytes([response[2], response[3]]);
+    let animation_period = u32::from_le_bytes([response[4], response[5], response[6], response[7]]);
+    let pwm_freq = response[8];
+    let startup_animation = response[9] == 1;
+    let startup_pattern = response[10];
+
+    println!("Stored Configuration (v{}):", version);
+    println!("  Default brightness: {}", brightness);
+    println!("  Sleep timeout: {}s (0 = disabled)", sleep_timeout);
+    println!("  Animation period: {}us", animation_period);
+    println!("  PWM frequency index: {}", pwm_freq);
+    println!("  Startup animation: {}", startup_animation);
+    if startup_pattern == 0xFF {
+        println!("  Startup pattern: none");
+    } else {
+        println!("  Startup pattern: slot {}", startup_pattern);
+    }
+}
+
+fn reset_config_cmd(serialdev: &str) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(Duration::from_millis(500))
+        .open()
+        .expect("Failed to open port");
+
+    simple_cmd_port(&mut port, Command::ResetConfig, &[]);
+
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    if response[0] == 1 {
+        println!("Configuration reset to defaults");
+    } else {
+        println!("Failed to reset configuration");
+    }
+}
+
+fn set_config_value_cmd(serialdev: &str, key: ConfigKey, value: u16) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(Duration::from_millis(500))
+        .open()
+        .expect("Failed to open port");
+
+    let value_bytes = value.to_le_bytes();
+    simple_cmd_port(
+        &mut port,
+        Command::SetConfigValue,
+        &[key as u8, value_bytes[0], value_bytes[1]],
+    );
+
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    let key_name = match key {
+        ConfigKey::DefaultBrightness => "default brightness",
+        ConfigKey::SleepTimeout => "sleep timeout",
+        ConfigKey::StartupPattern => "startup pattern",
+        ConfigKey::StartupAnimation => "startup animation",
+    };
+
+    if response[0] == 1 {
+        println!("Set {} and saved to flash", key_name);
+    } else {
+        println!("Failed to set {}", key_name);
     }
 }

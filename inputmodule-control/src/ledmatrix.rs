@@ -143,4 +143,49 @@ pub struct LedMatrixSubcommand {
     /// Get the device version
     #[arg(short, long)]
     pub version: bool,
+
+    // Flash storage commands
+    /// Save current display to flash pattern slot (0-7)
+    #[arg(long)]
+    pub save_pattern: Option<u8>,
+
+    /// Load pattern from flash slot (0-7)
+    #[arg(long)]
+    pub load_pattern: Option<u8>,
+
+    /// Delete pattern from flash slot (0-7)
+    #[arg(long)]
+    pub delete_pattern: Option<u8>,
+
+    /// List all saved patterns
+    #[arg(long)]
+    pub list_patterns: bool,
+
+    /// Save current settings to flash
+    #[arg(long)]
+    pub save_config: bool,
+
+    /// Get stored config from flash
+    #[arg(long)]
+    pub get_config: bool,
+
+    /// Reset config to defaults
+    #[arg(long)]
+    pub reset_config: bool,
+
+    /// Set default brightness (0-255) and save to flash
+    #[arg(long)]
+    pub set_default_brightness: Option<u8>,
+
+    /// Set sleep timeout in seconds (0 = disabled) and save to flash
+    #[arg(long)]
+    pub set_sleep_timeout: Option<u16>,
+
+    /// Set startup pattern slot (0-7, or 255 for none)
+    #[arg(long)]
+    pub set_startup_pattern: Option<u8>,
+
+    /// Enable/disable startup animation and save to flash
+    #[arg(long)]
+    pub set_startup_animation: Option<bool>,
 }

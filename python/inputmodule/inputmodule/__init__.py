@@ -37,6 +37,15 @@ class CommandVals(IntEnum):
     PwmFreq = 0x1E
     DebugMode = 0x1F
     Version = 0x20
+    # Flash storage commands
+    SavePattern = 0x30
+    LoadPattern = 0x31
+    DeletePattern = 0x32
+    ListPatterns = 0x33
+    SaveConfig = 0x34
+    GetConfig = 0x35
+    ResetConfig = 0x36
+    SetConfigValue = 0x37
 
 
 class Game(IntEnum):

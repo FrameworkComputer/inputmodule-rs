@@ -57,6 +57,14 @@ When no parameters are given, the current value is queried and returned.
 | SetPxCol     | 0x16 |   ` D ` |          |   50 Bytes | Send a column of pixels  |
 | FlushFB      | 0x17 |   ` D ` |          |            | Flush all columns        |
 | Version      | 0x20 |   `LDM` |  3 Bytes |            | Get firmware version     |
+| SavePattern  | 0x30 |   `L  ` |   1 Byte |     1B Slot| Save display to flash    |
+| LoadPattern  | 0x31 |   `L  ` |   1 Byte |     1B Slot| Load pattern from flash  |
+| DeletePattern| 0x32 |   `L  ` |   1 Byte |     1B Slot| Delete pattern from flash|
+| ListPatterns | 0x33 |   `L  ` |  32 Bytes|            | List all pattern slots   |
+| SaveConfig   | 0x34 |   `L  ` |   1 Byte |            | Save config to flash     |
+| GetConfig    | 0x35 |   `L  ` |  16 Bytes|            | Get stored config        |
+| ResetConfig  | 0x36 |   `L  ` |   1 Byte |            | Reset config to defaults |
+| SetConfigVal | 0x37 |   `L  ` |   1 Byte |   3B K+Val | Set config value + save  |
 
 #### Pattern (0x01)
 
@@ -105,3 +113,102 @@ Byte 2: 1 if pre-release version, 0 otherwise
 |        |   |           |   0 otherwise
 MMMMMMMM mmmmPPPP 0000000p
 ```
+
+## Flash Storage Commands
+
+The LED Matrix module supports persistent storage of patterns and configuration
+in flash memory. Storage is placed at the end of flash (before the serial number)
+so it survives firmware updates.
+
+**Flash Layout:**
+- Pattern Storage: 0x100E0000, 60KB (8 pattern slots)
+- Config Storage: 0x100EF000, 64KB (wear-leveled configuration)
+- Serial Number: 0x100FF000, 4KB (read-only, untouched)
+
+#### SavePattern (0x30)
+
+Save the current display to a flash pattern slot.
+
+Parameters:
+- Byte 0: Slot number (0-7)
+
+Response:
+- Byte 0: 1 if successful, 0 otherwise
+
+#### LoadPattern (0x31)
+
+Load and display a pattern from a flash slot.
+
+Parameters:
+- Byte 0: Slot number (0-7)
+
+Response:
+- Byte 0: 1 if successful (pattern found), 0 if slot empty
+
+#### DeletePattern (0x32)
+
+Delete a pattern from a flash slot (erases the flash sector).
+
+Parameters:
+- Byte 0: Slot number (0-7)
+
+Response:
+- Byte 0: 1 if successful, 0 otherwise
+
+#### ListPatterns (0x33)
+
+List metadata for all 8 pattern slots.
+
+Response (32 bytes):
+For each slot (4 bytes per slot):
+- Byte 0: 1 if occupied, 0 if empty
+- Byte 1: Pattern type (0=static, 1=animation)
+- Byte 2: Frame count
+- Byte 3: Frame delay in milliseconds
+
+#### SaveConfig (0x34)
+
+Save current runtime settings to flash.
+
+Response:
+- Byte 0: 1 if successful, 0 otherwise
+
+#### GetConfig (0x35)
+
+Get the stored configuration from flash.
+
+Response (16 bytes):
+```plain
+Byte  0: Config version (currently 1)
+Byte  1: Default brightness (0-255)
+Byte  2-3: Sleep timeout in seconds (little-endian, 0=disabled)
+Byte  4-7: Animation period in microseconds (little-endian)
+Byte  8: PWM frequency index (0-3)
+Byte  9: Startup animation enabled (0 or 1)
+Byte 10: Startup pattern slot (0-7, or 0xFF for none)
+Byte 11-15: Reserved
+```
+
+#### ResetConfig (0x36)
+
+Reset configuration to factory defaults and save to flash.
+
+Response:
+- Byte 0: 1 if successful, 0 otherwise
+
+#### SetConfigValue (0x37)
+
+Set a specific configuration value and save to flash.
+
+Parameters:
+- Byte 0: Config key
+- Byte 1-2: Value (little-endian u16)
+
+Config keys:
+- 0x01: Default brightness (value: 0-255)
+- 0x02: Sleep timeout (value: seconds, 0=disabled)
+- 0x03: Startup pattern slot (value: 0-7, or 255 for none)
+- 0x04: Startup animation (value: 0=disabled, 1=enabled)
+
+Response:
+- Byte 0: 1 if successful, 0 otherwise

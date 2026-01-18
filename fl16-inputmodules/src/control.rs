@@ -71,6 +71,30 @@ pub enum CommandVals {
     PwmFreq = 0x1E,
     DebugMode = 0x1F,
     Version = 0x20,
+
+    // Flash storage commands (0x30-0x3B)
+    /// Save current grid to flash pattern slot
+    SavePattern = 0x30,
+    /// Load pattern from flash slot
+    LoadPattern = 0x31,
+    /// Delete pattern from flash slot
+    DeletePattern = 0x32,
+    /// List all pattern slots
+    ListPatterns = 0x33,
+    /// Save current config to flash
+    SaveConfig = 0x34,
+    /// Load config from flash (returns config bytes)
+    GetConfig = 0x35,
+    /// Reset config to defaults
+    ResetConfig = 0x36,
+    /// Set individual config value
+    SetConfigValue = 0x37,
+    /// Stage a frame for animation save
+    StageAnimationFrame = 0x38,
+    /// Commit staged frames as animation
+    CommitAnimation = 0x39,
+    /// Clear animation staging buffer
+    ClearAnimationStage = 0x3A,
 }
 
 #[derive(num_derive::FromPrimitive)]
@@ -154,6 +178,24 @@ impl From<PwmFreqArg> for PwmFreq {
     }
 }
 
+/// Configuration keys for SetConfigValue command
+#[cfg(feature = "ledmatrix")]
+#[derive(Copy, Clone, num_derive::FromPrimitive)]
+pub enum ConfigKeyArg {
+    /// Default brightness (u8)
+    Brightness = 0x01,
+    /// Sleep timeout in seconds (u16)
+    SleepTimeout = 0x02,
+    /// Animation period in microseconds (u32)
+    AnimationPeriod = 0x03,
+    /// PWM frequency (u8, 0-3)
+    PwmFreq = 0x04,
+    /// Startup animation enabled (bool)
+    StartupAnimation = 0x05,
+    /// Startup pattern index (u8, 0xFF = none)
+    StartupPattern = 0x06,
+}
+
 // TODO: Reduce size for modules that don't require other commands
 pub enum Command {
     /// Get current brightness scaling
@@ -211,6 +253,29 @@ pub enum Command {
     GetPwmFreq,
     SetDebugMode(bool),
     GetDebugMode,
+    // Flash storage commands
+    #[cfg(feature = "ledmatrix")]
+    SavePattern(u8),
+    #[cfg(feature = "ledmatrix")]
+    LoadPattern(u8),
+    #[cfg(feature = "ledmatrix")]
+    DeletePattern(u8),
+    #[cfg(feature = "ledmatrix")]
+    ListPatterns,
+    #[cfg(feature = "ledmatrix")]
+    SaveConfig,
+    #[cfg(feature = "ledmatrix")]
+    GetConfig,
+    #[cfg(feature = "ledmatrix")]
+    ResetConfig,
+    #[cfg(feature = "ledmatrix")]
+    SetConfigValue(ConfigKeyArg, u32),
+    #[cfg(feature = "ledmatrix")]
+    StageAnimationFrame(u8, [u8; HEIGHT]),
+    #[cfg(feature = "ledmatrix")]
+    CommitAnimation(u8, u8),
+    #[cfg(feature = "ledmatrix")]
+    ClearAnimationStage,
     _Unknown,
 }
 
@@ -397,6 +462,61 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             } else {
                 Command::GetDebugMode
             }),
+            // Flash storage commands
+            Some(CommandVals::SavePattern) => {
+                arg.map(Command::SavePattern)
+            }
+            Some(CommandVals::LoadPattern) => {
+                arg.map(Command::LoadPattern)
+            }
+            Some(CommandVals::DeletePattern) => {
+                arg.map(Command::DeletePattern)
+            }
+            Some(CommandVals::ListPatterns) => Some(Command::ListPatterns),
+            Some(CommandVals::SaveConfig) => Some(Command::SaveConfig),
+            Some(CommandVals::GetConfig) => Some(Command::GetConfig),
+            Some(CommandVals::ResetConfig) => Some(Command::ResetConfig),
+            Some(CommandVals::SetConfigValue) => {
+                if count >= 5 {
+                    let key: Option<ConfigKeyArg> = FromPrimitive::from_u8(buf[3]);
+                    if let Some(key) = key {
+                        // Parse value based on remaining bytes
+                        let value = match count - 4 {
+                            1 => buf[4] as u32,
+                            2 => u16::from_le_bytes([buf[4], buf[5]]) as u32,
+                            4 => u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]),
+                            _ => buf[4] as u32,
+                        };
+                        Some(Command::SetConfigValue(key, value))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            Some(CommandVals::StageAnimationFrame) => {
+                // Need: frame_index (1 byte) + column data (HEIGHT bytes per column)
+                // For simplicity, we stage one column at a time
+                if count >= 4 + HEIGHT {
+                    let frame_idx = buf[3];
+                    let mut col_data = [0u8; HEIGHT];
+                    col_data.copy_from_slice(&buf[4..4 + HEIGHT]);
+                    Some(Command::StageAnimationFrame(frame_idx, col_data))
+                } else {
+                    None
+                }
+            }
+            Some(CommandVals::CommitAnimation) => {
+                if count >= 5 {
+                    let slot = buf[3];
+                    let frame_delay_ms = buf[4];
+                    Some(Command::CommitAnimation(slot, frame_delay_ms))
+                } else {
+                    None
+                }
+            }
+            Some(CommandVals::ClearAnimationStage) => Some(Command::ClearAnimationStage),
             _ => None,
         }
     } else {
@@ -633,6 +753,121 @@ pub fn handle_command(
         Command::GetDebugMode => {
             let mut response: [u8; 32] = [0; 32];
             response[0] = state.debug_mode as u8;
+            Some(response)
+        }
+        // Flash storage commands
+        Command::SavePattern(slot) => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = if crate::storage::save_pattern(*slot, &state.grid) {
+                0x00 // Success
+            } else {
+                0x01 // Error
+            };
+            Some(response)
+        }
+        Command::LoadPattern(slot) => {
+            let mut response: [u8; 32] = [0; 32];
+            if let Some(pattern) = crate::storage::load_pattern(*slot) {
+                state.grid = pattern.first_frame();
+                response[0] = 0x00; // Success
+                response[1] = pattern.header.pattern_type as u8;
+                response[2] = pattern.header.frame_count;
+                response[3] = pattern.header.frame_delay_ms;
+            } else {
+                response[0] = 0x01; // Error: slot empty or invalid
+            }
+            Some(response)
+        }
+        Command::DeletePattern(slot) => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = if crate::storage::delete_pattern(*slot) {
+                0x00
+            } else {
+                0x01
+            };
+            Some(response)
+        }
+        Command::ListPatterns => {
+            let mut response: [u8; 32] = [0; 32];
+            let patterns = crate::storage::list_patterns();
+            for (i, info) in patterns.iter().enumerate() {
+                let offset = i * 4;
+                if offset + 4 <= 32 {
+                    response[offset] = if info.occupied { 0x01 } else { 0xFF };
+                    response[offset + 1] = info.pattern_type;
+                    response[offset + 2] = info.frame_count;
+                    response[offset + 3] = info.frame_delay_ms;
+                }
+            }
+            Some(response)
+        }
+        Command::SaveConfig => {
+            let mut response: [u8; 32] = [0; 32];
+            // Build config from current state
+            let config = crate::storage::StoredConfig {
+                brightness: state.brightness,
+                animation_period_us: state.animation_period as u32 / 1000, // Convert to ms then to config format
+                pwm_freq: state.pwm_freq as u8,
+                ..crate::storage::StoredConfig::default()
+            };
+            response[0] = if crate::storage::save_config(&config) {
+                0x00
+            } else {
+                0x01
+            };
+            Some(response)
+        }
+        Command::GetConfig => {
+            let mut response: [u8; 32] = [0; 32];
+            let config = crate::storage::load_config();
+            let bytes = config.to_bytes();
+            response[..16].copy_from_slice(&bytes);
+            Some(response)
+        }
+        Command::ResetConfig => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = if crate::storage::config::reset_config() {
+                0x00
+            } else {
+                0x01
+            };
+            Some(response)
+        }
+        Command::SetConfigValue(key, value) => {
+            let mut response: [u8; 32] = [0; 32];
+            let mut config = crate::storage::load_config();
+            match key {
+                ConfigKeyArg::Brightness => config.brightness = *value as u8,
+                ConfigKeyArg::SleepTimeout => config.sleep_timeout_secs = *value as u16,
+                ConfigKeyArg::AnimationPeriod => config.animation_period_us = *value,
+                ConfigKeyArg::PwmFreq => config.pwm_freq = *value as u8,
+                ConfigKeyArg::StartupAnimation => config.startup_animation = *value != 0,
+                ConfigKeyArg::StartupPattern => config.startup_pattern_idx = *value as u8,
+            }
+            response[0] = if crate::storage::save_config(&config) {
+                0x00
+            } else {
+                0x01
+            };
+            Some(response)
+        }
+        Command::StageAnimationFrame(_frame_idx, _col_data) => {
+            // Animation staging is handled in main.rs with the staging buffer
+            // This command just acknowledges receipt
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = 0x00; // Ack
+            Some(response)
+        }
+        Command::CommitAnimation(_slot, _frame_delay_ms) => {
+            // Animation commit is handled in main.rs
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = 0x00; // Ack
+            Some(response)
+        }
+        Command::ClearAnimationStage => {
+            // Clear staging buffer - handled in main.rs
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = 0x00;
             Some(response)
         }
         _ => handle_generic_command(command),

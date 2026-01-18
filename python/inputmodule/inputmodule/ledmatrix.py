@@ -10,8 +10,17 @@ from inputmodule.inputmodule import (
     FWK_MAGIC,
     send_serial,
     brightness,
+    RESPONSE_SIZE,
 )
 from inputmodule.gui.gui_threading import get_status, set_status
+
+
+class ConfigKey:
+    """Config key identifiers for SetConfigValue command"""
+    DefaultBrightness = 0x01
+    SleepTimeout = 0x02
+    StartupPattern = 0x03
+    StartupAnimation = 0x04
 
 WIDTH = 9
 HEIGHT = 34
@@ -456,3 +465,174 @@ def show_symbols(dev, symbols):
         font_items.append(s)
 
     show_font(dev, font_items)
+
+
+# Flash storage commands
+
+def save_pattern(dev, slot: int):
+    """Save current display to flash pattern slot (0-7)"""
+    if slot < 0 or slot > 7:
+        print("Error: Pattern slot must be 0-7")
+        return False
+    res = send_command(dev, CommandVals.SavePattern, [slot], with_response=True)
+    if res and res[0] == 1:
+        print(f"Pattern saved to slot {slot}")
+        return True
+    else:
+        print(f"Failed to save pattern to slot {slot}")
+        return False
+
+
+def load_pattern(dev, slot: int):
+    """Load pattern from flash slot (0-7)"""
+    if slot < 0 or slot > 7:
+        print("Error: Pattern slot must be 0-7")
+        return False
+    res = send_command(dev, CommandVals.LoadPattern, [slot], with_response=True)
+    if res and res[0] == 1:
+        print(f"Pattern loaded from slot {slot}")
+        return True
+    else:
+        print(f"No pattern found in slot {slot}")
+        return False
+
+
+def delete_pattern(dev, slot: int):
+    """Delete pattern from flash slot (0-7)"""
+    if slot < 0 or slot > 7:
+        print("Error: Pattern slot must be 0-7")
+        return False
+    res = send_command(dev, CommandVals.DeletePattern, [slot], with_response=True)
+    if res and res[0] == 1:
+        print(f"Pattern deleted from slot {slot}")
+        return True
+    else:
+        print(f"Failed to delete pattern from slot {slot}")
+        return False
+
+
+def list_patterns(dev):
+    """List all pattern slots"""
+    res = send_command(dev, CommandVals.ListPatterns, with_response=True)
+    if not res:
+        print("Failed to get pattern list")
+        return None
+
+    patterns = []
+    print("Pattern slots:")
+    for slot in range(8):
+        base = slot * 4
+        occupied = res[base] == 1
+        if occupied:
+            pattern_type = "static" if res[base + 1] == 0 else "animation"
+            frame_count = res[base + 2]
+            delay_ms = res[base + 3]
+            if frame_count > 1:
+                print(f"  Slot {slot}: {pattern_type} ({frame_count} frames, {delay_ms}ms delay)")
+            else:
+                print(f"  Slot {slot}: {pattern_type}")
+            patterns.append({
+                'slot': slot,
+                'occupied': True,
+                'type': pattern_type,
+                'frame_count': frame_count,
+                'delay_ms': delay_ms
+            })
+        else:
+            print(f"  Slot {slot}: empty")
+            patterns.append({'slot': slot, 'occupied': False})
+    return patterns
+
+
+def save_config(dev):
+    """Save current settings to flash"""
+    res = send_command(dev, CommandVals.SaveConfig, with_response=True)
+    if res and res[0] == 1:
+        print("Configuration saved to flash")
+        return True
+    else:
+        print("Failed to save configuration")
+        return False
+
+
+def get_config(dev):
+    """Get stored config from flash"""
+    res = send_command(dev, CommandVals.GetConfig, with_response=True)
+    if not res:
+        print("Failed to get config")
+        return None
+
+    config = {
+        'version': res[0],
+        'brightness': res[1],
+        'sleep_timeout': int.from_bytes(res[2:4], 'little'),
+        'animation_period_us': int.from_bytes(res[4:8], 'little'),
+        'pwm_freq': res[8],
+        'startup_animation': res[9] == 1,
+        'startup_pattern': res[10] if res[10] != 0xFF else None
+    }
+
+    print(f"Stored Configuration (v{config['version']}):")
+    print(f"  Default brightness: {config['brightness']}")
+    print(f"  Sleep timeout: {config['sleep_timeout']}s (0 = disabled)")
+    print(f"  Animation period: {config['animation_period_us']}us")
+    print(f"  PWM frequency index: {config['pwm_freq']}")
+    print(f"  Startup animation: {config['startup_animation']}")
+    if config['startup_pattern'] is None:
+        print("  Startup pattern: none")
+    else:
+        print(f"  Startup pattern: slot {config['startup_pattern']}")
+
+    return config
+
+
+def reset_config(dev):
+    """Reset config to defaults"""
+    res = send_command(dev, CommandVals.ResetConfig, with_response=True)
+    if res and res[0] == 1:
+        print("Configuration reset to defaults")
+        return True
+    else:
+        print("Failed to reset configuration")
+        return False
+
+
+def set_config_value(dev, key: int, value: int):
+    """Set a config value and save to flash"""
+    value_bytes = value.to_bytes(2, 'little')
+    res = send_command(dev, CommandVals.SetConfigValue, [key, value_bytes[0], value_bytes[1]], with_response=True)
+
+    key_names = {
+        ConfigKey.DefaultBrightness: "default brightness",
+        ConfigKey.SleepTimeout: "sleep timeout",
+        ConfigKey.StartupPattern: "startup pattern",
+        ConfigKey.StartupAnimation: "startup animation",
+    }
+    key_name = key_names.get(key, f"config key {key}")
+
+    if res and res[0] == 1:
+        print(f"Set {key_name} and saved to flash")
+        return True
+    else:
+        print(f"Failed to set {key_name}")
+        return False
+
+
+def set_default_brightness(dev, brightness_val: int):
+    """Set default brightness (0-255) and save to flash"""
+    return set_config_value(dev, ConfigKey.DefaultBrightness, brightness_val)
+
+
+def set_sleep_timeout(dev, timeout_secs: int):
+    """Set sleep timeout in seconds (0 = disabled) and save to flash"""
+    return set_config_value(dev, ConfigKey.SleepTimeout, timeout_secs)
+
+
+def set_startup_pattern(dev, slot: int):
+    """Set startup pattern slot (0-7, or 255 for none) and save to flash"""
+    return set_config_value(dev, ConfigKey.StartupPattern, slot)
+
+
+def set_startup_animation(dev, enable: bool):
+    """Enable/disable startup animation and save to flash"""
+    return set_config_value(dev, ConfigKey.StartupAnimation, 1 if enable else 0)

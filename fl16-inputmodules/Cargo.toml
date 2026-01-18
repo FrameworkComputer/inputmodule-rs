@@ -9,6 +9,9 @@ cortex-m.workspace = true
 cortex-m-rt.workspace = true
 embedded-hal.workspace = true
 
+# Flash storage traits
+embedded-storage = "0.3"
+
 defmt.workspace = true
 defmt-rtt.workspace = true
 
