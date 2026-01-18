@@ -135,9 +135,9 @@ Prepare Rust toolchain (once):
 
 ```sh
 rustup target install thumbv6m-none-eabi
-cargo install flip-link
-cargo install cargo-make
-cargo install elf2uf2-rs
+cargo install flip-link --locked
+cargo install cargo-make --locked
+cargo install elf2uf2-rs --locked
 ```
 
 Build:
@@ -165,7 +165,7 @@ Tracking issue: https://github.com/rust-lang/cargo/issues/9406
 
 ```sh
 # Install cargo-make to help build it
-cargo install cargo-make
+cargo install cargo-make --locked
 
 # Build it
 > cargo make --cwd inputmodule-control
