@@ -3,18 +3,6 @@
 version = 4
 
 [[package]]
-name = "adafruit-qt-py-rp2040"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e36e061b89c1354cab7a96173730928d67e9970ad509cd295af724abb30920b6"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "rp2040-boot2 0.2.1",
- "rp2040-hal 0.8.2",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -192,12 +180,12 @@ dependencies = [
  "fl16-inputmodules",
  "fugit",
  "heapless",
- "rp2040-boot2 0.3.0",
- "rp2040-hal 0.11.0",
+ "rp2040-boot2",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
  "st7306",
  "tinybmp",
- "usb-device 0.3.2",
+ "usb-device",
  "usbd-serial",
 ]
 
@@ -303,11 +291,11 @@ dependencies = [
  "fl16-inputmodules",
  "fugit",
  "heapless",
- "rp2040-boot2 0.3.0",
- "rp2040-hal 0.11.0",
+ "rp2040-boot2",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
- "usb-device 0.3.2",
+ "usb-device",
  "usbd-serial",
  "ws2812-pio",
 ]
@@ -811,13 +799,13 @@ dependencies = [
  "num",
  "num-derive 0.3.3",
  "num-traits",
- "rp2040-boot2 0.3.0",
- "rp2040-hal 0.11.0",
+ "rp2040-boot2",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
  "st7306",
  "tinybmp",
- "usb-device 0.3.2",
+ "usb-device",
  "usbd-serial",
  "ws2812-pio",
 ]
@@ -1206,10 +1194,10 @@ dependencies = [
  "fugit",
  "heapless",
  "is31fl3741",
- "rp2040-boot2 0.3.0",
- "rp2040-hal 0.11.0",
+ "rp2040-boot2",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
- "usb-device 0.3.2",
+ "usb-device",
  "usbd-serial",
 ]
 
@@ -1730,7 +1718,6 @@ dependencies = [
 name = "qtpy"
 version = "0.2.0"
 dependencies = [
- "adafruit-qt-py-rp2040",
  "cortex-m",
  "cortex-m-rt",
  "defmt 0.3.100",
@@ -1739,11 +1726,11 @@ dependencies = [
  "fl16-inputmodules",
  "fugit",
  "heapless",
- "rp2040-boot2 0.3.0",
- "rp2040-hal 0.11.0",
+ "rp2040-boot2",
+ "rp2040-hal",
  "rp2040-panic-usb-boot",
  "smart-leds",
- "usb-device 0.3.2",
+ "usb-device",
  "usbd-serial",
  "ws2812-pio",
 ]
@@ -1994,43 +1981,11 @@ dependencies = [
 
 [[package]]
 name = "rp2040-boot2"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c773ec49b836077aa144b58dc7654a243e1eecdb6cf0d25361ae7c7600fabd8"
-dependencies = [
- "crc-any",
-]
-
-[[package]]
-name = "rp2040-boot2"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c92f344f63f950ee36cf4080050e4dce850839b9175da38f9d2ffb69b4dbb21"
 dependencies = [
  "crc-any",
-]
-
-[[package]]
-name = "rp2040-hal"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1369bb84862d7f69391a96606b2f29a00bfce7f29a749e23d5f01fc3f607ada0"
-dependencies = [
- "cortex-m",
- "critical-section",
- "embedded-dma",
- "embedded-hal 0.2.7",
- "fugit",
- "itertools 0.10.5",
- "nb 1.1.0",
- "paste",
- "pio",
- "rand_core 0.6.4",
- "rp2040-hal-macros",
- "rp2040-pac 0.4.0",
- "usb-device 0.2.9",
- "vcell",
- "void",
 ]
 
 [[package]]
@@ -2058,8 +2013,8 @@ dependencies = [
  "rp-binary-info",
  "rp-hal-common",
  "rp2040-hal-macros",
- "rp2040-pac 0.6.0",
- "usb-device 0.3.2",
+ "rp2040-pac",
+ "usb-device",
  "vcell",
  "void",
 ]
@@ -2074,17 +2029,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "rp2040-pac"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9192cafbb40d717c9e0ddf767aaf9c69fee1b4e48d22ed853b57b11f6d9f3d7e"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "vcell",
 ]
 
 [[package]]
@@ -2511,12 +2455,6 @@ checksum = "9312f7c4f6ff9069b165498234ce8be658059c6728633667c526e27dc2cf1df5"
 
 [[package]]
 name = "usb-device"
-version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f6cc3adc849b5292b4075fc0d5fdcf2f24866e88e336dd27a8943090a520508"
-
-[[package]]
-name = "usb-device"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98816b1accafbb09085168b90f27e93d790b4bfa19d883466b5e53315b5f06a6"
@@ -2534,7 +2472,7 @@ dependencies = [
  "embedded-hal 0.2.7",
  "embedded-io",
  "nb 1.1.0",
- "usb-device 0.3.2",
+ "usb-device",
 ]
 
 [[package]]
@@ -2979,7 +2917,7 @@ dependencies = [
  "fugit",
  "nb 1.1.0",
  "pio",
- "rp2040-hal 0.11.0",
+ "rp2040-hal",
  "smart-leds-trait 0.2.1",
  "smart-leds-trait 0.3.2",
 ]

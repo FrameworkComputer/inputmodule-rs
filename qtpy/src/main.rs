@@ -13,15 +13,14 @@ use cortex_m::delay::Delay;
 use defmt_rtt as _;
 
 use rp2040_hal::gpio::bank0::Gpio12;
+use rp2040_hal::gpio::{FunctionPio0, Pin, PullDown};
 use rp2040_hal::pio::PIOExt;
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
 
-// Provide an alias for our BSP so we can switch targets quickly.
-// Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-use adafruit_qt_py_rp2040 as bsp;
-//use rp_pico as bsp;
+// Use local BSP from fl16-inputmodules
+use fl16_inputmodules::qtpy_hal as bsp;
 
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
@@ -34,6 +33,8 @@ use bsp::hal::{
 };
 
 // USB Device support
+use usb_device::descriptor::lang_id::LangID;
+use usb_device::device::StringDescriptors;
 use usb_device::{class_prelude::*, prelude::*};
 
 // USB Communications Class Device support
@@ -45,11 +46,11 @@ use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // RGB LED
 use smart_leds::{colors, SmartLedsWrite, RGB8};
-pub type Ws2812<'a> = ws2812_pio::Ws2812<
+pub type Ws2812 = ws2812_pio::Ws2812<
     crate::pac::PIO0,
     rp2040_hal::pio::SM0,
-    rp2040_hal::timer::CountDown<'a>,
-    Gpio12,
+    rp2040_hal::timer::CountDown,
+    Pin<Gpio12, FunctionPio0, PullDown>,
 >;
 
 use fl16_inputmodules::control::*;
@@ -86,6 +87,9 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
+    // Create timer before USB bus since USB bus moves clocks.usb_clock
+    let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+
     // Set up the USB driver
     let usb_bus = UsbBusAllocator::new(usb::UsbBus::new(
         pac.USBCTRL_REGS,
@@ -99,9 +103,12 @@ fn main() -> ! {
     let mut serial = SerialPort::new(&usb_bus);
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(FRAMEWORK_VID, COMMUNITY_PID))
-        .manufacturer("Adafruit")
-        .product("QT PY - Framework 16 Inputmodule FW")
+        .strings(&[StringDescriptors::new(LangID::EN_US)
+            .manufacturer("Adafruit")
+            .product("QT PY - Framework 16 Inputmodule FW")])
+        .unwrap()
         .max_power(500)
+        .unwrap()
         .device_release(device_release())
         .device_class(USB_CLASS_CDC)
         .build();
@@ -112,14 +119,13 @@ fn main() -> ! {
         brightness: 10,
     };
 
-    let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
 
     pins.neopixel_power
         .into_push_pull_output_in_state(PinState::High);
     let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
     let mut ws2812: Ws2812 = ws2812_pio::Ws2812::new(
-        pins.neopixel_data.into_mode(),
+        pins.neopixel_data.into_function(),
         &mut pio,
         sm0,
         clocks.peripheral_clock.freq(),
