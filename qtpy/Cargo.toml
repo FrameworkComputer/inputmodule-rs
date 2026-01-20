@@ -23,6 +23,7 @@ usb-device.workspace = true
 heapless.workspace = true
 usbd-serial.workspace = true
 usbd-hid.workspace = true
+usbd-picotool-reset.workspace = true
 fugit.workspace = true
 
 # C1 Minimal

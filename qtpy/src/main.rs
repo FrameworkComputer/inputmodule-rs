@@ -34,10 +34,12 @@ use bsp::hal::{
 };
 
 // USB Device support
-use usb_device::{class_prelude::*, prelude::*};
+use usb_device::{class_prelude::*, prelude::*, descriptor::lang_id};
 
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
+
+use usbd_picotool_reset::PicoToolReset;
 
 // Used to demonstrate writing formatted strings
 // use core::fmt::Write;
@@ -95,10 +97,16 @@ fn main() -> ! {
         &mut pac.RESETS,
     ));
 
+    let mut picotool: PicoToolReset<_> = PicoToolReset::new(&usb_bus);
+
     // Set up the USB Communications Class Device driver
     let mut serial = SerialPort::new(&usb_bus);
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(FRAMEWORK_VID, COMMUNITY_PID))
+        //.strings(&[StringDescriptors::new(lang_id::ENGLISH_US)
+        //    .manufacturer("Adafruit")
+        //    .product("QT PY - Framework 16 Inputmodule FW")])
+        //.expect("Failed to set strings")
         .manufacturer("Adafruit")
         .product("QT PY - Framework 16 Inputmodule FW")
         .max_power(500)
@@ -141,7 +149,8 @@ fn main() -> ! {
         }
 
         // Check for new data
-        if usb_dev.poll(&mut [&mut serial]) {
+        // usb_dev.poll(&mut [&mut picotool, &mut serial]);
+        if usb_dev.poll(&mut [&mut picotool, &mut serial]) {
             let mut buf = [0u8; 64];
             match serial.read(&mut buf) {
                 Err(_e) => {
