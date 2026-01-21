@@ -104,7 +104,37 @@ fn match_serialdevs(
         compatible_devs
     }
 }
+/// Make sure device is awake before sending non sleep ignoring commands
+fn enforce_awake(port: &mut Box<dyn SerialPort>) {
+    simple_cmd_port(port, Command::Sleeping, &[]);
 
+    let mut response: Vec<u8> = vec![0; 32];
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    if response[0] == 0 {
+        return;
+    }
+
+    println!("Device is asleep. Waking up device.");
+    simple_cmd_port(port, Command::Sleeping, &[0]);
+
+    // Timeout increased thanks to ledmatrix taking up to 12 seconds to wake up.
+    port.set_timeout(Duration::from_secs(15))
+        .expect("Failed to set timeout");
+
+    simple_cmd_port(port, Command::Sleeping, &[]);
+
+    port.read_exact(response.as_mut_slice())
+        .expect("Found no data!");
+
+    if response[0] == 1 {
+        panic!("Device did not respond to wake up command!");
+    }
+
+    port.set_timeout(SERIAL_TIMEOUT)
+        .expect("Failed to set timeout");
+}
 pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<String>, bool) {
     let mut serialdevs: Vec<String>;
     let mut waited = false;
@@ -350,6 +380,7 @@ fn get_device_version(serialdev: &str) {
         .timeout(SERIAL_TIMEOUT)
         .open()
         .expect("Failed to open port");
+    enforce_awake(&mut port);
 
     simple_cmd_port(&mut port, Command::Version, &[]);
 
@@ -465,6 +496,7 @@ fn debug_mode_cmd(serialdev: &str, arg: Option<bool>) {
     if let Some(enable_debug) = arg {
         simple_cmd_port(&mut port, Command::DebugMode, &[u8::from(enable_debug)]);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::DebugMode, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
@@ -485,6 +517,7 @@ fn brightness_cmd(serialdev: &str, arg: Option<u8>) {
     if let Some(brightness) = arg {
         simple_cmd_port(&mut port, Command::Brightness, &[brightness]);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::Brightness, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
@@ -505,6 +538,7 @@ fn animate_cmd(serialdev: &str, arg: Option<bool>) {
     if let Some(animate) = arg {
         simple_cmd_port(&mut port, Command::Animate, &[animate as u8]);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::Animate, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
@@ -859,6 +893,7 @@ fn display_on_cmd(serialdev: &str, arg: Option<bool>) {
     if let Some(display_on) = arg {
         simple_cmd_port(&mut port, Command::DisplayOn, &[display_on as u8]);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::DisplayOn, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
@@ -879,6 +914,7 @@ fn invert_screen_cmd(serialdev: &str, arg: Option<bool>) {
     if let Some(invert_on) = arg {
         simple_cmd_port(&mut port, Command::InvertScreen, &[invert_on as u8]);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::InvertScreen, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
@@ -899,6 +935,7 @@ fn screensaver_cmd(serialdev: &str, arg: Option<bool>) {
     if let Some(display_on) = arg {
         simple_cmd_port(&mut port, Command::ScreenSaver, &[display_on as u8]);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::ScreenSaver, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
@@ -917,6 +954,7 @@ fn fps_cmd(serialdev: &str, arg: Option<Fps>) {
         .timeout(SERIAL_TIMEOUT)
         .open()
         .expect("Failed to open port");
+    enforce_awake(&mut port);
 
     simple_cmd_port(&mut port, Command::Fps, &[]);
     let mut response: Vec<u8> = vec![0; 32];
@@ -978,6 +1016,7 @@ fn power_mode_cmd(serialdev: &str, arg: Option<PowerMode>) {
     if let Some(mode) = arg {
         set_power_mode(&mut port, mode);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::PowerMode, &[]);
         let mut response: Vec<u8> = vec![0; 32];
         port.read_exact(response.as_mut_slice())
@@ -1015,6 +1054,7 @@ fn animation_fps_cmd(serialdev: &str, arg: Option<u16>) {
         let period = (MS / fps).to_le_bytes();
         simple_cmd_port(&mut port, Command::AnimationPeriod, &[period[0], period[1]]);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::AnimationPeriod, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
@@ -1042,6 +1082,7 @@ fn pwm_freq_cmd(serialdev: &str, arg: Option<u16>) {
         };
         simple_cmd_port(&mut port, Command::PwmFreq, &[hz]);
     } else {
+        enforce_awake(&mut port);
         simple_cmd_port(&mut port, Command::PwmFreq, &[]);
 
         let mut response: Vec<u8> = vec![0; 32];
