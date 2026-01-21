@@ -3,7 +3,7 @@ const FLASH_OFFSET: usize = 0x10000000;
 const LAST_4K_BLOCK: usize = 0xff000;
 const SERIALNUM_LEN: usize = 18;
 
-#[repr(packed)]
+#[repr(C, packed)]
 pub struct SerialnumStructRaw {
     sn_rev: u8,
     serialnum: [u8; SERIALNUM_LEN],

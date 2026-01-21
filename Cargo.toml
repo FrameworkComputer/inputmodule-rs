@@ -23,27 +23,27 @@ default-members = ["fl16-inputmodules"]
 [workspace.dependencies]
 cortex-m = "0.7"
 cortex-m-rt = "0.7.3"
-embedded-hal = { version = "0.2.7", features = ["unproven"] }
+embedded-hal = "1.0"
+embedded-hal-bus = "0.3"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
-rp2040-panic-usb-boot = "0.5.0"
-rp2040-hal = { version = "0.8", features = ["rt", "critical-section-impl"] }
+rp2040-panic-usb-boot = "0.6.0"
+rp2040-hal = { version = "0.11", features = ["rt", "critical-section-impl"] }
 rp2040-boot2 = "0.3"
 defmt = "0.3"
 defmt-rtt = "0.4"
 # USB Serial
-usb-device = "0.2.9"
-heapless = "0.7.16"
-usbd-serial = "0.1.1"
-usbd-hid = "0.6.1"
+usb-device = "0.3.2"
+heapless = "0.8"
+usbd-serial = "0.2.2"
 fugit = "0.3.7"
 is31fl3741 = { version = "0.4.0", features = ["framework_ledmatrix"] }
 # B1 Display
-st7306 = { git = "https://github.com/FrameworkComputer/st7306-rs", branch = "update-deps" }
+st7306 = { git = "https://github.com/FrameworkComputer/st7306-rs", tag = "v0.10.0" }
 embedded-graphics = "0.8"
 tinybmp = "0.5.0"
 # C1 Minimal
 smart-leds = "0.3.0"
-ws2812-pio = "0.6.0"
+ws2812-pio = "0.9.0"
 
 [profile.dev.package.ledmatrix]
 codegen-units = 1

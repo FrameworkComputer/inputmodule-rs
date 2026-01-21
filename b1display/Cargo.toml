@@ -7,6 +7,7 @@ version = "0.2.0"
 cortex-m.workspace = true
 cortex-m-rt.workspace = true
 embedded-hal.workspace = true
+embedded-hal-bus.workspace = true
 
 defmt.workspace = true
 defmt-rtt.workspace = true
@@ -22,7 +23,6 @@ rp2040-boot2.workspace = true
 usb-device.workspace = true
 heapless.workspace = true
 usbd-serial.workspace = true
-usbd-hid.workspace = true
 fugit.workspace = true
 
 st7306.workspace = true

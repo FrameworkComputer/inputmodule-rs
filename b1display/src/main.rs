@@ -1,15 +1,17 @@
-//! LED Matrix Module
+//! B1 Display Module
 #![no_std]
 #![no_main]
 #![allow(clippy::needless_range_loop)]
 
 use bsp::entry;
-use cortex_m::delay::Delay;
 //use defmt::*;
 use defmt_rtt as _;
-use embedded_hal::digital::v2::{InputPin, OutputPin};
+use embedded_hal::delay::DelayNs;
+use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal::spi::SpiDevice;
+use embedded_hal_bus::spi::{ExclusiveDevice, NoDelay};
 
-use rp2040_hal::gpio::{Output, Pin, PushPull};
+use rp2040_hal::gpio::{FunctionSioOutput, FunctionSpi, Pin, PullDown, PullNone};
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
@@ -17,7 +19,6 @@ use rp2040_panic_usb_boot as _;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::*;
-use embedded_hal::blocking::spi;
 use st7306::{FpsConfig, HpmFps, LpmFps, PowerMode, ST7306};
 
 // Provide an alias for our BSP so we can switch targets quickly.
@@ -37,17 +38,36 @@ use bsp::hal::{
 use fugit::RateExtU32;
 
 // USB Device support
+use usb_device::descriptor::lang_id::LangID;
+use usb_device::device::StringDescriptors;
 use usb_device::{class_prelude::*, prelude::*};
 
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // Used to demonstrate writing formatted strings
-use core::fmt::Debug;
 use core::fmt::Write;
 use heapless::String;
 
 use fl16_inputmodules::control::*;
+
+/// Wrapper around cortex_m::delay::Delay that implements embedded-hal 1.0's DelayNs
+struct Delay(cortex_m::delay::Delay);
+
+impl DelayNs for Delay {
+    fn delay_ns(&mut self, ns: u32) {
+        // Round up to microseconds
+        self.0.delay_us(ns.div_ceil(1000));
+    }
+
+    fn delay_us(&mut self, us: u32) {
+        self.0.delay_us(us);
+    }
+
+    fn delay_ms(&mut self, ms: u32) {
+        self.0.delay_ms(ms);
+    }
+}
 use fl16_inputmodules::graphics::*;
 use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 
@@ -58,11 +78,19 @@ use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 //                                      00000000 - Device Identifier
 const DEFAULT_SERIAL: &str = "FRAKDEAM0000000000";
 
+type SpiPinout = (
+    Pin<gpio::bank0::Gpio19, FunctionSpi, PullNone>, // TX/MOSI
+    Pin<gpio::bank0::Gpio16, FunctionSpi, PullNone>, // RX/MISO
+    Pin<gpio::bank0::Gpio18, FunctionSpi, PullNone>, // SCK
+);
+
+type SpiBus = rp2040_hal::spi::Spi<rp2040_hal::spi::Enabled, pac::SPI0, SpiPinout, 8>;
+type CsPin = Pin<gpio::bank0::Gpio17, FunctionSioOutput, PullDown>;
+
 type B1ST7306 = ST7306<
-    rp2040_hal::Spi<rp2040_hal::spi::Enabled, pac::SPI0, 8>,
-    Pin<gpio::bank0::Gpio20, Output<PushPull>>,
-    Pin<gpio::bank0::Gpio17, Output<PushPull>>,
-    Pin<gpio::bank0::Gpio21, Output<PushPull>>,
+    ExclusiveDevice<SpiBus, CsPin, NoDelay>,
+    Pin<gpio::bank0::Gpio20, FunctionSioOutput, PullDown>, // DC
+    Pin<gpio::bank0::Gpio21, FunctionSioOutput, PullDown>, // RST
     25,
     200,
 >;
@@ -92,7 +120,10 @@ fn main() -> ! {
     .ok()
     .unwrap();
 
-    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    let mut delay = Delay(cortex_m::delay::Delay::new(
+        core.SYST,
+        clocks.system_clock.freq().to_Hz(),
+    ));
 
     let pins = bsp::Pins::new(
         pac.IO_BANK0,
@@ -100,6 +131,9 @@ fn main() -> ! {
         sio.gpio_bank0,
         &mut pac.RESETS,
     );
+
+    // Create timer before USB bus since USB bus moves clocks.usb_clock
+    let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
 
     // Set up the USB driver
     let usb_bus = UsbBusAllocator::new(usb::UsbBus::new(
@@ -120,31 +154,38 @@ fn main() -> ! {
     };
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0021))
-        .manufacturer("Framework Computer Inc")
-        .product("B1 Display")
-        .serial_number(serialnum)
+        .strings(&[StringDescriptors::new(LangID::EN_US)
+            .manufacturer("Framework Computer Inc")
+            .product("B1 Display")
+            .serial_number(serialnum)])
+        .unwrap()
         .max_power(500) // TODO: Check how much
+        .unwrap()
         .device_release(device_release()) // TODO: Assign dynamically based on crate version
         .device_class(USB_CLASS_CDC)
         .build();
 
-    // Display SPI pins
-    let _spi_sclk = pins.scl.into_mode::<bsp::hal::gpio::FunctionSpi>();
-    let _spi_mosi = pins.sda.into_mode::<bsp::hal::gpio::FunctionSpi>();
-    let _spi_miso = pins.miso.into_mode::<bsp::hal::gpio::FunctionSpi>();
-    let spi = bsp::hal::Spi::<_, _, 8>::new(pac.SPI0);
+    // Display SPI pins - order is (TX/MOSI, RX/MISO, SCK)
+    // Reconfigure pins to PullNone before setting SPI function
+    let spi_mosi = pins.sda.reconfigure::<FunctionSpi, PullNone>();
+    let spi_miso = pins.miso.reconfigure::<FunctionSpi, PullNone>();
+    let spi_sclk = pins.scl.reconfigure::<FunctionSpi, PullNone>();
+    let spi = bsp::hal::Spi::<_, _, _, 8>::new(pac.SPI0, (spi_mosi, spi_miso, spi_sclk));
     // Display control pins
     let dc = pins.dc.into_push_pull_output();
-    let mut cs = pins.cs.into_push_pull_output();
-    cs.set_low().unwrap();
+    let cs = pins.cs.into_push_pull_output();
     let rst = pins.rstb.into_push_pull_output();
 
     let spi = spi.init(
         &mut pac.RESETS,
         clocks.peripheral_clock.freq(),
         16_000_000u32.Hz(),
-        &embedded_hal::spi::MODE_0,
+        embedded_hal::spi::MODE_0,
     );
+
+    // Wrap SPI bus with ExclusiveDevice to get SpiDevice trait
+    // ExclusiveDevice manages CS for us
+    let spi_device = ExclusiveDevice::new_no_delay(spi, cs).unwrap();
 
     let mut state = B1DIsplayState {
         sleeping: SimpleSleepState::Awake,
@@ -165,9 +206,8 @@ fn main() -> ! {
     const COL_START: u16 = 0x12;
     const ROW_START: u16 = 0x00;
     let mut disp: B1ST7306 = ST7306::new(
-        spi,
+        spi_device,
         dc,
-        cs,
         rst,
         INVERTED,
         AUTO_PWRDOWN,
@@ -219,9 +259,8 @@ fn main() -> ! {
     }
     disp.flush().unwrap();
 
-    let sleep = pins.sleep.into_pull_down_input();
+    let mut sleep = pins.sleep.into_pull_down_input();
 
-    let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
     let mut ticks = 0;
 
@@ -343,17 +382,16 @@ fn main() -> ! {
     }
 }
 
-fn handle_sleep<SPI, DC, CS, RST, const COLS: usize, const ROWS: usize>(
+fn handle_sleep<SPI, DC, RST, DELAY, const COLS: usize, const ROWS: usize>(
     go_sleeping: bool,
     state: &mut B1DIsplayState,
-    delay: &mut Delay,
-    disp: &mut ST7306<SPI, DC, CS, RST, COLS, ROWS>,
+    delay: &mut DELAY,
+    disp: &mut ST7306<SPI, DC, RST, COLS, ROWS>,
 ) where
-    SPI: spi::Write<u8>,
+    SPI: SpiDevice,
     DC: OutputPin,
-    CS: OutputPin,
     RST: OutputPin,
-    <SPI as spi::Write<u8>>::Error: Debug,
+    DELAY: DelayNs,
 {
     match (state.sleeping.clone(), go_sleeping) {
         (SimpleSleepState::Awake, false) => (),

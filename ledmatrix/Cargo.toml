@@ -26,7 +26,6 @@ rp2040-boot2.workspace = true
 usb-device.workspace = true
 heapless.workspace = true
 usbd-serial.workspace = true
-usbd-hid.workspace = true
 fugit.workspace = true
 
 is31fl3741.workspace = true

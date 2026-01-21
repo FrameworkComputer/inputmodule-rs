@@ -23,11 +23,10 @@ rp2040-boot2.workspace = true
 usb-device.workspace = true
 heapless.workspace = true
 usbd-serial.workspace = true
-usbd-hid.workspace = true
 fugit.workspace = true
 
 num = { version = "0.4", default-features = false }
-num-derive = "0.3"
+num-derive = "0.4"
 num-traits = { version = "0.2", default-features = false }
 
 # LED Matrix

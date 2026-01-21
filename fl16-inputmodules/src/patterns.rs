@@ -1,5 +1,8 @@
 use rp2040_hal::{
-    gpio::bank0::{Gpio26, Gpio27},
+    gpio::{
+        bank0::{Gpio26, Gpio27},
+        FunctionI2C, PullUp,
+    },
     pac::I2C1,
 };
 
@@ -19,8 +22,8 @@ pub type Foo = LedMatrix<
     bsp::hal::I2C<
         I2C1,
         (
-            bsp::hal::gpio::Pin<Gpio26, bsp::hal::gpio::Function<bsp::hal::gpio::I2C>>,
-            bsp::hal::gpio::Pin<Gpio27, bsp::hal::gpio::Function<bsp::hal::gpio::I2C>>,
+            bsp::hal::gpio::Pin<Gpio26, FunctionI2C, PullUp>,
+            bsp::hal::gpio::Pin<Gpio27, FunctionI2C, PullUp>,
         ),
     >,
 >;

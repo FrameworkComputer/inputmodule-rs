@@ -119,7 +119,7 @@ impl Iterator for GameOfLifeIterator {
         if self.frames_remaining > 0 {
             self.frames_remaining -= 1;
             // Only update every 8th frame, otherwise the animation is too fast
-            if self.frames_remaining % 8 == 0 {
+            if self.frames_remaining.is_multiple_of(8) {
                 self.state.tick();
             }
             Some(self.state.draw_matrix())

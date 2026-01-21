@@ -30,21 +30,21 @@ hal::bsp_pins!(
         name: scl,
         aliases: {
             /// SPI Function alias for pin [crate::Pins::gpio14].
-            FunctionSpi: Gp18Spi1Sck
+            FunctionSpi, PullNone: Gp18Spi1Sck
         }
     },
     Gpio19 {
         name: sda,
         aliases: {
             /// SPI Function alias for pin [crate::Pins::gpio15].
-            FunctionSpi: Gp19Spi1Tx
+            FunctionSpi, PullNone: Gp19Spi1Tx
         }
     },
     Gpio16 {
         name: miso,
         aliases: {
             /// SPI Function alias for pin [crate::Pins::gpio12].
-            FunctionSpi: Gp16Spi1Rx
+            FunctionSpi, PullNone: Gp16Spi1Rx
         }
     },
     Gpio20 { name: dc },

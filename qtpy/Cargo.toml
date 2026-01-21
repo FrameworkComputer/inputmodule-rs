@@ -22,15 +22,11 @@ rp2040-boot2.workspace = true
 usb-device.workspace = true
 heapless.workspace = true
 usbd-serial.workspace = true
-usbd-hid.workspace = true
 fugit.workspace = true
 
 # C1 Minimal
 smart-leds.workspace = true
 ws2812-pio.workspace = true
-
-# QT Py
-adafruit-qt-py-rp2040 = "0.6.0"
 
 [dependencies.fl16-inputmodules]
 path = "../fl16-inputmodules"

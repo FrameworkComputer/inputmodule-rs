@@ -11,9 +11,10 @@
 use bsp::entry;
 use cortex_m::delay::Delay;
 use defmt_rtt as _;
-use embedded_hal::digital::v2::InputPin;
+use embedded_hal::digital::InputPin;
 
 use rp2040_hal::gpio::bank0::Gpio16;
+use rp2040_hal::gpio::{FunctionPio0, Pin, PullDown};
 use rp2040_hal::pio::PIOExt;
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
@@ -34,6 +35,8 @@ use bsp::hal::{
 };
 
 // USB Device support
+use usb_device::descriptor::lang_id::LangID;
+use usb_device::device::StringDescriptors;
 use usb_device::{class_prelude::*, prelude::*};
 
 // USB Communications Class Device support
@@ -45,11 +48,11 @@ use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 // RGB LED
 use smart_leds::{colors, SmartLedsWrite, RGB8};
-pub type Ws2812<'a> = ws2812_pio::Ws2812<
+pub type Ws2812 = ws2812_pio::Ws2812<
     crate::pac::PIO0,
     rp2040_hal::pio::SM0,
-    rp2040_hal::timer::CountDown<'a>,
-    Gpio16,
+    rp2040_hal::timer::CountDown,
+    Pin<Gpio16, FunctionPio0, PullDown>,
 >;
 
 use fl16_inputmodules::control::*;
@@ -90,6 +93,9 @@ fn main() -> ! {
         &mut pac.RESETS,
     );
 
+    // Create timer before USB bus since USB bus moves clocks.usb_clock
+    let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+
     // Set up the USB driver
     let usb_bus = UsbBusAllocator::new(usb::UsbBus::new(
         pac.USBCTRL_REGS,
@@ -109,15 +115,18 @@ fn main() -> ! {
     };
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x32ac, 0x0022))
-        .manufacturer("Framework Computer Inc")
-        .product("C1 Minimal Input Module")
-        .serial_number(serialnum)
+        .strings(&[StringDescriptors::new(LangID::EN_US)
+            .manufacturer("Framework Computer Inc")
+            .product("C1 Minimal Input Module")
+            .serial_number(serialnum)])
+        .unwrap()
         .max_power(500) // TODO: Check how much
+        .unwrap()
         .device_release(device_release())
         .device_class(USB_CLASS_CDC)
         .build();
 
-    let sleep = pins.sleep.into_pull_down_input();
+    let mut sleep = pins.sleep.into_pull_down_input();
 
     let mut state = C1MinimalState {
         sleeping: SimpleSleepState::Awake,
@@ -125,12 +134,11 @@ fn main() -> ! {
         brightness: 10,
     };
 
-    let timer = Timer::new(pac.TIMER, &mut pac.RESETS);
     let mut prev_timer = timer.get_counter().ticks();
 
     let (mut pio, sm0, _, _, _) = pac.PIO0.split(&mut pac.RESETS);
     let mut ws2812: Ws2812 = ws2812_pio::Ws2812::new(
-        pins.rgb_led.into_mode(),
+        pins.rgb_led.into_function(),
         &mut pio,
         sm0,
         clocks.peripheral_clock.freq(),

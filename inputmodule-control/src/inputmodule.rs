@@ -1080,8 +1080,7 @@ fn gif_cmd(serialdev: &str, image_path: &str) {
         let img = std::fs::File::open(image_path).unwrap();
         let gif = GifDecoder::new(img).unwrap();
         let frames = gif.into_frames();
-        for (_i, frame) in frames.enumerate() {
-            //println!("Frame {i}");
+        for frame in frames {
             let frame = frame.unwrap();
             //let delay = frame.delay();
             //println!("  Delay: {:?}", Duration::from(delay));
