@@ -214,6 +214,40 @@ pub enum Command {
     _Unknown,
 }
 
+impl Command {
+    pub fn should_wake(&self) -> bool {
+        match self {
+            Self::SetBrightness(_)
+            | Self::Pattern(_)
+            | Self::Percentage(_)
+            | Self::SetAnimate(_)
+            | Self::Draw(_)
+            | Self::DrawGreyColBuffer
+            | Self::StartGame(_)
+            | Self::GameControl(_)
+            | Self::DisplayOn(_)
+            | Self::InvertScreen(_)
+            | Self::SetPixelColumn(_, _)
+            | Self::FlushFramebuffer
+            | Self::ScreenSaver(_)
+            | Self::SetFps(_)
+            | Self::SetPowerMode(_)
+            | Self::SetDebugMode(_) => true,
+
+            #[cfg(feature = "ledmatrix")]
+            Self::Draw(_) | Self::SetPwmFreq(_) => true,
+
+            #[cfg(feature = "c1minimal")]
+            Self::SetColor(_) => true,
+
+            #[cfg(feature = "b1display")]
+            Self::SetText(_) => true,
+
+            _ => false,
+        }
+    }
+}
+
 #[cfg(any(feature = "c1minimal", feature = "b1display"))]
 #[derive(Clone)]
 pub enum SimpleSleepState {
