@@ -843,7 +843,7 @@ fn show_font(serialdev: &str, font_items: &[Vec<u8>]) {
 }
 
 /// Render a list of up to five symbols
-/// Can use letters/numbers or symbol names, like 'sun', ':)'
+/// Can use letters/numbers or symbol names, like 'sun' ':)'
 fn show_symbols(serialdev: &str, symbols: &Vec<String>) {
     println!("Symbols: {symbols:?}");
     let font_items: Vec<Vec<u8>> = symbols.iter().map(|x| convert_symbol(x)).collect();
