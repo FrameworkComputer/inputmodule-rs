@@ -402,12 +402,16 @@ fn main() -> ! {
                 }
             }
 
-            fill_grid_pixels(&state, &mut matrix);
             if state.animate {
                 for x in 0..WIDTH {
                     state.grid.0[x].rotate_right(1);
                 }
             }
+
+            if state.animate || state.upcoming_frames.is_some(){
+                fill_grid_pixels(&state, &mut matrix);
+            }
+
             animation_timer = timer.get_counter().ticks();
         }
 
