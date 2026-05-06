@@ -3,3 +3,5 @@ pub mod pong;
 pub mod pong_animation;
 pub mod snake;
 pub mod snake_animation;
+pub mod tetris;
+pub mod tetris_animation;

@@ -2,6 +2,7 @@ use crate::control::*;
 use crate::games::game_of_life::*;
 use crate::games::pong_animation::*;
 use crate::games::snake_animation::*;
+use crate::games::tetris_animation::*;
 use crate::matrix::Grid;
 use crate::matrix::*;
 use crate::patterns::*;
@@ -19,6 +20,7 @@ pub enum Animation {
     Breathing(BreathingIterator),
     Snake(SnakeIterator),
     Pong(PongIterator),
+    Tetris(TetrisIterator)
 }
 impl Iterator for Animation {
     type Item = Grid;
@@ -31,6 +33,7 @@ impl Iterator for Animation {
             Animation::Breathing(x) => x.next(),
             Animation::Snake(x) => x.next(),
             Animation::Pong(x) => x.next(),
+            Animation::Tetris(x) => x.next()
         }
     }
 }

@@ -40,6 +40,7 @@ use is31fl3741::PwmFreq;
 
 #[cfg(feature = "c1minimal")]
 use smart_leds::{SmartLedsWrite, RGB8};
+use crate::games::tetris;
 
 #[repr(u8)]
 #[derive(num_derive::FromPrimitive)]
@@ -351,7 +352,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             Some(CommandVals::StartGame) => match arg.and_then(FromPrimitive::from_u8) {
                 Some(GameVal::Snake) => Some(Command::StartGame(Game::Snake)),
                 Some(GameVal::Pong) => Some(Command::StartGame(Game::Pong)),
-                Some(GameVal::Tetris) => None,
+                Some(GameVal::Tetris) => Some(Command::StartGame(Game::Tetris)),
                 Some(GameVal::GameOfLife) => {
                     if count >= 5 {
                         FromPrimitive::from_u8(buf[4])
@@ -590,7 +591,7 @@ pub fn handle_command(
             match game {
                 Game::Snake => snake::start_game(state, random),
                 Game::Pong => pong::start_game(state, random),
-                Game::Tetris => {}
+                Game::Tetris => {tetris::start_game(state, random)}
                 Game::GameOfLife(param) => game_of_life::start_game(state, random, *param),
             }
             None
@@ -599,6 +600,7 @@ pub fn handle_command(
             match state.game {
                 Some(GameState::Snake(_)) => snake::handle_control(state, arg),
                 Some(GameState::Pong(_)) => pong::handle_control(state, arg),
+                Some(GameState::Tetris(_)) => tetris::handle_control(state, arg),
                 Some(GameState::GameOfLife(_)) => game_of_life::handle_control(state, arg),
                 _ => {}
             }

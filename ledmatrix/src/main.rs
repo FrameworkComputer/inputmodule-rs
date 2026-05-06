@@ -144,12 +144,13 @@ use core::fmt::Write;
 use heapless::String;
 
 use fl16_inputmodules::control::*;
-use fl16_inputmodules::games::{pong, snake};
+use fl16_inputmodules::games::tetris_animation::TetrisIterator;
+use fl16_inputmodules::games::{pong, snake, tetris};
 use fl16_inputmodules::matrix::*;
 use fl16_inputmodules::patterns::*;
 use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 
-//                            FRA                - Framwork
+//                            FRA                - Framework
 //                               KDE             - C1 LED Matrix
 //                                  BZ           - BizLink
 //                                    01         - SKU, Default Configuration
@@ -252,7 +253,7 @@ fn main() -> ! {
     };
     state.debug_mode = dip1.is_low().unwrap();
     if show_startup_animation(&state) {
-        state.upcoming_frames = Some(match get_random_byte(&rosc) % 8 {
+        state.upcoming_frames = Some(match get_random_byte(&rosc) % 9 {
             0 => Animation::Percentage(StartupPercentageIterator::default()),
             1 => Animation::ZigZag(ZigZagIterator::default()),
             2 => Animation::Gof(GameOfLifeIterator::new(GameOfLifeStartParam::Pattern1, 200)),
@@ -264,6 +265,7 @@ fn main() -> ! {
             5 => Animation::Breathing(BreathingIterator::default()),
             6 => Animation::Pong(PongIterator::default()),
             7 => Animation::Snake(SnakeIterator::default()),
+            8 => Animation::Tetris(TetrisIterator::default()),
             _ => unreachable!(),
         });
     } else {
@@ -399,6 +401,15 @@ fn main() -> ! {
                 } else {
                     // Animation is over. Clear screen
                     state.grid = Grid::default();
+
+                    match state.game {
+                        Some(GameState::Tetris(_)) => {
+                            // after tetris plays the losing animation make sure to render the game again
+                            tetris::game_step(&mut state, 0);
+                        }
+                        None => {}
+                        _ => {}
+                    }
                 }
             }
 
@@ -541,6 +552,10 @@ fn main() -> ! {
                 Some(GameState::Pong(_)) => {
                     let _ = serial.write(b"Pong Game step\r\n");
                     pong::game_step(&mut state, random);
+                }
+                Some(GameState::Tetris(_)) => {
+                    let _ = serial.write(b"Tetris Game step\r\n");
+                    tetris::game_step(&mut state, random);
                 }
                 Some(GameState::Snake(_)) => {
                     let _ = serial.write(b"Snake Game step\r\n");

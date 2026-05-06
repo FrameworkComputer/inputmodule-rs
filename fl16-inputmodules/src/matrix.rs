@@ -3,6 +3,7 @@ use crate::control::PwmFreqArg;
 use crate::games::game_of_life::GameOfLifeState;
 use crate::games::pong::PongState;
 use crate::games::snake::SnakeState;
+use crate::games::tetris::TetrisState;
 
 pub const WIDTH: usize = 9;
 pub const HEIGHT: usize = 34;
@@ -73,5 +74,6 @@ pub enum SleepReason {
 pub enum GameState {
     Snake(SnakeState),
     Pong(PongState),
+    Tetris(TetrisState),
     GameOfLife(GameOfLifeState),
 }
