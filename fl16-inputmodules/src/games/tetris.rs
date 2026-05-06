@@ -1,7 +1,6 @@
 use crate::control::GameControlArg;
 use crate::matrix::{GameState, Grid, LedmatrixState, HEIGHT, WIDTH};
 
-use heapless::Vec;
 use crate::animations::{Animation, StartupPercentageIterator};
 
 type Position = (i8, i8);
@@ -93,43 +92,39 @@ pub struct TetrisState {
     moved_this_tick: bool,
 }
 
-fn get_tetromino(tetromino: Tetromino, rotation: u8) -> Vec<Position, 4> {
-    let mut result: Vec<Position, 4> = Vec::new();
-    result.push((0, 0)).unwrap();
-    result.push((0, 0)).unwrap();
-    result.push((0, 0)).unwrap();
-    result.push((0, 0)).unwrap();
+fn get_tetromino(tetromino: Tetromino, rotation: u8) -> [Position; 4] {
+    let mut result: [Position; 4] = [(0,0);4];
     match tetromino {
         Tetromino::Square => {
             result[0] = (0, 0);
             result[1] = (0, 1);
-            result[2] = (1, 0);
-            result[3] = (1, 1);
+            result[2] = (-1, 0);
+            result[3] = (-1, 1);
         }
         Tetromino::LLeft => match rotation {
             0 => {
                 result[0] = (0, 0);
                 result[1] = (0, 1);
                 result[2] = (0, -1);
-                result[3] = (-1, -1);
+                result[3] = (1, -1);
             }
             1 => {
                 result[0] = (0, 0);
-                result[1] = (-1, 0);
-                result[2] = (1, 0);
-                result[3] = (1, -1);
+                result[1] = (1, 0);
+                result[2] = (-1, 0);
+                result[3] = (-1, -1);
             }
             2 => {
                 result[0] = (0, 0);
                 result[1] = (0, 1);
                 result[2] = (0, -1);
-                result[3] = (1, 1);
+                result[3] = (-1, 1);
             }
             3 => {
                 result[0] = (0, 0);
-                result[1] = (-1, 0);
-                result[2] = (1, 0);
-                result[3] = (-1, 1);
+                result[1] = (1, 0);
+                result[2] = (-1, 0);
+                result[3] = (1, 1);
             }
             _ => {}
         },
@@ -138,25 +133,25 @@ fn get_tetromino(tetromino: Tetromino, rotation: u8) -> Vec<Position, 4> {
                 result[0] = (0, 0);
                 result[1] = (0, 1);
                 result[2] = (0, -1);
-                result[3] = (1, -1);
+                result[3] = (-1, -1);
             }
             1 => {
                 result[0] = (0, 0);
-                result[1] = (-1, 0);
-                result[2] = (1, 0);
-                result[3] = (1, 1);
+                result[1] = (1, 0);
+                result[2] = (-1, 0);
+                result[3] = (-1, 1);
             }
             2 => {
                 result[0] = (0, 0);
                 result[1] = (0, 1);
                 result[2] = (0, -1);
-                result[3] = (-1, 1);
+                result[3] = (1, 1);
             }
             3 => {
                 result[0] = (0, 0);
-                result[1] = (-1, 0);
-                result[2] = (1, 0);
-                result[3] = (-1, -1);
+                result[1] = (1, 0);
+                result[2] = (-1, 0);
+                result[3] = (1, -1);
             }
             _ => {}
         },
@@ -164,25 +159,25 @@ fn get_tetromino(tetromino: Tetromino, rotation: u8) -> Vec<Position, 4> {
             0 => {
                 result[0] = (0, 0);
                 result[1] = (0, 1);
-                result[2] = (-1, 0);
-                result[3] = (1, 0);
+                result[2] = (1, 0);
+                result[3] = (-1, 0);
             }
             1 => {
                 result[0] = (0, 0);
                 result[1] = (0, 1);
-                result[2] = (-1, 0);
+                result[2] = (1, 0);
                 result[3] = (0, -1);
             }
             2 => {
                 result[0] = (0, 0);
                 result[1] = (0, -1);
-                result[2] = (-1, 0);
-                result[3] = (1, 0);
+                result[2] = (1, 0);
+                result[3] = (-1, 0);
             }
             3 => {
                 result[0] = (0, 0);
                 result[1] = (0, 1);
-                result[2] = (1, 0);
+                result[2] = (-1, 0);
                 result[3] = (0, -1);
             }
             _ => {}
@@ -196,28 +191,13 @@ fn get_tetromino(tetromino: Tetromino, rotation: u8) -> Vec<Position, 4> {
             }
             1 | 3 => {
                 result[0] = (0, 0);
-                result[1] = (-1, 0);
-                result[2] = (1, 0);
-                result[3] = (2, 0);
+                result[1] = (1, 0);
+                result[2] = (-1, 0);
+                result[3] = (-2, 0);
             }
             _ => {}
         },
         Tetromino::ZLeft => match rotation {
-            0 | 2 => {
-                result[0] = (0, 0);
-                result[1] = (-1, 0);
-                result[2] = (0, 1);
-                result[3] = (1, 1);
-            }
-            1 | 3 => {
-                result[0] = (0, 0);
-                result[1] = (0, -1);
-                result[2] = (-1, 0);
-                result[3] = (-1, 1);
-            }
-            _ => {}
-        },
-        Tetromino::ZRight => match rotation {
             0 | 2 => {
                 result[0] = (0, 0);
                 result[1] = (1, 0);
@@ -229,6 +209,21 @@ fn get_tetromino(tetromino: Tetromino, rotation: u8) -> Vec<Position, 4> {
                 result[1] = (0, -1);
                 result[2] = (1, 0);
                 result[3] = (1, 1);
+            }
+            _ => {}
+        },
+        Tetromino::ZRight => match rotation {
+            0 | 2 => {
+                result[0] = (0, 0);
+                result[1] = (-1, 0);
+                result[2] = (0, 1);
+                result[3] = (1, 1);
+            }
+            1 | 3 => {
+                result[0] = (0, 0);
+                result[1] = (0, -1);
+                result[2] = (-1, 0);
+                result[3] = (-1, 1);
             }
             _ => {}
         },
@@ -315,16 +310,14 @@ impl TetrisState {
         let mut grid: Grid = Grid::default();
         for x in 0..WIDTH {
             for y in 0..HEIGHT {
-                // [8 - x] because the rest of the firmware expects (0,0) to be the top-right corner
-                // but I programmed the game assuming (0,0) is the top-left corner
-                grid.0[8-x][y] = (self.placed_tetrominos[x][y]) * 0xFF;
+                grid.0[x][y] = (self.placed_tetrominos[x][y]) * 0xFF;
             }
         }
         let tetronimo = get_tetromino(self.current_tetromino, self.rotation);
         for i in 0..4 {
             let x = self.position.0 + tetronimo[i].0;
             let y = self.position.1 + tetronimo[i].1;
-            grid.0[8-x as usize][y as usize] = 0xff;
+            grid.0[x as usize][y as usize] = 0xff;
         }
         grid
     }
@@ -338,13 +331,13 @@ impl TetrisState {
                 }
                 let mut can_move: bool = true;
                 for i in 0..4 {
-                    if self.position.0 + tetromino[i].0 == 0 {
+                    if self.position.0 + tetromino[i].0 == 8 {
                         can_move = false;
                         break;
                     }
                 }
                 if can_move {
-                    self.position.0 -= 1;
+                    self.position.0 += 1;
                     self.moved_this_tick = true;
                 }
             }
@@ -354,13 +347,13 @@ impl TetrisState {
                 }
                 let mut can_move: bool = true;
                 for i in 0..4 {
-                    if self.position.0 + tetromino[i].0 == 8 {
+                    if self.position.0 + tetromino[i].0 == 0 {
                         can_move = false;
                         break;
                     }
                 }
                 if can_move {
-                    self.position.0 += 1;
+                    self.position.0 -= 1;
                     self.moved_this_tick = true;
                 }
             },
