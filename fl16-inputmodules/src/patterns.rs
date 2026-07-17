@@ -1,15 +1,5 @@
-use rp2040_hal::{
-    gpio::{
-        bank0::{Gpio26, Gpio27},
-        FunctionI2C, PullUp,
-    },
-    pac::I2C1,
-};
-
-use crate::led_hal as bsp;
 use crate::mapping::*;
 use crate::matrix::*;
-use is31fl3741::devices::LedMatrix;
 
 /// Bytes needed to represent all LEDs with a single bit
 /// math.ceil(WIDTH * HEIGHT / 8)
@@ -17,16 +7,6 @@ pub const DRAW_BYTES: usize = 39;
 
 /// Maximum number of brightneses levels
 pub const BRIGHTNESS_LEVELS: u8 = 255;
-
-pub type Foo = LedMatrix<
-    bsp::hal::I2C<
-        I2C1,
-        (
-            bsp::hal::gpio::Pin<Gpio26, FunctionI2C, PullUp>,
-            bsp::hal::gpio::Pin<Gpio27, FunctionI2C, PullUp>,
-        ),
-    >,
->;
 
 pub fn draw(bytes: &[u8; DRAW_BYTES]) -> Grid {
     let mut grid = Grid::default();
@@ -306,44 +286,6 @@ pub fn double_gradient() -> Grid {
         }
     }
     grid
-}
-
-/// Same as fill_grid_pixels but does each pixel individually
-/// So it's much slower because it has to send 306 I2C commands
-pub fn _fill_grid(grid: &Grid, matrix: &mut Foo) {
-    for y in 0..HEIGHT {
-        for x in 0..WIDTH {
-            matrix.device.pixel(x as u8, y as u8, grid.0[x][y]).unwrap();
-        }
-    }
-}
-
-pub fn set_brightness(state: &mut LedmatrixState, brightness: u8, matrix: &mut Foo) {
-    state.brightness = brightness;
-    fill_grid_pixels(state, matrix);
-}
-
-/// Just sends two I2C commands for the entire grid
-pub fn fill_grid_pixels(state: &LedmatrixState, matrix: &mut Foo) {
-    // 0xB4 LEDs on the first page, 0xAB on the second page
-    let mut brightnesses = [0x00; 0xB4 + 0xAB];
-    for y in 0..HEIGHT {
-        for x in 0..WIDTH {
-            let (register, page) = (matrix.device.calc_pixel)(x as u8, y as u8);
-            brightnesses[(page as usize) * 0xB4 + (register as usize)] =
-                ((state.grid.0[x][y] as u64) * (state.brightness as u64)
-                    / (BRIGHTNESS_LEVELS as u64)) as u8;
-        }
-    }
-    matrix.device.fill_matrix(&brightnesses).unwrap();
-}
-
-pub fn full_brightness(matrix: &mut Foo) {
-    // Fills every pixel individually
-    //matrix.fill_brightness(0xFF).unwrap();
-
-    // Fills full page at once
-    matrix.device.fill(0xFF).unwrap();
 }
 
 pub fn zigzag() -> Grid {
