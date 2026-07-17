@@ -8,7 +8,7 @@ pub const WIDTH: usize = 9;
 pub const HEIGHT: usize = 34;
 pub const LEDS: usize = WIDTH * HEIGHT;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Grid(pub [[u8; HEIGHT]; WIDTH]);
 impl Default for Grid {
     fn default() -> Self {
