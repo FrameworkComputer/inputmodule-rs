@@ -34,6 +34,8 @@ use crate::games::snake;
 #[cfg(feature = "ledmatrix")]
 use crate::matrix::*;
 #[cfg(feature = "ledmatrix")]
+use crate::matrix_sync::*;
+#[cfg(feature = "ledmatrix")]
 use crate::patterns::*;
 #[cfg(feature = "ledmatrix")]
 use is31fl3741::PwmFreq;
@@ -515,7 +517,7 @@ pub fn handle_generic_command(command: &Command) -> Option<[u8; 32]> {
 pub fn handle_command(
     command: &Command,
     state: &mut LedmatrixState,
-    matrix: &mut Foo,
+    display: &mut MatrixSync,
     random: u8,
 ) -> Option<[u8; 32]> {
     use crate::games::game_of_life;
@@ -528,7 +530,7 @@ pub fn handle_command(
         }
         Command::SetBrightness(br) => {
             //let _ = serial.write("Brightness".as_bytes());
-            set_brightness(state, *br, matrix);
+            state.brightness = *br;
             None
         }
         Command::Percentage(p) => {
@@ -545,7 +547,7 @@ pub fn handle_command(
                 PatternVals::ZigZag => state.grid = zigzag(),
                 PatternVals::FullBrightness => {
                     state.grid = percentage(100);
-                    set_brightness(state, BRIGHTNESS_LEVELS, matrix);
+                    state.brightness = BRIGHTNESS_LEVELS;
                 }
                 PatternVals::DisplayPanic => state.grid = display_panic(),
                 PatternVals::DisplayLotus2 => state.grid = display_lotus2(),
@@ -618,7 +620,7 @@ pub fn handle_command(
         }
         Command::SetPwmFreq(arg) => {
             state.pwm_freq = *arg;
-            matrix.device.set_pwm_freq(state.pwm_freq.into()).unwrap();
+            display.set_pwm_freq(state.pwm_freq);
             None
         }
         Command::GetPwmFreq => {

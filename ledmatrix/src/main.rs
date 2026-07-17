@@ -146,6 +146,7 @@ use heapless::String;
 use fl16_inputmodules::control::*;
 use fl16_inputmodules::games::{pong, snake};
 use fl16_inputmodules::matrix::*;
+use fl16_inputmodules::matrix_sync::*;
 use fl16_inputmodules::patterns::*;
 use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 
@@ -298,7 +299,8 @@ fn main() -> ! {
 
     matrix.device.set_pwm_freq(state.pwm_freq.into()).unwrap();
 
-    fill_grid_pixels(&state, &mut matrix);
+    let mut display = MatrixSync::new(matrix);
+    display.flush_if_dirty(&state);
 
     let mut animation_timer = timer.get_counter().ticks();
     let mut game_timer = timer.get_counter().ticks();
@@ -385,7 +387,7 @@ fn main() -> ! {
         handle_sleep(
             sleep_reason,
             &mut state,
-            &mut matrix,
+            &mut display,
             &mut delay,
             &mut led_enable,
         );
@@ -402,7 +404,7 @@ fn main() -> ! {
                 }
             }
 
-            fill_grid_pixels(&state, &mut matrix);
+            display.flush_if_dirty(&state);
             if state.animate {
                 for x in 0..WIDTH {
                     state.grid.0[x].rotate_right(1);
@@ -445,7 +447,7 @@ fn main() -> ! {
                         // Handle bootloader command without any delay
                         // No need, it'll reset the device anyways
                         (Some(c @ Command::BootloaderReset), _) => {
-                            handle_command(&c, &mut state, &mut matrix, random);
+                            handle_command(&c, &mut state, &mut display, random);
                         }
                         (Some(command), _) => {
                             if let Command::Sleep(go_sleeping) = command {
@@ -473,7 +475,7 @@ fn main() -> ! {
                             handle_sleep(
                                 sleep_reason,
                                 &mut state,
-                                &mut matrix,
+                                &mut display,
                                 &mut delay,
                                 &mut led_enable,
                             );
@@ -486,7 +488,7 @@ fn main() -> ! {
                             sleep_timer = timer.get_counter().ticks();
 
                             if let Some(response) =
-                                handle_command(&command, &mut state, &mut matrix, random)
+                                handle_command(&command, &mut state, &mut display, random)
                             {
                                 let _ = serial.write(&response);
                             };
@@ -501,7 +503,7 @@ fn main() -> ! {
                             .unwrap();
                             // let _ = serial.write(text.as_bytes());
 
-                            fill_grid_pixels(&state, &mut matrix);
+                            display.flush_if_dirty(&state);
                         }
                         (None, _) => {}
                     }
@@ -613,7 +615,7 @@ fn assign_sleep_reason(
 fn handle_sleep(
     sleep_reason: Option<SleepReason>,
     state: &mut LedmatrixState,
-    matrix: &mut Foo,
+    display: &mut MatrixSync,
     delay: &mut Delay,
     led_enable: &mut gpio::Pin<Gpio29, gpio::FunctionSioOutput, gpio::PullDown>,
 ) {
@@ -628,7 +630,8 @@ fn handle_sleep(
                 loop {
                     delay.delay_ms(100);
                     brightness = brightness.saturating_sub(5);
-                    set_brightness(state, brightness, matrix);
+                    state.brightness = brightness;
+                    display.flush_if_dirty(state);
                     if brightness == 0 {
                         break;
                     }
@@ -637,7 +640,7 @@ fn handle_sleep(
 
             if debug_mode(state) {
                 state.grid = display_sleep_reason(sleep_reason);
-                fill_grid_pixels(state, matrix);
+                display.flush_if_dirty(state);
             } else {
                 // Turn LED controller off to save power
                 led_enable.set_low().unwrap();
@@ -651,7 +654,7 @@ fn handle_sleep(
             // If debug mode is enabled, then make sure the latest sleep reason is displayed
             if debug_mode(state) {
                 state.grid = display_sleep_reason(sleep_reason);
-                fill_grid_pixels(state, matrix);
+                display.flush_if_dirty(state);
             }
         }
         // Sleeping and need to wake up
@@ -659,7 +662,7 @@ fn handle_sleep(
             // Restore back grid before sleeping
             state.sleeping = SleepState::Awake;
             state.grid = old_grid;
-            fill_grid_pixels(state, matrix);
+            display.flush_if_dirty(state);
 
             // Power LED controller back on
             if !debug_mode(state) {
@@ -676,7 +679,8 @@ fn handle_sleep(
                     } else {
                         brightness + 5
                     };
-                    set_brightness(state, brightness, matrix);
+                    state.brightness = brightness;
+                    display.flush_if_dirty(state);
                     if brightness == old_brightness {
                         break;
                     }

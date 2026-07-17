@@ -22,6 +22,8 @@ pub mod animations;
 #[cfg(feature = "ledmatrix")]
 pub mod matrix;
 #[cfg(feature = "ledmatrix")]
+pub mod matrix_sync;
+#[cfg(feature = "ledmatrix")]
 pub mod patterns;
 
 #[cfg(feature = "b1display")]
