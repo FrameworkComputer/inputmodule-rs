@@ -177,8 +177,14 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub video: Option<String>,
 
-    /// Limit --demo or --video to this many frames per second.
-    /// Uncapped for --demo and the video's frame rate for --video by default
+    /// Show a live view from the webcam in greyscale. Requires ffmpeg in PATH.
+    /// Optionally the camera's name (Windows), path (Linux) or index (macOS)
+    #[arg(long)]
+    pub camera: Option<Option<String>>,
+
+    /// Limit --demo, --video or --camera to this many frames per second.
+    /// Uncapped for --demo, the video's frame rate for --video
+    /// and the camera's frame rate for --camera by default
     #[arg(long)]
     pub fps: Option<u32>,
 
