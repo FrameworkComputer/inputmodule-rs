@@ -673,12 +673,13 @@ fn handle_sleep(
             // Restore back grid before sleeping
             state.sleeping = SleepState::Awake;
             state.grid = old_grid;
-            display.flush_if_dirty(state);
 
             // Power LED controller back on
             if !debug_mode(state) {
                 led_enable.set_high().unwrap();
             }
+            // Must be after powering on, the controller may not have accepted writes while off
+            display.force_flush(state);
 
             // Slowly increase brightness
             if dyn_sleep_mode(state) == SleepMode::Fading {
