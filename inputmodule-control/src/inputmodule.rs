@@ -574,6 +574,8 @@ struct DeviceStats {
     calc_us_total: u32,
     calc_us_max: u32,
     wait_us_total: u32,
+    led_power_ons: u32,
+    led_off_us_total: u32,
 }
 
 /// Read one page of performance counters. None if the firmware doesn't support it.
@@ -591,10 +593,11 @@ fn get_stats_page(port: &mut Box<dyn SerialPort>, page: u8) -> Option<[u32; 8]> 
 
 /// Read the performance counters. None if the firmware doesn't support it.
 /// Also acts as a barrier, the firmware only responds after processing all previous commands.
-/// Sends two commands of 4 bytes each.
+/// Sends three commands of 4 bytes each.
 fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
     let page0 = get_stats_page(port, 0)?;
     let page1 = get_stats_page(port, 1)?;
+    let page2 = get_stats_page(port, 2)?;
     Some(DeviceStats {
         bytes_received: page0[0],
         cmds_parsed: page0[1],
@@ -612,6 +615,8 @@ fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
         calc_us_total: page1[5],
         calc_us_max: page1[6],
         wait_us_total: page1[7],
+        led_power_ons: page2[0],
+        led_off_us_total: page2[1],
     })
 }
 
@@ -735,10 +740,10 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
         return;
     };
     let delta = |f: fn(&DeviceStats) -> u32| f(&after).wrapping_sub(f(&before));
-    // The second request of the first get_stats and the first request of the
-    // last get_stats are counted too, one command of 4 bytes each
-    let bytes_received = delta(|s| s.bytes_received).wrapping_sub(8);
-    let cmds_parsed = delta(|s| s.cmds_parsed).wrapping_sub(2);
+    // The second and third request of the first get_stats and the first request
+    // of the last get_stats are counted too, one command of 4 bytes each
+    let bytes_received = delta(|s| s.bytes_received).wrapping_sub(12);
+    let cmds_parsed = delta(|s| s.cmds_parsed).wrapping_sub(3);
     let cmds_rejected = delta(|s| s.cmds_rejected);
     let frames_committed = delta(|s| s.frames_committed);
     let flushes = delta(|s| s.flushes);
@@ -805,6 +810,13 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
     println!(
         "CPU asleep:        {:.0}% of device time",
         wait_us / device_us * 100.0
+    );
+
+    let led_off_us = delta(|s| s.led_off_us_total) as f64;
+    println!(
+        "LED controller:    off {:.0}% of device time, powered on {} times",
+        led_off_us / device_us * 100.0,
+        delta(|s| s.led_power_ons)
     );
 }
 
