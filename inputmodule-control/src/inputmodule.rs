@@ -689,6 +689,10 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
                 bytes += 3 + vals.len() as u32;
                 cmds += 1;
             }
+            BenchmarkMode::Idle => {
+                thread::sleep(duration);
+                break;
+            }
         }
         frames += 1;
     }
@@ -715,15 +719,17 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
 
     write_times.sort();
     let write_total: Duration = write_times.iter().sum();
-    let percentile = |p: usize| write_times[(write_times.len() - 1) * p / 100].as_micros();
-    println!(
-        "Host write time:   {}us avg, {}us p50, {}us p99, {}us max, {:.0}% of total time",
-        write_total.as_micros() / write_times.len().max(1) as u128,
-        percentile(50),
-        percentile(99),
-        percentile(100),
-        write_total.as_secs_f64() / elapsed * 100.0
-    );
+    if !write_times.is_empty() {
+        let percentile = |p: usize| write_times[(write_times.len() - 1) * p / 100].as_micros();
+        println!(
+            "Host write time:   {}us avg, {}us p50, {}us p99, {}us max, {:.0}% of total time",
+            write_total.as_micros() / write_times.len() as u128,
+            percentile(50),
+            percentile(99),
+            percentile(100),
+            write_total.as_secs_f64() / elapsed * 100.0
+        );
+    }
 
     let (Some(before), Some(after)) = (before, after) else {
         return;

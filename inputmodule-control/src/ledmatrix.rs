@@ -30,6 +30,8 @@ pub enum BenchmarkMode {
     Grey,
     /// Black and white: 1 Draw command per frame
     Bw,
+    /// Don't send anything, to measure how the device behaves when idle
+    Idle,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
