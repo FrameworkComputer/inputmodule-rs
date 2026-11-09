@@ -25,6 +25,14 @@ pub enum Game {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
+pub enum BenchmarkMode {
+    /// Greyscale: 9 StageGreyCol + 1 DrawGreyColBuffer command per frame
+    Grey,
+    /// Black and white: 1 Draw command per frame
+    Bw,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
 pub enum GameOfLifeStartParam {
     CurrentMatrix = 0x00,
     Pattern1 = 0x01,
@@ -137,9 +145,14 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub debug_mode: Option<Option<bool>>,
 
-    /// Stream greyscale frames for this many seconds and report throughput
+    /// Stream frames for this many seconds and report throughput
     #[arg(long)]
     pub benchmark: Option<u64>,
+
+    /// Which kind of frames to stream for the benchmark
+    #[arg(long)]
+    #[clap(value_enum, default_value_t = BenchmarkMode::Grey)]
+    pub benchmark_mode: BenchmarkMode,
 
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]

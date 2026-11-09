@@ -11,7 +11,7 @@ use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 use crate::b1display::{B1Pattern, Fps, PowerMode};
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
-use crate::ledmatrix::{Game, GameOfLifeStartParam, Pattern};
+use crate::ledmatrix::{BenchmarkMode, Game, GameOfLifeStartParam, Pattern};
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 pub const FRAMEWORK_VID: u16 = 0x32AC;
@@ -248,7 +248,11 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     get_device_version(serialdev);
                 }
                 if let Some(secs) = ledmatrix_args.benchmark {
-                    benchmark_cmd(serialdev, Duration::from_secs(secs));
+                    benchmark_cmd(
+                        serialdev,
+                        Duration::from_secs(secs),
+                        ledmatrix_args.benchmark_mode,
+                    );
                 }
             }
             // Commands that block and need manual looping
@@ -568,7 +572,7 @@ fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
 }
 
 /// Stream changing greyscale frames as fast as possible and report the throughput
-fn benchmark_cmd(serialdev: &str, duration: Duration) {
+fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
     // Long timeout, because the firmware doesn't service USB while fading in after waking up
     let mut port = serialport::new(serialdev, 115_200)
         .timeout(Duration::from_secs(10))
@@ -597,20 +601,35 @@ fn benchmark_cmd(serialdev: &str, duration: Duration) {
     let mut bytes: u32 = 0;
     let start = std::time::Instant::now();
     while start.elapsed() < duration {
-        // Bright row moving down with a fading tail, so that every frame is different
+        // Bright row moving down, so that every frame is different
         let head = frames as usize % HEIGHT;
-        for x in 0..WIDTH {
-            let mut vals = [0; HEIGHT];
-            for (y, val) in vals.iter_mut().enumerate() {
-                let dist = (head + HEIGHT - y) % HEIGHT;
-                *val = 255usize.saturating_sub(dist * 32) as u8;
+        match mode {
+            BenchmarkMode::Grey => {
+                // With a fading tail
+                for x in 0..WIDTH {
+                    let mut vals = [0; HEIGHT];
+                    for (y, val) in vals.iter_mut().enumerate() {
+                        let dist = (head + HEIGHT - y) % HEIGHT;
+                        *val = 255usize.saturating_sub(dist * 32) as u8;
+                    }
+                    send_col(&mut port, x as u8, &vals);
+                    bytes += 3 + 1 + HEIGHT as u32;
+                }
+                commit_cols(&mut port);
+                bytes += 3;
+                cmds += WIDTH as u32 + 1;
             }
-            send_col(&mut port, x as u8, &vals);
-            bytes += 3 + 1 + HEIGHT as u32;
+            BenchmarkMode::Bw => {
+                let mut vals = [0; 39];
+                for x in 0..WIDTH {
+                    let i = x + head * WIDTH;
+                    vals[i / 8] |= 1 << (i % 8);
+                }
+                simple_cmd_port(&mut port, Command::DisplayBwImage, &vals);
+                bytes += 3 + vals.len() as u32;
+                cmds += 1;
+            }
         }
-        commit_cols(&mut port);
-        bytes += 3;
-        cmds += WIDTH as u32 + 1;
         frames += 1;
     }
 
