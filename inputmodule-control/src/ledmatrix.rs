@@ -33,6 +33,12 @@ pub enum BenchmarkMode {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
+pub enum Demo {
+    /// Flowing greyscale sine waves
+    Plasma,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
 pub enum GameOfLifeStartParam {
     CurrentMatrix = 0x00,
     Pattern1 = 0x01,
@@ -153,6 +159,15 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     #[clap(value_enum, default_value_t = BenchmarkMode::Grey)]
     pub benchmark_mode: BenchmarkMode,
+
+    /// Run a greyscale demo animation
+    #[arg(long)]
+    #[clap(value_enum)]
+    pub demo: Option<Demo>,
+
+    /// Limit --demo to this many frames per second. Uncapped by default
+    #[arg(long)]
+    pub fps: Option<u32>,
 
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]
