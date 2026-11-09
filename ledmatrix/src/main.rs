@@ -102,9 +102,10 @@ const MAX_BRIGHTNESS: u8 = 50;
 //        .setup(&mut delay)
 //        .expect("failed to setup rgb controller");
 //
-//    set_brightness(state, 255, &mut matrix);
-//    let grid = display_panic();
-//    fill_grid_pixels(state, &mut matrix);
+//    let mut display = MatrixSync::new(matrix);
+//    state.brightness = 255;
+//    state.grid = display_panic();
+//    display.force_flush(state);
 //
 //    loop {}
 //}
