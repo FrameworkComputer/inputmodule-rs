@@ -36,6 +36,8 @@ pub enum BenchmarkMode {
 pub enum Demo {
     /// Flowing greyscale sine waves
     Plasma,
+    /// Flames rising from the bottom
+    Fire,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
