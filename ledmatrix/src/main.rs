@@ -519,7 +519,10 @@ fn main() -> ! {
                             .unwrap();
                             // let _ = serial.write(text.as_bytes());
 
-                            display.force_flush(&state);
+                            // Only send if the output changed. Most commands don't change it,
+                            // like staging a greyscale column. Recovering from a corrupted
+                            // controller state is handled by the periodic refresh.
+                            display.flush_if_dirty(&state);
                         }
                         (None, _) => {
                             display.stats.cmds_rejected =
