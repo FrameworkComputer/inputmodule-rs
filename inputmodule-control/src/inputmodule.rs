@@ -573,6 +573,7 @@ struct DeviceStats {
     calcs: u32,
     calc_us_total: u32,
     calc_us_max: u32,
+    wait_us_total: u32,
 }
 
 /// Read one page of performance counters. None if the firmware doesn't support it.
@@ -610,6 +611,7 @@ fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
         calcs: page1[4],
         calc_us_total: page1[5],
         calc_us_max: page1[6],
+        wait_us_total: page1[7],
     })
 }
 
@@ -791,6 +793,12 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
         calc_us / calcs.max(1) as f64,
         after.calc_us_max,
         calc_us / device_us * 100.0
+    );
+
+    let wait_us = delta(|s| s.wait_us_total) as f64;
+    println!(
+        "CPU asleep:        {:.0}% of device time",
+        wait_us / device_us * 100.0
     );
 }
 
