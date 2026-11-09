@@ -549,25 +549,44 @@ struct DeviceStats {
     flush_us_total: u32,
     flush_us_max: u32,
     loop_us_max: u32,
+    loops: u32,
+    idle_loops: u32,
+    idle_us_total: u32,
+    busy_us_total: u32,
+}
+
+/// Read one page of performance counters. None if the firmware doesn't support it.
+fn get_stats_page(port: &mut Box<dyn SerialPort>, page: u8) -> Option<[u32; 8]> {
+    simple_cmd_port(port, Command::Stats, &[page]);
+
+    let mut response = [0; 32];
+    port.read_exact(&mut response).ok()?;
+    let mut vals = [0; 8];
+    for (i, val) in vals.iter_mut().enumerate() {
+        *val = u32::from_le_bytes(response[i * 4..i * 4 + 4].try_into().unwrap());
+    }
+    Some(vals)
 }
 
 /// Read the performance counters. None if the firmware doesn't support it.
 /// Also acts as a barrier, the firmware only responds after processing all previous commands.
+/// Sends two commands of 4 bytes each.
 fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
-    simple_cmd_port(port, Command::Stats, &[]);
-
-    let mut response = [0; 32];
-    port.read_exact(&mut response).ok()?;
-    let val = |i: usize| u32::from_le_bytes(response[i * 4..i * 4 + 4].try_into().unwrap());
+    let page0 = get_stats_page(port, 0)?;
+    let page1 = get_stats_page(port, 1)?;
     Some(DeviceStats {
-        bytes_received: val(0),
-        cmds_parsed: val(1),
-        cmds_rejected: val(2),
-        frames_committed: val(3),
-        flushes: val(4),
-        flush_us_total: val(5),
-        flush_us_max: val(6),
-        loop_us_max: val(7),
+        bytes_received: page0[0],
+        cmds_parsed: page0[1],
+        cmds_rejected: page0[2],
+        frames_committed: page0[3],
+        flushes: page0[4],
+        flush_us_total: page0[5],
+        flush_us_max: page0[6],
+        loop_us_max: page0[7],
+        loops: page1[0],
+        idle_loops: page1[1],
+        idle_us_total: page1[2],
+        busy_us_total: page1[3],
     })
 }
 
@@ -677,9 +696,10 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
         return;
     };
     let delta = |f: fn(&DeviceStats) -> u32| f(&after).wrapping_sub(f(&before));
-    // The final stats request itself counts as one command of 3 bytes
-    let bytes_received = delta(|s| s.bytes_received).wrapping_sub(3);
-    let cmds_parsed = delta(|s| s.cmds_parsed).wrapping_sub(1);
+    // The second request of the first get_stats and the first request of the
+    // last get_stats are counted too, one command of 4 bytes each
+    let bytes_received = delta(|s| s.bytes_received).wrapping_sub(8);
+    let cmds_parsed = delta(|s| s.cmds_parsed).wrapping_sub(2);
     let cmds_rejected = delta(|s| s.cmds_rejected);
     let frames_committed = delta(|s| s.frames_committed);
     let flushes = delta(|s| s.flushes);
@@ -711,6 +731,25 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
         flush_us_total as f64 / 1e6 / elapsed * 100.0
     );
     println!("Main loop:         {}us max", after.loop_us_max);
+
+    let loops = delta(|s| s.loops);
+    let idle_loops = delta(|s| s.idle_loops);
+    let busy_loops = loops - idle_loops;
+    let idle_us = delta(|s| s.idle_us_total) as f64;
+    let busy_us = delta(|s| s.busy_us_total) as f64;
+    let device_us = (idle_us + busy_us).max(1.0);
+    println!(
+        "Device busy:       {} loops with data, {:.0}us avg, {:.0}% of device time",
+        busy_loops,
+        busy_us / busy_loops.max(1) as f64,
+        busy_us / device_us * 100.0
+    );
+    println!(
+        "Device idle:       {} loops without data, {:.0}us avg, {:.0}% of device time",
+        idle_loops,
+        idle_us / idle_loops.max(1) as f64,
+        idle_us / device_us * 100.0
+    );
 }
 
 ///Increase the brightness with each pixel.
