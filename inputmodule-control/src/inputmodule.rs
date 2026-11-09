@@ -50,6 +50,7 @@ enum Command {
     PwmFreq = 0x1E,
     DebugMode = 0x1F,
     Version = 0x20,
+    Stats = 0x21,
 }
 
 enum GameControlArg {
@@ -245,6 +246,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if ledmatrix_args.version {
                     get_device_version(serialdev);
+                }
+                if let Some(secs) = ledmatrix_args.benchmark {
+                    benchmark_cmd(serialdev, Duration::from_secs(secs));
                 }
             }
             // Commands that block and need manual looping
@@ -528,6 +532,146 @@ fn send_col(port: &mut Box<dyn SerialPort>, x: u8, vals: &[u8]) {
 /// This makes sure that the matrix isn't partially updated.
 fn commit_cols(port: &mut Box<dyn SerialPort>) {
     simple_cmd_port(port, Command::CommitCols, &[]);
+}
+
+/// Performance counters of the LED matrix firmware, see Stats in matrix_sync.rs
+#[derive(Debug, Clone, Copy)]
+struct DeviceStats {
+    bytes_received: u32,
+    cmds_parsed: u32,
+    cmds_rejected: u32,
+    frames_committed: u32,
+    flushes: u32,
+    flush_us_total: u32,
+    flush_us_max: u32,
+    loop_us_max: u32,
+}
+
+/// Read the performance counters. None if the firmware doesn't support it.
+/// Also acts as a barrier, the firmware only responds after processing all previous commands.
+fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
+    simple_cmd_port(port, Command::Stats, &[]);
+
+    let mut response = [0; 32];
+    port.read_exact(&mut response).ok()?;
+    let val = |i: usize| u32::from_le_bytes(response[i * 4..i * 4 + 4].try_into().unwrap());
+    Some(DeviceStats {
+        bytes_received: val(0),
+        cmds_parsed: val(1),
+        cmds_rejected: val(2),
+        frames_committed: val(3),
+        flushes: val(4),
+        flush_us_total: val(5),
+        flush_us_max: val(6),
+        loop_us_max: val(7),
+    })
+}
+
+/// Stream changing greyscale frames as fast as possible and report the throughput
+fn benchmark_cmd(serialdev: &str, duration: Duration) {
+    // Long timeout, because the firmware doesn't service USB while fading in after waking up
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(Duration::from_secs(10))
+        .open()
+        .expect("Failed to open port");
+
+    // Wake up and wait until the fade-in is done, so it doesn't count towards the benchmark
+    simple_cmd_port(&mut port, Command::Sleeping, &[0]);
+    simple_cmd_port(&mut port, Command::Version, &[]);
+    let mut response = [0; 32];
+    port.read_exact(&mut response)
+        .expect("Device didn't respond to version request");
+
+    // Old firmware doesn't respond to the stats command, don't wait too long
+    port.set_timeout(Duration::from_millis(500)).unwrap();
+    let before = get_stats(&mut port);
+    port.set_timeout(Duration::from_secs(10)).unwrap();
+    if before.is_none() {
+        println!("Firmware doesn't support stats, only measuring host side throughput");
+        // Make sure the unknown command doesn't leave anything behind
+        let _ = port.clear(serialport::ClearBuffer::All);
+    }
+
+    let mut frames: u32 = 0;
+    let mut cmds: u32 = 0;
+    let mut bytes: u32 = 0;
+    let start = std::time::Instant::now();
+    while start.elapsed() < duration {
+        // Bright row moving down with a fading tail, so that every frame is different
+        let head = frames as usize % HEIGHT;
+        for x in 0..WIDTH {
+            let mut vals = [0; HEIGHT];
+            for (y, val) in vals.iter_mut().enumerate() {
+                let dist = (head + HEIGHT - y) % HEIGHT;
+                *val = 255usize.saturating_sub(dist * 32) as u8;
+            }
+            send_col(&mut port, x as u8, &vals);
+            bytes += 3 + 1 + HEIGHT as u32;
+        }
+        commit_cols(&mut port);
+        bytes += 3;
+        cmds += WIDTH as u32 + 1;
+        frames += 1;
+    }
+
+    // Wait until the device processed everything
+    let after = if before.is_some() {
+        get_stats(&mut port)
+    } else {
+        simple_cmd_port(&mut port, Command::Version, &[]);
+        let mut response = [0; 32];
+        port.read_exact(&mut response)
+            .expect("Device didn't respond after benchmark");
+        None
+    };
+    let elapsed = start.elapsed().as_secs_f64();
+
+    println!("Duration:          {:.2}s", elapsed);
+    println!("Frames sent:       {}", frames);
+    println!(
+        "Host send rate:    {:.1} FPS ({:.1} KiB/s)",
+        frames as f64 / elapsed,
+        bytes as f64 / elapsed / 1024.0
+    );
+
+    let (Some(before), Some(after)) = (before, after) else {
+        return;
+    };
+    let delta = |f: fn(&DeviceStats) -> u32| f(&after).wrapping_sub(f(&before));
+    // The final stats request itself counts as one command of 3 bytes
+    let bytes_received = delta(|s| s.bytes_received).wrapping_sub(3);
+    let cmds_parsed = delta(|s| s.cmds_parsed).wrapping_sub(1);
+    let cmds_rejected = delta(|s| s.cmds_rejected);
+    let frames_committed = delta(|s| s.frames_committed);
+    let flushes = delta(|s| s.flushes);
+    let flush_us_total = delta(|s| s.flush_us_total);
+
+    println!("Bytes received:    {} of {} sent", bytes_received, bytes);
+    println!(
+        "Commands:          {} parsed, {} rejected, {} lost",
+        cmds_parsed,
+        cmds_rejected,
+        cmds.saturating_sub(cmds_parsed + cmds_rejected)
+    );
+    println!(
+        "Frames committed:  {} of {} ({:.1} FPS)",
+        frames_committed,
+        frames,
+        frames_committed as f64 / elapsed
+    );
+    println!(
+        "I2C flushes:       {} ({:.1} FPS, {:.1} per frame)",
+        flushes,
+        flushes as f64 / elapsed,
+        flushes as f64 / frames_committed.max(1) as f64
+    );
+    println!(
+        "I2C flush time:    {:.0}us avg, {}us max, {:.0}% of total time",
+        flush_us_total as f64 / flushes.max(1) as f64,
+        after.flush_us_max,
+        flush_us_total as f64 / 1e6 / elapsed * 100.0
+    );
+    println!("Main loop:         {}us max", after.loop_us_max);
 }
 
 ///Increase the brightness with each pixel.
