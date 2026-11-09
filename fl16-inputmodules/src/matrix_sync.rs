@@ -61,6 +61,8 @@ pub struct Stats {
     pub calc_us_total: u32,
     /// Longest time spent calculating PWM values once in microseconds
     pub calc_us_max: u32,
+    /// Time the CPU spent asleep waiting for an event in microseconds
+    pub wait_us_total: u32,
 }
 
 impl Stats {
@@ -93,7 +95,7 @@ impl Stats {
                     self.calcs,
                     self.calc_us_total,
                     self.calc_us_max,
-                    0,
+                    self.wait_us_total,
                 ];
                 self.calc_us_max = 0;
                 vals
