@@ -21,28 +21,34 @@ pub type Foo = LedMatrix<
     >,
 >;
 
+/// 0xB4 LEDs on the first page, 0xAB on the second page
+const PWM_BUF_LEN: usize = 0xB4 + 0xAB;
+
 pub struct MatrixSync {
     matrix: Foo,
-    sent_grid: Grid,
-    sent_brightness: u8,
+    /// PWM values last sent to the LED controller. None if unknown
+    sent: Option<[u8; PWM_BUF_LEN]>,
 }
 
 impl MatrixSync {
     pub fn new(matrix: Foo) -> Self {
-        Self {
-            matrix,
-            sent_grid: Grid::default(),
-            sent_brightness: 0,
+        Self { matrix, sent: None }
+    }
+
+    /// Fills the grid pixels but only sends the I2C commands if the PWM values changed
+    pub fn flush_if_dirty(&mut self, state: &LedmatrixState) {
+        let brightnesses = calc_brightnesses(state, &self.matrix);
+        if self.sent.as_ref() != Some(&brightnesses) {
+            self.matrix.device.fill_matrix(&brightnesses).unwrap();
+            self.sent = Some(brightnesses);
         }
     }
 
-    /// Fills the grid pixels but only sends the I2C commands if we expect it to update displayed state
-    pub fn flush_if_dirty(&mut self, state: &LedmatrixState) {
-        if state.grid != self.sent_grid || state.brightness != self.sent_brightness {
-            fill_grid_pixels(state, &mut self.matrix);
-            self.sent_grid = state.grid.clone();
-            self.sent_brightness = state.brightness;
-        }
+    /// Sends the full grid, even if the controller should already have it.
+    /// Recovers from the controller losing or corrupting its state.
+    pub fn force_flush(&mut self, state: &LedmatrixState) {
+        self.sent = None;
+        self.flush_if_dirty(state);
     }
 
     pub fn set_pwm_freq(&mut self, freq: PwmFreqArg) {
@@ -50,10 +56,9 @@ impl MatrixSync {
     }
 }
 
-/// Just sends two I2C commands for the entire grid
-fn fill_grid_pixels(state: &LedmatrixState, matrix: &mut Foo) {
-    // 0xB4 LEDs on the first page, 0xAB on the second page
-    let mut brightnesses = [0x00; 0xB4 + 0xAB];
+/// Calculate PWM values for the entire grid, so they can be sent with just two I2C commands
+fn calc_brightnesses(state: &LedmatrixState, matrix: &Foo) -> [u8; PWM_BUF_LEN] {
+    let mut brightnesses = [0x00; PWM_BUF_LEN];
     for y in 0..HEIGHT {
         for x in 0..WIDTH {
             let (register, page) = (matrix.device.calc_pixel)(x as u8, y as u8);
@@ -62,10 +67,10 @@ fn fill_grid_pixels(state: &LedmatrixState, matrix: &mut Foo) {
                     / (BRIGHTNESS_LEVELS as u64)) as u8;
         }
     }
-    matrix.device.fill_matrix(&brightnesses).unwrap();
+    brightnesses
 }
 
-/// Same as fill_grid_pixels but does each pixel individually
+/// Same as MatrixSync::flush_if_dirty but does each pixel individually
 /// So it's much slower because it has to send 306 I2C commands
 pub fn _fill_grid(grid: &Grid, matrix: &mut Foo) {
     for y in 0..HEIGHT {
