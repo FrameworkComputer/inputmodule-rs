@@ -599,6 +599,8 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
     let mut frames: u32 = 0;
     let mut cmds: u32 = 0;
     let mut bytes: u32 = 0;
+    // How long each write call blocked
+    let mut write_times: Vec<Duration> = vec![];
     let start = std::time::Instant::now();
     while start.elapsed() < duration {
         // Bright row moving down, so that every frame is different
@@ -612,10 +614,14 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
                         let dist = (head + HEIGHT - y) % HEIGHT;
                         *val = 255usize.saturating_sub(dist * 32) as u8;
                     }
+                    let write_start = std::time::Instant::now();
                     send_col(&mut port, x as u8, &vals);
+                    write_times.push(write_start.elapsed());
                     bytes += 3 + 1 + HEIGHT as u32;
                 }
+                let write_start = std::time::Instant::now();
                 commit_cols(&mut port);
+                write_times.push(write_start.elapsed());
                 bytes += 3;
                 cmds += WIDTH as u32 + 1;
             }
@@ -625,7 +631,9 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
                     let i = x + head * WIDTH;
                     vals[i / 8] |= 1 << (i % 8);
                 }
+                let write_start = std::time::Instant::now();
                 simple_cmd_port(&mut port, Command::DisplayBwImage, &vals);
+                write_times.push(write_start.elapsed());
                 bytes += 3 + vals.len() as u32;
                 cmds += 1;
             }
@@ -651,6 +659,18 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
         "Host send rate:    {:.1} FPS ({:.1} KiB/s)",
         frames as f64 / elapsed,
         bytes as f64 / elapsed / 1024.0
+    );
+
+    write_times.sort();
+    let write_total: Duration = write_times.iter().sum();
+    let percentile = |p: usize| write_times[(write_times.len() - 1) * p / 100].as_micros();
+    println!(
+        "Host write time:   {}us avg, {}us p50, {}us p99, {}us max, {:.0}% of total time",
+        write_total.as_micros() / write_times.len().max(1) as u128,
+        percentile(50),
+        percentile(99),
+        percentile(100),
+        write_total.as_secs_f64() / elapsed * 100.0
     );
 
     let (Some(before), Some(after)) = (before, after) else {
