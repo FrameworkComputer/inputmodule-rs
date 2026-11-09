@@ -11,7 +11,7 @@ use serialport::{SerialPort, SerialPortInfo, SerialPortType};
 use crate::b1display::{B1Pattern, Fps, PowerMode};
 use crate::c1minimal::Color;
 use crate::font::{convert_font, convert_symbol};
-use crate::ledmatrix::{BenchmarkMode, Game, GameOfLifeStartParam, Pattern};
+use crate::ledmatrix::{BenchmarkMode, Demo, Game, GameOfLifeStartParam, Pattern};
 
 const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 pub const FRAMEWORK_VID: u16 = 0x32AC;
@@ -274,6 +274,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
 
             if ledmatrix_args.clock {
                 clock_cmd(&serialdevs);
+            }
+
+            if let Some(demo) = ledmatrix_args.demo {
+                demo_cmd(&serialdevs, demo, ledmatrix_args.fps);
             }
         }
         Some(crate::Commands::B1Display(b1display_args)) => {
@@ -901,6 +905,83 @@ fn display_gray_image_cmd(serialdev: &str, image_path: &str) {
         send_col(&mut port, x as u8, &vals)
     }
     commit_cols(&mut port);
+}
+
+type GreyGrid = [[u8; HEIGHT]; WIDTH];
+
+/// Make dim values dimmer, so the LEDs show more contrast
+fn gamma(brightness: f32) -> u8 {
+    let brightness = brightness.clamp(0.0, 1.0);
+    (brightness * brightness * 255.0) as u8
+}
+
+/// Overlapping sine waves, depends only on the time, not on the frame rate
+fn plasma_frame(t: f32) -> GreyGrid {
+    let mut grid = [[0; HEIGHT]; WIDTH];
+    // Center of the circular wave moves around
+    let cx = 4.0 + (t * 0.5).sin() * 3.0;
+    let cy = 17.0 + (t * 0.3).cos() * 12.0;
+    for (x, col) in grid.iter_mut().enumerate() {
+        for (y, val) in col.iter_mut().enumerate() {
+            let (fx, fy) = (x as f32, y as f32);
+            let dist = ((fx - cx).powi(2) + (fy - cy).powi(2)).sqrt();
+            let v = (fx * 0.7 + t * 1.1).sin()
+                + (fy * 0.23 - t * 1.7).sin()
+                + (fx * 0.5 + fy * 0.15 + t * 0.9).sin()
+                + (dist * 0.35 - t * 2.0).sin();
+            // v is in -4..4
+            *val = gamma(0.5 + 0.5 * (v * std::f32::consts::FRAC_PI_2).sin());
+        }
+    }
+    grid
+}
+
+/// Run a greyscale demo forever, as fast as possible or limited to fps
+fn demo_cmd(serialdevs: &[String], demo: Demo, fps: Option<u32>) {
+    // Long timeout, because the firmware doesn't service USB while fading in after waking up
+    let mut ports: Vec<_> = serialdevs
+        .iter()
+        .map(|serialdev| {
+            serialport::new(serialdev, 115_200)
+                .timeout(Duration::from_secs(10))
+                .open()
+                .expect("Failed to open port")
+        })
+        .collect();
+
+    let start = std::time::Instant::now();
+    let mut frames: u64 = 0;
+    let mut report_start = start;
+    let mut report_frames: u64 = 0;
+    loop {
+        let t = start.elapsed().as_secs_f32();
+        let grid = match demo {
+            Demo::Plasma => plasma_frame(t),
+        };
+        for port in &mut ports {
+            for (x, col) in grid.iter().enumerate() {
+                send_col(port, x as u8, col);
+            }
+            commit_cols(port);
+        }
+        frames += 1;
+        report_frames += 1;
+
+        if report_start.elapsed() >= Duration::from_secs(1) {
+            let rate = report_frames as f64 / report_start.elapsed().as_secs_f64();
+            print!("\r{:.1} FPS ", rate);
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+            report_start = std::time::Instant::now();
+            report_frames = 0;
+        }
+
+        if let Some(fps) = fps {
+            let next_frame = start + Duration::from_secs_f64(frames as f64 / fps as f64);
+            if let Some(wait) = next_frame.checked_duration_since(std::time::Instant::now()) {
+                thread::sleep(wait);
+            }
+        }
+    }
 }
 
 /// Display an equlizer looking animation with random values.
