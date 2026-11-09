@@ -671,7 +671,7 @@ fn handle_sleep(
                 let mut brightness = 0;
                 loop {
                     delay.delay_ms(100);
-                    brightness = if brightness >= old_brightness - 5 {
+                    brightness = if brightness >= old_brightness.saturating_sub(5) {
                         old_brightness
                     } else {
                         brightness + 5
