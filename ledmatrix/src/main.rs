@@ -300,9 +300,8 @@ fn main() -> ! {
         .set_scaling(MAX_BRIGHTNESS)
         .expect("failed to set scaling");
 
-    matrix.device.set_pwm_freq(state.pwm_freq.into()).unwrap();
-
     let mut display = MatrixSync::new(matrix);
+    display.set_pwm_freq(state.pwm_freq);
     display.flush_if_dirty(&state);
 
     let mut animation_timer = timer.get_counter().ticks();
