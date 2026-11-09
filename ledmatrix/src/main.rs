@@ -731,7 +731,7 @@ fn handle_sleep(
                 display.flush_if_dirty(state);
             } else {
                 // Turn LED controller off to save power
-                display.set_powered(false);
+                display.set_enabled(false);
             }
 
             // TODO: Set up SLEEP# pin as interrupt and wfi
@@ -751,10 +751,9 @@ fn handle_sleep(
             state.sleeping = SleepState::Awake;
             state.grid = old_grid;
 
-            // Power LED controller back on. Even in debug mode, because it
+            // Allow powering the LED controller back on. Even in debug mode, because it
             // might have been turned off before debug mode was enabled.
-            display.set_powered(true);
-            // Must be after powering on, the controller may not have accepted writes while off
+            display.set_enabled(true);
             display.force_flush(state);
 
             // Slowly increase brightness

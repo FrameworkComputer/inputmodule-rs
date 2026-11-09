@@ -67,6 +67,10 @@ pub struct Stats {
     pub calc_us_max: u32,
     /// Time the CPU spent asleep waiting for an event in microseconds
     pub wait_us_total: u32,
+    /// Times the LED controller was powered on
+    pub led_power_ons: u32,
+    /// Time the LED controller was powered off in microseconds
+    pub led_off_us_total: u32,
 }
 
 impl Stats {
@@ -104,6 +108,16 @@ impl Stats {
                 self.calc_us_max = 0;
                 vals
             }
+            2 => [
+                self.led_power_ons,
+                self.led_off_us_total,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ],
             _ => [0; 8],
         };
         let mut response = [0; 32];
@@ -117,6 +131,12 @@ impl Stats {
 pub struct MatrixSync {
     matrix: Foo,
     led_enable: LedEnable,
+    /// Whether the LED controller may be powered on. False while sleeping
+    enabled: bool,
+    /// Whether the LED controller is currently powered on
+    powered: bool,
+    /// When the LED controller was powered off, or when its off time was last counted
+    off_since: u64,
     /// PWM values last sent to the LED controller. None if unknown
     sent: Option<[u8; PWM_BUF_LEN]>,
     /// Index into the PWM buffer of each pixel.
@@ -138,6 +158,10 @@ impl MatrixSync {
         Self {
             matrix,
             led_enable,
+            // The LED controller must already be on, to set it up
+            enabled: true,
+            powered: true,
+            off_since: 0,
             sent: None,
             pwm_index,
             timer,
@@ -145,7 +169,8 @@ impl MatrixSync {
         }
     }
 
-    /// Fills the grid pixels but only sends the I2C commands if the PWM values changed
+    /// Fills the grid pixels but only sends the I2C commands if the PWM values changed.
+    /// Powers the LED controller off while no LED is lit and back on when one is.
     pub fn flush_if_dirty(&mut self, state: &LedmatrixState) {
         let calc_start = self.timer.get_counter().ticks();
         let brightnesses = calc_brightnesses(state, &self.pwm_index);
@@ -153,6 +178,12 @@ impl MatrixSync {
         self.stats.calcs = self.stats.calcs.wrapping_add(1);
         self.stats.calc_us_total = self.stats.calc_us_total.wrapping_add(calc_elapsed);
         self.stats.calc_us_max = self.stats.calc_us_max.max(calc_elapsed);
+
+        let lit = brightnesses.iter().any(|&b| b != 0);
+        self.set_powered(self.enabled && lit);
+        if !self.powered {
+            return;
+        }
 
         if self.sent.as_ref() != Some(&brightnesses) {
             let start = self.timer.get_counter().ticks();
@@ -173,16 +204,50 @@ impl MatrixSync {
         self.flush_if_dirty(state);
     }
 
-    /// Turn the LED controller on or off
-    pub fn set_powered(&mut self, powered: bool) {
-        if powered {
-            self.led_enable.set_high().unwrap();
-        } else {
-            self.led_enable.set_low().unwrap();
+    /// Allow or prevent powering the LED controller on, e.g. while sleeping.
+    /// Even when enabled, it's only powered on while an LED is lit, after the next flush.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+        if !enabled {
+            self.set_powered(false);
         }
     }
 
+    fn set_powered(&mut self, powered: bool) {
+        if powered == self.powered {
+            return;
+        }
+        self.count_off_time();
+        if powered {
+            self.led_enable.set_high().unwrap();
+            // It may not have kept or accepted PWM values while off
+            self.sent = None;
+            self.stats.led_power_ons = self.stats.led_power_ons.wrapping_add(1);
+        } else {
+            self.led_enable.set_low().unwrap();
+        }
+        self.powered = powered;
+    }
+
+    /// Add the time the LED controller has been off since the last call to the stats
+    fn count_off_time(&mut self) {
+        let now = self.timer.get_counter().ticks();
+        if !self.powered {
+            let off_us = (now - self.off_since) as u32;
+            self.stats.led_off_us_total = self.stats.led_off_us_total.wrapping_add(off_us);
+        }
+        self.off_since = now;
+    }
+
+    /// Get a page of the stats, see [Stats::take_response]
+    pub fn take_stats(&mut self, page: u8) -> [u8; 32] {
+        self.count_off_time();
+        self.stats.take_response(page)
+    }
+
     pub fn set_pwm_freq(&mut self, freq: PwmFreqArg) {
+        // Make sure the controller accepts the write. Powered off again on the next flush, if dark
+        self.set_powered(true);
         self.matrix.device.set_pwm_freq(freq.into()).unwrap();
     }
 }

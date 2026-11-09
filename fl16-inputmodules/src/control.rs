@@ -643,7 +643,7 @@ pub fn handle_command(
             response[0] = state.debug_mode as u8;
             Some(response)
         }
-        Command::GetStats(page) => Some(display.stats.take_response(*page)),
+        Command::GetStats(page) => Some(display.take_stats(*page)),
         _ => handle_generic_command(command),
     }
 }
