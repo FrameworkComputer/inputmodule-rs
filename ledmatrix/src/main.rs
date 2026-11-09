@@ -674,10 +674,9 @@ fn handle_sleep(
             state.sleeping = SleepState::Awake;
             state.grid = old_grid;
 
-            // Power LED controller back on
-            if !debug_mode(state) {
-                led_enable.set_high().unwrap();
-            }
+            // Power LED controller back on. Even in debug mode, because it
+            // might have been turned off before debug mode was enabled.
+            led_enable.set_high().unwrap();
             // Must be after powering on, the controller may not have accepted writes while off
             display.force_flush(state);
 
