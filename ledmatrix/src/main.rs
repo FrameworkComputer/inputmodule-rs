@@ -4,6 +4,7 @@
 #![allow(clippy::needless_range_loop)]
 
 use cortex_m::delay::Delay;
+use cortex_m::peripheral::NVIC;
 //use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::{InputPin, OutputPin};
@@ -38,6 +39,11 @@ const SLEEP_TIMEOUT: u64 = 60_000_000;
 
 /// Resend the full grid every 1s, in case the LED controller lost its state
 const DISPLAY_REFRESH_PERIOD: u64 = 1_000_000;
+
+/// Sleep at most 10ms at a time, so the SLEEP# pin and DIP switch are still checked often enough
+const MAX_WAIT_US: u64 = 10_000;
+/// Don't bother sleeping for less than this. Also makes sure the alarm isn't scheduled in the past.
+const MIN_WAIT_US: u64 = 20;
 
 /// List maximum current as 500mA in the USB descriptor
 const MAX_CURRENT: usize = 500;
@@ -130,11 +136,12 @@ use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
     gpio, pac,
     sio::Sio,
+    timer::Alarm,
     usb,
     watchdog::Watchdog,
     Timer,
 };
-use fugit::RateExtU32;
+use fugit::{ExtU32, RateExtU32};
 
 // USB Device support
 use usb_device::descriptor::lang_id::LangID;
@@ -194,7 +201,15 @@ fn main() -> ! {
     );
 
     // Create timer before USB bus since USB bus moves clocks.usb_clock
-    let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+    let mut timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+
+    // Let pending interrupts wake the CPU from WFE, even though none are enabled in the NVIC.
+    // That way the main loop can sleep until there's USB activity or the alarm fires,
+    // without needing any interrupt handlers.
+    // Safety: Only sets SEVONPEND, which doesn't affect anything else
+    unsafe { core.SCB.scr.modify(|scr| scr | (1 << 4)) };
+    let mut alarm = timer.alarm_0().unwrap();
+    alarm.enable_interrupt();
 
     // Set up the USB driver
     let usb_bus = UsbBusAllocator::new(usb::UsbBus::new(
@@ -589,6 +604,40 @@ fn main() -> ! {
                 None => {}
             }
             game_timer = timer.get_counter().ticks();
+        }
+
+        // Sleep until the next deadline instead of busy polling.
+        // Waking up early because of USB activity is fine, the loop just runs again.
+        let now = timer.get_counter().ticks();
+        let mut deadline = (now + MAX_WAIT_US).min(game_timer + game_step_diff);
+        if matches!(state.sleeping, SleepState::Awake) {
+            deadline = deadline
+                .min(animation_timer + state.animation_period)
+                .min(refresh_timer + DISPLAY_REFRESH_PERIOD);
+        }
+        if !state.debug_mode {
+            deadline = deadline.min(sleep_timer + SLEEP_TIMEOUT);
+        }
+        let wait = deadline.saturating_sub(now);
+        if wait >= MIN_WAIT_US {
+            alarm.clear_interrupt();
+            alarm.schedule((wait as u32).micros()).unwrap();
+            // Interrupts are level triggered, so these become pending again right away,
+            // if the USB controller or the alarm is still asserting them.
+            NVIC::unpend(pac::Interrupt::USBCTRL_IRQ);
+            NVIC::unpend(pac::Interrupt::TIMER_IRQ_0);
+            // Clear the event register, it might still be set from an earlier event
+            cortex_m::asm::sev();
+            cortex_m::asm::wfe();
+            // Any interrupt becoming pending after this check sets the event register again,
+            // so WFE can't miss it
+            if !NVIC::is_pending(pac::Interrupt::USBCTRL_IRQ)
+                && !NVIC::is_pending(pac::Interrupt::TIMER_IRQ_0)
+            {
+                cortex_m::asm::wfe();
+            }
+            let wait_us = (timer.get_counter().ticks() - now) as u32;
+            display.stats.wait_us_total = display.stats.wait_us_total.wrapping_add(wait_us);
         }
 
         let loop_us = (timer.get_counter().ticks() - loop_start) as u32;
