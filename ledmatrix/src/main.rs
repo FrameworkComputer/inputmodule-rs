@@ -333,6 +333,7 @@ fn main() -> ! {
 
     loop {
         let loop_start = timer.get_counter().ticks();
+        let mut received_data = false;
         last_sleep_reason = sleep_reason;
 
         state.debug_mode = dip1.is_low().unwrap();
@@ -455,6 +456,7 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
+                    received_data = true;
                     display.stats.bytes_received =
                         display.stats.bytes_received.wrapping_add(count as u32);
                     let random = get_random_byte(&rosc);
@@ -591,6 +593,13 @@ fn main() -> ! {
 
         let loop_us = (timer.get_counter().ticks() - loop_start) as u32;
         display.stats.loop_us_max = display.stats.loop_us_max.max(loop_us);
+        display.stats.loops = display.stats.loops.wrapping_add(1);
+        if received_data {
+            display.stats.busy_us_total = display.stats.busy_us_total.wrapping_add(loop_us);
+        } else {
+            display.stats.idle_loops = display.stats.idle_loops.wrapping_add(1);
+            display.stats.idle_us_total = display.stats.idle_us_total.wrapping_add(loop_us);
+        }
     }
 }
 

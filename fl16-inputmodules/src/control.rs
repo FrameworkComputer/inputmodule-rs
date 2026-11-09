@@ -214,8 +214,8 @@ pub enum Command {
     GetPwmFreq,
     SetDebugMode(bool),
     GetDebugMode,
-    /// Get performance counters
-    GetStats,
+    /// Get a page of performance counters
+    GetStats(u8),
     _Unknown,
 }
 
@@ -402,7 +402,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             } else {
                 Command::GetDebugMode
             }),
-            Some(CommandVals::Stats) => Some(Command::GetStats),
+            Some(CommandVals::Stats) => Some(Command::GetStats(arg.unwrap_or(0))),
             _ => None,
         }
     } else {
@@ -643,7 +643,7 @@ pub fn handle_command(
             response[0] = state.debug_mode as u8;
             Some(response)
         }
-        Command::GetStats => Some(display.stats.take_response()),
+        Command::GetStats(page) => Some(display.stats.take_response(*page)),
         _ => handle_generic_command(command),
     }
 }
