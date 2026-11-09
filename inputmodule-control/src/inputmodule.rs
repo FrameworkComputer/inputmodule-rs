@@ -280,6 +280,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 video_cmd(&serialdevs, path, ledmatrix_args.fps);
             }
 
+            if let Some(device) = &ledmatrix_args.camera {
+                camera_cmd(&serialdevs, device.as_deref(), ledmatrix_args.fps);
+            }
+
             if let Some(demo) = ledmatrix_args.demo {
                 demo_cmd(
                     &serialdevs,
@@ -1135,9 +1139,102 @@ fn video_frame_rate(path: &str) -> Option<f64> {
     (rate.is_finite() && rate > 0.0).then_some(rate)
 }
 
-/// Play a video in greyscale at its own frame rate, or resampled to fps.
-/// ffmpeg decodes and scales the frames.
+/// Whether ffmpeg can be run. Prints a message if not
+fn ffmpeg_available() -> bool {
+    let available = std::process::Command::new("ffmpeg")
+        .arg("-version")
+        .output()
+        .is_ok();
+    if !available {
+        println!("ffmpeg not found. Please install it and make sure it's in PATH");
+    }
+    available
+}
+
+/// Play a video in greyscale at its own frame rate, or resampled to fps
 fn video_cmd(serialdevs: &[String], path: &str, fps: Option<u32>) {
+    if !ffmpeg_available() {
+        return;
+    }
+    let frame_rate = match fps {
+        Some(fps) => fps as f64,
+        None => video_frame_rate(path).unwrap_or_else(|| {
+            println!("Couldn't get the video's frame rate with ffprobe, using 30 FPS");
+            30.0
+        }),
+    };
+    ffmpeg_stream(serialdevs, &["-i", path], fps, Some(frame_rate));
+}
+
+/// Name of the first DirectShow video device, like "Laptop Webcam Module (2nd Gen)"
+#[cfg(target_os = "windows")]
+fn first_dshow_camera() -> Option<String> {
+    let output = std::process::Command::new("ffmpeg")
+        .args([
+            "-hide_banner",
+            "-list_devices",
+            "true",
+            "-f",
+            "dshow",
+            "-i",
+            "dummy",
+        ])
+        .output()
+        .ok()?;
+    // Devices are listed in stderr, like: [in#0 @ 0000020c351e1b40] "Laptop Webcam Module (2nd Gen)" (video)
+    String::from_utf8_lossy(&output.stderr)
+        .lines()
+        .filter(|line| line.ends_with("(video)"))
+        .find_map(|line| line.split('"').nth(1).map(String::from))
+}
+
+/// Show a live view from the webcam in greyscale.
+/// Uses the first camera by default, or the device name or path.
+fn camera_cmd(serialdevs: &[String], device: Option<&str>, fps: Option<u32>) {
+    if !ffmpeg_available() {
+        return;
+    }
+
+    #[cfg(target_os = "windows")]
+    let input = {
+        let Some(name) = device.map(String::from).or_else(first_dshow_camera) else {
+            println!("No camera found");
+            return;
+        };
+        [
+            "-f".to_string(),
+            "dshow".into(),
+            "-i".into(),
+            format!("video={name}"),
+        ]
+    };
+    #[cfg(target_os = "linux")]
+    let input = [
+        "-f".to_string(),
+        "v4l2".into(),
+        "-i".into(),
+        device.unwrap_or("/dev/video0").into(),
+    ];
+    #[cfg(target_os = "macos")]
+    let input = [
+        "-f".to_string(),
+        "avfoundation".into(),
+        "-i".into(),
+        device.unwrap_or("0").into(),
+    ];
+
+    let input: Vec<&str> = input.iter().map(String::as_str).collect();
+    // Frames come in live, no need to pace them
+    ffmpeg_stream(serialdevs, &input, fps, None);
+}
+
+/// Stream greyscale frames from ffmpeg to the LED matrices until the input ends.
+/// ffmpeg decodes, scales and crops the input, which is given as ffmpeg arguments.
+/// If frame_rate is set, frames are sent at that rate, otherwise as soon as they are decoded.
+fn ffmpeg_stream(serialdevs: &[String], input: &[&str], fps: Option<u32>, frame_rate: Option<f64>) {
+    // Before starting ffmpeg, so a camera doesn't have to buffer frames while the matrix wakes up
+    let mut ports = open_stream_ports(serialdevs);
+
     // Scale to the height of the matrix and crop the middle, like the Python version.
     // Videos narrower than the matrix get padded.
     let mut filter = format!(
@@ -1146,44 +1243,31 @@ fn video_cmd(serialdevs: &[String], path: &str, fps: Option<u32>) {
     if let Some(fps) = fps {
         filter = format!("fps={fps},{filter}");
     }
-    let ffmpeg = std::process::Command::new("ffmpeg")
+    let mut ffmpeg = std::process::Command::new("ffmpeg")
         .args(["-loglevel", "error", "-nostdin"])
-        .args(["-i", path, "-vf", &filter, "-f", "rawvideo", "-"])
+        .args(input)
+        .args(["-vf", &filter, "-f", "rawvideo", "-"])
         .stdout(std::process::Stdio::piped())
-        .spawn();
-    let mut ffmpeg = match ffmpeg {
-        Ok(ffmpeg) => ffmpeg,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            println!("ffmpeg not found. Please install it and make sure it's in PATH");
-            return;
-        }
-        Err(err) => panic!("Failed to run ffmpeg: {err}"),
-    };
+        .spawn()
+        .expect("Failed to run ffmpeg");
     let mut video = ffmpeg.stdout.take().unwrap();
 
-    let frame_rate = match fps {
-        Some(fps) => fps as f64,
-        None => video_frame_rate(path).unwrap_or_else(|| {
-            println!("Couldn't get the video's frame rate with ffprobe, using 30 FPS");
-            30.0
-        }),
-    };
-
-    let mut ports = open_stream_ports(serialdevs);
     let mut reporter = FpsReporter::new();
     // One byte per pixel, row by row
     let mut pixels = [0; WIDTH * HEIGHT];
     let mut start = None;
     let mut frames: u64 = 0;
     while std::io::Read::read_exact(&mut video, &mut pixels).is_ok() {
-        // ffmpeg decodes faster than real time, so wait until the frame is due.
-        // Start the clock at the first frame, so ffmpeg's startup time doesn't count.
-        let start = *start.get_or_insert_with(std::time::Instant::now);
-        let due = start + Duration::from_secs_f64(frames as f64 / frame_rate);
-        if let Some(wait) = due.checked_duration_since(std::time::Instant::now()) {
-            thread::sleep(wait);
+        if let Some(frame_rate) = frame_rate {
+            // ffmpeg decodes faster than real time, so wait until the frame is due.
+            // Start the clock at the first frame, so ffmpeg's startup time doesn't count.
+            let start = *start.get_or_insert_with(std::time::Instant::now);
+            let due = start + Duration::from_secs_f64(frames as f64 / frame_rate);
+            if let Some(wait) = due.checked_duration_since(std::time::Instant::now()) {
+                thread::sleep(wait);
+            }
+            frames += 1;
         }
-        frames += 1;
 
         let mut grid = [[0; HEIGHT]; WIDTH];
         for (x, col) in grid.iter_mut().enumerate() {
