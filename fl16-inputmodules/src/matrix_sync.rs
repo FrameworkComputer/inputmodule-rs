@@ -9,6 +9,7 @@ use rp2040_hal::{
         FunctionI2C, PullUp,
     },
     pac::I2C1,
+    Timer,
 };
 
 pub type Foo = LedMatrix<
@@ -24,23 +25,83 @@ pub type Foo = LedMatrix<
 /// 0xB4 LEDs on the first page, 0xAB on the second page
 const PWM_BUF_LEN: usize = 0xB4 + 0xAB;
 
+/// Performance counters, read by the host with the Stats command.
+///
+/// Counters wrap around, the host should only look at the difference between two reads.
+/// The max values are reset after every read.
+#[derive(Default)]
+pub struct Stats {
+    /// Bytes received over USB
+    pub bytes_received: u32,
+    /// Commands that were successfully parsed
+    pub cmds_parsed: u32,
+    /// USB reads that contained data but no valid command
+    pub cmds_rejected: u32,
+    /// Frames committed by Draw or DrawGreyColBuffer
+    pub frames_committed: u32,
+    /// Frames actually sent to the LED controller over I2C
+    pub flushes: u32,
+    /// Time spent sending frames over I2C in microseconds
+    pub flush_us_total: u32,
+    /// Longest time spent sending a single frame over I2C in microseconds
+    pub flush_us_max: u32,
+    /// Longest main loop iteration in microseconds
+    pub loop_us_max: u32,
+}
+
+impl Stats {
+    /// Serialize as little-endian u32s and reset the max values
+    pub fn take_response(&mut self) -> [u8; 32] {
+        let vals = [
+            self.bytes_received,
+            self.cmds_parsed,
+            self.cmds_rejected,
+            self.frames_committed,
+            self.flushes,
+            self.flush_us_total,
+            self.flush_us_max,
+            self.loop_us_max,
+        ];
+        let mut response = [0; 32];
+        for (i, val) in vals.iter().enumerate() {
+            response[i * 4..i * 4 + 4].copy_from_slice(&val.to_le_bytes());
+        }
+        self.flush_us_max = 0;
+        self.loop_us_max = 0;
+        response
+    }
+}
+
 pub struct MatrixSync {
     matrix: Foo,
     /// PWM values last sent to the LED controller. None if unknown
     sent: Option<[u8; PWM_BUF_LEN]>,
+    timer: Timer,
+    pub stats: Stats,
 }
 
 impl MatrixSync {
-    pub fn new(matrix: Foo) -> Self {
-        Self { matrix, sent: None }
+    pub fn new(matrix: Foo, timer: Timer) -> Self {
+        Self {
+            matrix,
+            sent: None,
+            timer,
+            stats: Stats::default(),
+        }
     }
 
     /// Fills the grid pixels but only sends the I2C commands if the PWM values changed
     pub fn flush_if_dirty(&mut self, state: &LedmatrixState) {
         let brightnesses = calc_brightnesses(state, &self.matrix);
         if self.sent.as_ref() != Some(&brightnesses) {
+            let start = self.timer.get_counter().ticks();
             self.matrix.device.fill_matrix(&brightnesses).unwrap();
+            let elapsed = (self.timer.get_counter().ticks() - start) as u32;
             self.sent = Some(brightnesses);
+
+            self.stats.flushes = self.stats.flushes.wrapping_add(1);
+            self.stats.flush_us_total = self.stats.flush_us_total.wrapping_add(elapsed);
+            self.stats.flush_us_max = self.stats.flush_us_max.max(elapsed);
         }
     }
 
