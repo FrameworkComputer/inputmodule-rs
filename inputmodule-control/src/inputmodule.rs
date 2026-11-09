@@ -276,6 +276,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 clock_cmd(&serialdevs);
             }
 
+            if let Some(path) = &ledmatrix_args.video {
+                video_cmd(&serialdevs, path, ledmatrix_args.fps);
+            }
+
             if let Some(demo) = ledmatrix_args.demo {
                 demo_cmd(
                     &serialdevs,
@@ -1096,6 +1100,85 @@ impl FpsReporter {
             *self = Self::new();
         }
     }
+}
+
+/// Frame rate of the first video stream, using ffprobe
+fn video_frame_rate(path: &str) -> Option<f64> {
+    let output = std::process::Command::new("ffprobe")
+        .args(["-v", "error", "-select_streams", "v:0"])
+        .args(["-show_entries", "stream=avg_frame_rate"])
+        .args(["-of", "default=noprint_wrappers=1:nokey=1", path])
+        .output()
+        .ok()?;
+    // For example "30000/1001"
+    let rate = String::from_utf8(output.stdout).ok()?;
+    let (num, den) = rate.trim().split_once('/')?;
+    let rate = num.parse::<f64>().ok()? / den.parse::<f64>().ok()?;
+    (rate.is_finite() && rate > 0.0).then_some(rate)
+}
+
+/// Play a video in greyscale at its own frame rate, or resampled to fps.
+/// ffmpeg decodes and scales the frames.
+fn video_cmd(serialdevs: &[String], path: &str, fps: Option<u32>) {
+    // Scale to the height of the matrix and crop the middle, like the Python version.
+    // Videos narrower than the matrix get padded.
+    let mut filter = format!(
+        "scale=-2:{HEIGHT}:flags=area,crop=w=min({WIDTH}\\,iw):h={HEIGHT},pad={WIDTH}:{HEIGHT}:(ow-iw)/2:0,format=gray"
+    );
+    if let Some(fps) = fps {
+        filter = format!("fps={fps},{filter}");
+    }
+    let ffmpeg = std::process::Command::new("ffmpeg")
+        .args(["-loglevel", "error", "-nostdin"])
+        .args(["-i", path, "-vf", &filter, "-f", "rawvideo", "-"])
+        .stdout(std::process::Stdio::piped())
+        .spawn();
+    let mut ffmpeg = match ffmpeg {
+        Ok(ffmpeg) => ffmpeg,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            println!("ffmpeg not found. Please install it and make sure it's in PATH");
+            return;
+        }
+        Err(err) => panic!("Failed to run ffmpeg: {err}"),
+    };
+    let mut video = ffmpeg.stdout.take().unwrap();
+
+    let frame_rate = match fps {
+        Some(fps) => fps as f64,
+        None => video_frame_rate(path).unwrap_or_else(|| {
+            println!("Couldn't get the video's frame rate with ffprobe, using 30 FPS");
+            30.0
+        }),
+    };
+
+    let mut ports = open_stream_ports(serialdevs);
+    let mut reporter = FpsReporter::new();
+    // One byte per pixel, row by row
+    let mut pixels = [0; WIDTH * HEIGHT];
+    let mut start = None;
+    let mut frames: u64 = 0;
+    while std::io::Read::read_exact(&mut video, &mut pixels).is_ok() {
+        // ffmpeg decodes faster than real time, so wait until the frame is due.
+        // Start the clock at the first frame, so ffmpeg's startup time doesn't count.
+        let start = *start.get_or_insert_with(std::time::Instant::now);
+        let due = start + Duration::from_secs_f64(frames as f64 / frame_rate);
+        if let Some(wait) = due.checked_duration_since(std::time::Instant::now()) {
+            thread::sleep(wait);
+        }
+        frames += 1;
+
+        let mut grid = [[0; HEIGHT]; WIDTH];
+        for (x, col) in grid.iter_mut().enumerate() {
+            for (y, val) in col.iter_mut().enumerate() {
+                // Video brightness is gamma encoded, LED brightness is linear
+                *val = gamma(pixels[x + y * WIDTH] as f32 / 255.0);
+            }
+        }
+        send_grey_frame(&mut ports, &grid);
+        reporter.frame_sent();
+    }
+    let _ = ffmpeg.wait();
+    println!();
 }
 
 /// Run a greyscale demo forever, as fast as possible or limited to fps
