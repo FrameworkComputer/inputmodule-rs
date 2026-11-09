@@ -40,8 +40,9 @@ const SLEEP_TIMEOUT: u64 = 60_000_000;
 /// Resend the full grid every 1s, in case the LED controller lost its state
 const DISPLAY_REFRESH_PERIOD: u64 = 1_000_000;
 
-/// Sleep at most 10ms at a time, so the SLEEP# pin and DIP switch are still checked often enough
-const MAX_WAIT_US: u64 = 10_000;
+/// Sleep at most 100ms at a time, so the DIP switch is still checked often enough.
+/// The SLEEP# pin wakes the CPU up by itself.
+const MAX_WAIT_US: u64 = 100_000;
 /// Don't bother sleeping for less than this. Also makes sure the alarm isn't scheduled in the past.
 const MIN_WAIT_US: u64 = 20;
 
@@ -338,6 +339,11 @@ fn main() -> ! {
     if sleep.is_high().unwrap() {
         sleep_present = true;
     }
+    // Wake up from WFE when the host goes to sleep or wakes up
+    if sleep_present {
+        sleep.set_interrupt_enabled(gpio::Interrupt::EdgeLow, true);
+        sleep.set_interrupt_enabled(gpio::Interrupt::EdgeHigh, true);
+    }
 
     let mut usb_initialized = false;
     let mut usb_suspended = false;
@@ -353,6 +359,9 @@ fn main() -> ! {
 
         state.debug_mode = dip1.is_low().unwrap();
         if sleep_present {
+            // Clear before reading the pin, so that a change after reading it wakes up from WFE
+            sleep.clear_interrupt(gpio::Interrupt::EdgeLow);
+            sleep.clear_interrupt(gpio::Interrupt::EdgeHigh);
             // Go to sleep if the host is sleeping
             let host_sleeping = sleep.is_low().unwrap();
             let host_sleep_changed = host_sleeping != last_host_sleep;
@@ -634,6 +643,7 @@ fn main() -> ! {
             // if the USB controller or the alarm is still asserting them.
             NVIC::unpend(pac::Interrupt::USBCTRL_IRQ);
             NVIC::unpend(pac::Interrupt::TIMER_IRQ_0);
+            NVIC::unpend(pac::Interrupt::IO_IRQ_BANK0);
             // Clear the event register, it might still be set from an earlier event
             cortex_m::asm::sev();
             cortex_m::asm::wfe();
@@ -641,6 +651,7 @@ fn main() -> ! {
             // so WFE can't miss it
             if !NVIC::is_pending(pac::Interrupt::USBCTRL_IRQ)
                 && !NVIC::is_pending(pac::Interrupt::TIMER_IRQ_0)
+                && !NVIC::is_pending(pac::Interrupt::IO_IRQ_BANK0)
             {
                 cortex_m::asm::wfe();
             }
