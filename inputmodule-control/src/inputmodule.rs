@@ -936,6 +936,66 @@ fn plasma_frame(t: f32) -> GreyGrid {
     grid
 }
 
+/// Fire simulation steps per second, independent of the frame rate
+const FIRE_STEPS_PER_SEC: f32 = 30.0;
+
+/// Fire effect like in PSX Doom: heat rises from the bottom row, cools down and drifts sideways
+struct Fire {
+    /// Heat from 0.0 to 1.0 after the previous and the next simulation step
+    prev: [[f32; HEIGHT]; WIDTH],
+    next: [[f32; HEIGHT]; WIDTH],
+    steps: u64,
+    rng: ThreadRng,
+}
+
+impl Fire {
+    fn new() -> Self {
+        Self {
+            prev: [[0.0; HEIGHT]; WIDTH],
+            next: [[0.0; HEIGHT]; WIDTH],
+            steps: 0,
+            rng: thread_rng(),
+        }
+    }
+
+    fn step(&mut self) {
+        self.prev = self.next;
+        let heat = &mut self.next;
+        // Flickering source of heat in the bottom row
+        for col in heat.iter_mut() {
+            col[HEIGHT - 1] = self.rng.gen_range(0.6..1.0);
+        }
+        // Each pixel takes the heat of the pixel below, cooled down and moved sideways.
+        // Top to bottom, so every row only moves up by one per step.
+        for y in 0..HEIGHT - 1 {
+            for x in 0..WIDTH {
+                let drift: isize = self.rng.gen_range(-1..=1);
+                let to_x = (x as isize + drift).clamp(0, WIDTH as isize - 1) as usize;
+                let cooling = self.rng.gen_range(0.0..0.09);
+                heat[to_x][y] = (heat[x][y + 1] - cooling).max(0.0);
+            }
+        }
+        self.steps += 1;
+    }
+
+    /// Blend between simulation steps, so it's smooth at frame rates above the step rate
+    fn frame(&mut self, t: f32) -> GreyGrid {
+        let pos = t * FIRE_STEPS_PER_SEC;
+        while self.steps <= pos as u64 + 1 {
+            self.step();
+        }
+        let blend = pos - (self.steps - 2) as f32;
+        let mut grid = [[0; HEIGHT]; WIDTH];
+        for x in 0..WIDTH {
+            for y in 0..HEIGHT {
+                let heat = self.prev[x][y] + (self.next[x][y] - self.prev[x][y]) * blend;
+                grid[x][y] = gamma(heat);
+            }
+        }
+        grid
+    }
+}
+
 /// Run a greyscale demo forever, as fast as possible or limited to fps
 fn demo_cmd(serialdevs: &[String], demo: Demo, fps: Option<u32>) {
     // Long timeout, because the firmware doesn't service USB while fading in after waking up
@@ -949,6 +1009,8 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, fps: Option<u32>) {
         })
         .collect();
 
+    let mut fire = Fire::new();
+
     let start = std::time::Instant::now();
     let mut frames: u64 = 0;
     let mut report_start = start;
@@ -957,6 +1019,7 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, fps: Option<u32>) {
         let t = start.elapsed().as_secs_f32();
         let grid = match demo {
             Demo::Plasma => plasma_frame(t),
+            Demo::Fire => fire.frame(t),
         };
         for port in &mut ports {
             for (x, col) in grid.iter().enumerate() {
