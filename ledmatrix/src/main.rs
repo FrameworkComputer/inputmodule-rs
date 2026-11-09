@@ -36,6 +36,9 @@ const STARTUP_ANIMATION: bool = true;
 /// Go to sleep after 60s awake
 const SLEEP_TIMEOUT: u64 = 60_000_000;
 
+/// Resend the full grid every 1s, in case the LED controller lost its state
+const DISPLAY_REFRESH_PERIOD: u64 = 1_000_000;
+
 /// List maximum current as 500mA in the USB descriptor
 const MAX_CURRENT: usize = 500;
 
@@ -303,6 +306,7 @@ fn main() -> ! {
     display.flush_if_dirty(&state);
 
     let mut animation_timer = timer.get_counter().ticks();
+    let mut refresh_timer = timer.get_counter().ticks();
     let mut game_timer = timer.get_counter().ticks();
     let mut sleep_timer = timer.get_counter().ticks();
 
@@ -413,6 +417,13 @@ fn main() -> ! {
             animation_timer = timer.get_counter().ticks();
         }
 
+        // Periodically resend the full grid, even if it hasn't changed
+        let refresh_again = timer.get_counter().ticks() > refresh_timer + DISPLAY_REFRESH_PERIOD;
+        if matches!(state.sleeping, SleepState::Awake) && refresh_again {
+            display.force_flush(&state);
+            refresh_timer = timer.get_counter().ticks();
+        }
+
         // Check for new data
         if usb_dev.poll(&mut [&mut serial]) {
             match usb_dev.state() {
@@ -503,7 +514,7 @@ fn main() -> ! {
                             .unwrap();
                             // let _ = serial.write(text.as_bytes());
 
-                            display.flush_if_dirty(&state);
+                            display.force_flush(&state);
                         }
                         (None, _) => {}
                     }
