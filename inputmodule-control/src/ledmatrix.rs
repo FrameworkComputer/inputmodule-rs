@@ -173,7 +173,12 @@ pub struct LedMatrixSubcommand {
     #[arg(long, default_value = "FRAMEWORK")]
     pub demo_text: String,
 
-    /// Limit --demo to this many frames per second. Uncapped by default
+    /// Play a video file in greyscale. Requires ffmpeg in PATH
+    #[arg(long)]
+    pub video: Option<String>,
+
+    /// Limit --demo or --video to this many frames per second.
+    /// Uncapped for --demo and the video's frame rate for --video by default
     #[arg(long)]
     pub fps: Option<u32>,
 
