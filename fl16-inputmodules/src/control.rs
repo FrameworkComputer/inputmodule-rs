@@ -73,6 +73,7 @@ pub enum CommandVals {
     PwmFreq = 0x1E,
     DebugMode = 0x1F,
     Version = 0x20,
+    Stats = 0x21,
 }
 
 #[derive(num_derive::FromPrimitive)]
@@ -213,6 +214,8 @@ pub enum Command {
     GetPwmFreq,
     SetDebugMode(bool),
     GetDebugMode,
+    /// Get performance counters
+    GetStats,
     _Unknown,
 }
 
@@ -399,6 +402,7 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
             } else {
                 Command::GetDebugMode
             }),
+            Some(CommandVals::Stats) => Some(Command::GetStats),
             _ => None,
         }
     } else {
@@ -566,6 +570,7 @@ pub fn handle_command(
         }
         Command::Draw(vals) => {
             state.grid = draw(vals);
+            display.stats.frames_committed = display.stats.frames_committed.wrapping_add(1);
             None
         }
         Command::StageGreyCol(col, vals) => {
@@ -577,6 +582,7 @@ pub fn handle_command(
             state.grid = state.col_buffer.clone();
             // Zero the old staging buffer, just for good measure.
             state.col_buffer = percentage(0);
+            display.stats.frames_committed = display.stats.frames_committed.wrapping_add(1);
             None
         }
         // TODO: Move to handle_generic_command
@@ -637,6 +643,7 @@ pub fn handle_command(
             response[0] = state.debug_mode as u8;
             Some(response)
         }
+        Command::GetStats => Some(display.stats.take_response()),
         _ => handle_generic_command(command),
     }
 }

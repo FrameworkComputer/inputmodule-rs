@@ -77,6 +77,7 @@ const MAX_BRIGHTNESS: u8 = 50;
 //    .unwrap();
 //
 //    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+//    let timer = Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
 //
 //    let pins = bsp::Pins::new(
 //        pac.IO_BANK0,
@@ -102,7 +103,7 @@ const MAX_BRIGHTNESS: u8 = 50;
 //        .setup(&mut delay)
 //        .expect("failed to setup rgb controller");
 //
-//    let mut display = MatrixSync::new(matrix);
+//    let mut display = MatrixSync::new(matrix, timer);
 //    state.brightness = 255;
 //    state.grid = display_panic();
 //    display.force_flush(state);
@@ -301,7 +302,7 @@ fn main() -> ! {
         .set_scaling(MAX_BRIGHTNESS)
         .expect("failed to set scaling");
 
-    let mut display = MatrixSync::new(matrix);
+    let mut display = MatrixSync::new(matrix, timer);
     display.set_pwm_freq(state.pwm_freq);
     display.flush_if_dirty(&state);
 
@@ -331,6 +332,7 @@ fn main() -> ! {
     let mut last_host_sleep = sleep.is_low().unwrap();
 
     loop {
+        let loop_start = timer.get_counter().ticks();
         last_sleep_reason = sleep_reason;
 
         state.debug_mode = dip1.is_low().unwrap();
@@ -453,6 +455,8 @@ fn main() -> ! {
                     // Do nothing
                 }
                 Ok(count) => {
+                    display.stats.bytes_received =
+                        display.stats.bytes_received.wrapping_add(count as u32);
                     let random = get_random_byte(&rosc);
                     match (parse_command(count, &buf), &state.sleeping) {
                         // Handle bootloader command without any delay
@@ -461,6 +465,7 @@ fn main() -> ! {
                             handle_command(&c, &mut state, &mut display, random);
                         }
                         (Some(command), _) => {
+                            display.stats.cmds_parsed = display.stats.cmds_parsed.wrapping_add(1);
                             if let Command::Sleep(go_sleeping) = command {
                                 sleep_reason = assign_sleep_reason(
                                     last_sleep_reason,
@@ -516,7 +521,10 @@ fn main() -> ! {
 
                             display.force_flush(&state);
                         }
-                        (None, _) => {}
+                        (None, _) => {
+                            display.stats.cmds_rejected =
+                                display.stats.cmds_rejected.wrapping_add(1);
+                        }
                     }
                 }
             }
@@ -577,6 +585,9 @@ fn main() -> ! {
             }
             game_timer = timer.get_counter().ticks();
         }
+
+        let loop_us = (timer.get_counter().ticks() - loop_start) as u32;
+        display.stats.loop_us_max = display.stats.loop_us_max.max(loop_us);
     }
 }
 
