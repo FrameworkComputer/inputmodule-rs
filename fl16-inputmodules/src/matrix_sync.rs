@@ -2,11 +2,12 @@ use crate::control::PwmFreqArg;
 use crate::led_hal as bsp;
 use crate::matrix::{LedmatrixState, HEIGHT, WIDTH};
 use crate::patterns::BRIGHTNESS_LEVELS;
+use embedded_hal::digital::OutputPin;
 use is31fl3741::devices::LedMatrix;
 use rp2040_hal::{
     gpio::{
-        bank0::{Gpio26, Gpio27},
-        FunctionI2C, PullUp,
+        bank0::{Gpio26, Gpio27, Gpio29},
+        FunctionI2C, FunctionSioOutput, Pin, PullDown, PullUp,
     },
     pac::I2C1,
     Timer,
@@ -21,6 +22,9 @@ pub type Foo = LedMatrix<
         ),
     >,
 >;
+
+/// SDB pin of the LED controller. Low shuts it down
+pub type LedEnable = Pin<Gpio29, FunctionSioOutput, PullDown>;
 
 /// 0xB4 LEDs on the first page, 0xAB on the second page
 const PWM_BUF_LEN: usize = 0xB4 + 0xAB;
@@ -112,6 +116,7 @@ impl Stats {
 
 pub struct MatrixSync {
     matrix: Foo,
+    led_enable: LedEnable,
     /// PWM values last sent to the LED controller. None if unknown
     sent: Option<[u8; PWM_BUF_LEN]>,
     /// Index into the PWM buffer of each pixel.
@@ -122,7 +127,7 @@ pub struct MatrixSync {
 }
 
 impl MatrixSync {
-    pub fn new(matrix: Foo, timer: Timer) -> Self {
+    pub fn new(matrix: Foo, led_enable: LedEnable, timer: Timer) -> Self {
         let mut pwm_index = [[0; HEIGHT]; WIDTH];
         for (x, col) in pwm_index.iter_mut().enumerate() {
             for (y, index) in col.iter_mut().enumerate() {
@@ -132,6 +137,7 @@ impl MatrixSync {
         }
         Self {
             matrix,
+            led_enable,
             sent: None,
             pwm_index,
             timer,
@@ -165,6 +171,15 @@ impl MatrixSync {
     pub fn force_flush(&mut self, state: &LedmatrixState) {
         self.sent = None;
         self.flush_if_dirty(state);
+    }
+
+    /// Turn the LED controller on or off
+    pub fn set_powered(&mut self, powered: bool) {
+        if powered {
+            self.led_enable.set_high().unwrap();
+        } else {
+            self.led_enable.set_low().unwrap();
+        }
     }
 
     pub fn set_pwm_freq(&mut self, freq: PwmFreqArg) {
