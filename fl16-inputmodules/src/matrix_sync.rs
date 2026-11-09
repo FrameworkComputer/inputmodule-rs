@@ -1,6 +1,6 @@
 use crate::control::PwmFreqArg;
 use crate::led_hal as bsp;
-use crate::matrix::{Grid, LedmatrixState, HEIGHT, WIDTH};
+use crate::matrix::{LedmatrixState, HEIGHT, WIDTH};
 use crate::patterns::BRIGHTNESS_LEVELS;
 use is31fl3741::devices::LedMatrix;
 use rp2040_hal::{
@@ -68,22 +68,4 @@ fn calc_brightnesses(state: &LedmatrixState, matrix: &Foo) -> [u8; PWM_BUF_LEN] 
         }
     }
     brightnesses
-}
-
-/// Same as MatrixSync::flush_if_dirty but does each pixel individually
-/// So it's much slower because it has to send 306 I2C commands
-pub fn _fill_grid(grid: &Grid, matrix: &mut Foo) {
-    for y in 0..HEIGHT {
-        for x in 0..WIDTH {
-            matrix.device.pixel(x as u8, y as u8, grid.0[x][y]).unwrap();
-        }
-    }
-}
-
-pub fn full_brightness(matrix: &mut Foo) {
-    // Fills every pixel individually
-    //matrix.fill_brightness(0xFF).unwrap();
-
-    // Fills full page at once
-    matrix.device.fill(0xFF).unwrap();
 }
