@@ -137,6 +137,10 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub debug_mode: Option<Option<bool>>,
 
+    /// Stream greyscale frames for this many seconds and report throughput
+    #[arg(long)]
+    pub benchmark: Option<u64>,
+
     /// Crash the firmware (TESTING ONLY!)
     #[arg(long)]
     pub panic: bool,
