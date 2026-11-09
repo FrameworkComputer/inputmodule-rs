@@ -38,6 +38,8 @@ pub enum Demo {
     Plasma,
     /// Flames rising from the bottom
     Fire,
+    /// Text scrolling up smoothly, set with --demo-text
+    Text,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
@@ -166,6 +168,10 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     #[clap(value_enum)]
     pub demo: Option<Demo>,
+
+    /// Text for --demo text
+    #[arg(long, default_value = "FRAMEWORK")]
+    pub demo_text: String,
 
     /// Limit --demo to this many frames per second. Uncapped by default
     #[arg(long)]

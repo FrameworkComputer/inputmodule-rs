@@ -277,7 +277,12 @@ pub fn serial_commands(args: &crate::ClapCli) {
             }
 
             if let Some(demo) = ledmatrix_args.demo {
-                demo_cmd(&serialdevs, demo, ledmatrix_args.fps);
+                demo_cmd(
+                    &serialdevs,
+                    demo,
+                    &ledmatrix_args.demo_text,
+                    ledmatrix_args.fps,
+                );
             }
         }
         Some(crate::Commands::B1Display(b1display_args)) => {
@@ -996,8 +1001,56 @@ impl Fire {
     }
 }
 
+/// Rows per second that the text moves up
+const TEXT_ROWS_PER_SEC: f32 = 12.0;
+
+/// Text stacked vertically, scrolling up by fractions of a pixel
+struct ScrollingText {
+    /// Brightness from 0.0 to 1.0 of each row of the rendered text, starting with an empty screen
+    rows: Vec<[f32; WIDTH]>,
+}
+
+impl ScrollingText {
+    fn new(text: &str) -> Self {
+        // Start with an empty screen, so the text scrolls in from the bottom and out at the top
+        let mut rows = vec![[0.0; WIDTH]; HEIGHT];
+        // Same layout as show_font: 5x6 pixel characters, two columns from the left, one row apart
+        for c in text.to_uppercase().chars() {
+            let pixels = convert_font(c);
+            for y in 0..6 {
+                let mut row = [0.0; WIDTH];
+                for x in 0..5 {
+                    row[2 + x] = pixels[x + y * 5] as f32;
+                }
+                rows.push(row);
+            }
+            rows.push([0.0; WIDTH]);
+        }
+        Self { rows }
+    }
+
+    /// Blend between neighboring rows, so the text glides instead of jumping by whole pixels
+    fn frame(&self, t: f32) -> GreyGrid {
+        let len = self.rows.len();
+        let offset = (t * TEXT_ROWS_PER_SEC) % len as f32;
+        let mut grid = [[0; HEIGHT]; WIDTH];
+        for y in 0..HEIGHT {
+            let pos = offset + y as f32;
+            let blend = pos.fract();
+            let upper = &self.rows[pos as usize % len];
+            let lower = &self.rows[(pos as usize + 1) % len];
+            for x in 0..WIDTH {
+                // Linear instead of gamma, so the total light stays the same while moving
+                let brightness = upper[x] * (1.0 - blend) + lower[x] * blend;
+                grid[x][y] = (brightness * 255.0) as u8;
+            }
+        }
+        grid
+    }
+}
+
 /// Run a greyscale demo forever, as fast as possible or limited to fps
-fn demo_cmd(serialdevs: &[String], demo: Demo, fps: Option<u32>) {
+fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, fps: Option<u32>) {
     // Long timeout, because the firmware doesn't service USB while fading in after waking up
     let mut ports: Vec<_> = serialdevs
         .iter()
@@ -1010,6 +1063,7 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, fps: Option<u32>) {
         .collect();
 
     let mut fire = Fire::new();
+    let scrolling_text = ScrollingText::new(text);
 
     let start = std::time::Instant::now();
     let mut frames: u64 = 0;
@@ -1020,6 +1074,7 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, fps: Option<u32>) {
         let grid = match demo {
             Demo::Plasma => plasma_frame(t),
             Demo::Fire => fire.frame(t),
+            Demo::Text => scrolling_text.frame(t),
         };
         for port in &mut ports {
             for (x, col) in grid.iter().enumerate() {
