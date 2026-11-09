@@ -609,6 +609,18 @@ fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
     })
 }
 
+/// Wake up the LED matrix and wait until it's done fading in.
+/// While fading in, the firmware doesn't service USB, so sending frames would stall.
+/// The port needs a long enough timeout.
+fn wake_and_wait(port: &mut Box<dyn SerialPort>) {
+    simple_cmd_port(port, Command::Sleeping, &[0]);
+    // Only responds after the fade-in, because commands are handled in order
+    simple_cmd_port(port, Command::Version, &[]);
+    let mut response = [0; 32];
+    port.read_exact(&mut response)
+        .expect("Device didn't respond to version request");
+}
+
 /// Stream changing greyscale frames as fast as possible and report the throughput
 fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
     // Long timeout, because the firmware doesn't service USB while fading in after waking up
@@ -617,12 +629,8 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
         .open()
         .expect("Failed to open port");
 
-    // Wake up and wait until the fade-in is done, so it doesn't count towards the benchmark
-    simple_cmd_port(&mut port, Command::Sleeping, &[0]);
-    simple_cmd_port(&mut port, Command::Version, &[]);
-    let mut response = [0; 32];
-    port.read_exact(&mut response)
-        .expect("Device didn't respond to version request");
+    // So the fade-in doesn't count towards the benchmark
+    wake_and_wait(&mut port);
 
     // Old firmware doesn't respond to the stats command, don't wait too long
     port.set_timeout(Duration::from_millis(500)).unwrap();
@@ -1053,16 +1061,18 @@ impl ScrollingText {
     }
 }
 
-/// Open ports for streaming frames
+/// Open ports for streaming frames and wake up the LED matrices
 fn open_stream_ports(serialdevs: &[String]) -> Vec<Box<dyn SerialPort>> {
-    // Long timeout, because the firmware doesn't service USB while fading in after waking up
     serialdevs
         .iter()
         .map(|serialdev| {
-            serialport::new(serialdev, 115_200)
+            // Long timeout, for waiting until the LED matrix is done fading in
+            let mut port = serialport::new(serialdev, 115_200)
                 .timeout(Duration::from_secs(10))
                 .open()
-                .expect("Failed to open port")
+                .expect("Failed to open port");
+            wake_and_wait(&mut port);
+            port
         })
         .collect()
 }
@@ -1079,25 +1089,33 @@ fn send_grey_frame(ports: &mut [Box<dyn SerialPort>], grid: &GreyGrid) {
 
 /// Prints the achieved frame rate once per second
 struct FpsReporter {
-    start: std::time::Instant,
+    /// When the first frame of the current second was sent
+    start: Option<std::time::Instant>,
+    /// Frames sent since then
     frames: u64,
 }
 
 impl FpsReporter {
     fn new() -> Self {
         Self {
-            start: std::time::Instant::now(),
+            start: None,
             frames: 0,
         }
     }
 
     fn frame_sent(&mut self) {
+        // Start at the first frame, so startup time, like opening a camera, doesn't count
+        let Some(start) = self.start else {
+            self.start = Some(std::time::Instant::now());
+            return;
+        };
         self.frames += 1;
-        if self.start.elapsed() >= Duration::from_secs(1) {
-            let rate = self.frames as f64 / self.start.elapsed().as_secs_f64();
+        if start.elapsed() >= Duration::from_secs(1) {
+            let rate = self.frames as f64 / start.elapsed().as_secs_f64();
             print!("\r{:.1} FPS ", rate);
             let _ = std::io::Write::flush(&mut std::io::stdout());
-            *self = Self::new();
+            self.start = Some(std::time::Instant::now());
+            self.frames = 0;
         }
     }
 }
