@@ -1049,10 +1049,10 @@ impl ScrollingText {
     }
 }
 
-/// Run a greyscale demo forever, as fast as possible or limited to fps
-fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, fps: Option<u32>) {
+/// Open ports for streaming frames
+fn open_stream_ports(serialdevs: &[String]) -> Vec<Box<dyn SerialPort>> {
     // Long timeout, because the firmware doesn't service USB while fading in after waking up
-    let mut ports: Vec<_> = serialdevs
+    serialdevs
         .iter()
         .map(|serialdev| {
             serialport::new(serialdev, 115_200)
@@ -1060,15 +1060,54 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, fps: Option<u32>) {
                 .open()
                 .expect("Failed to open port")
         })
-        .collect();
+        .collect()
+}
+
+/// Send a greyscale frame to every port
+fn send_grey_frame(ports: &mut [Box<dyn SerialPort>], grid: &GreyGrid) {
+    for port in ports {
+        for (x, col) in grid.iter().enumerate() {
+            send_col(port, x as u8, col);
+        }
+        commit_cols(port);
+    }
+}
+
+/// Prints the achieved frame rate once per second
+struct FpsReporter {
+    start: std::time::Instant,
+    frames: u64,
+}
+
+impl FpsReporter {
+    fn new() -> Self {
+        Self {
+            start: std::time::Instant::now(),
+            frames: 0,
+        }
+    }
+
+    fn frame_sent(&mut self) {
+        self.frames += 1;
+        if self.start.elapsed() >= Duration::from_secs(1) {
+            let rate = self.frames as f64 / self.start.elapsed().as_secs_f64();
+            print!("\r{:.1} FPS ", rate);
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+            *self = Self::new();
+        }
+    }
+}
+
+/// Run a greyscale demo forever, as fast as possible or limited to fps
+fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, fps: Option<u32>) {
+    let mut ports = open_stream_ports(serialdevs);
 
     let mut fire = Fire::new();
     let scrolling_text = ScrollingText::new(text);
 
     let start = std::time::Instant::now();
     let mut frames: u64 = 0;
-    let mut report_start = start;
-    let mut report_frames: u64 = 0;
+    let mut reporter = FpsReporter::new();
     loop {
         let t = start.elapsed().as_secs_f32();
         let grid = match demo {
@@ -1076,22 +1115,9 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, fps: Option<u32>) {
             Demo::Fire => fire.frame(t),
             Demo::Text => scrolling_text.frame(t),
         };
-        for port in &mut ports {
-            for (x, col) in grid.iter().enumerate() {
-                send_col(port, x as u8, col);
-            }
-            commit_cols(port);
-        }
+        send_grey_frame(&mut ports, &grid);
         frames += 1;
-        report_frames += 1;
-
-        if report_start.elapsed() >= Duration::from_secs(1) {
-            let rate = report_frames as f64 / report_start.elapsed().as_secs_f64();
-            print!("\r{:.1} FPS ", rate);
-            let _ = std::io::Write::flush(&mut std::io::stdout());
-            report_start = std::time::Instant::now();
-            report_frames = 0;
-        }
+        reporter.frame_sent();
 
         if let Some(fps) = fps {
             let next_frame = start + Duration::from_secs_f64(frames as f64 / fps as f64);
