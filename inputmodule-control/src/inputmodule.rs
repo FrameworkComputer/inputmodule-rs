@@ -553,6 +553,9 @@ struct DeviceStats {
     idle_loops: u32,
     idle_us_total: u32,
     busy_us_total: u32,
+    calcs: u32,
+    calc_us_total: u32,
+    calc_us_max: u32,
 }
 
 /// Read one page of performance counters. None if the firmware doesn't support it.
@@ -587,6 +590,9 @@ fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
         idle_loops: page1[1],
         idle_us_total: page1[2],
         busy_us_total: page1[3],
+        calcs: page1[4],
+        calc_us_total: page1[5],
+        calc_us_max: page1[6],
     })
 }
 
@@ -749,6 +755,17 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
         idle_loops,
         idle_us / idle_loops.max(1) as f64,
         idle_us / device_us * 100.0
+    );
+
+    let calcs = delta(|s| s.calcs);
+    let calc_us = delta(|s| s.calc_us_total) as f64;
+    println!(
+        "PWM calculation:   {} times ({:.1} per command), {:.0}us avg, {}us max, {:.0}% of device time",
+        calcs,
+        calcs as f64 / cmds_parsed.max(1) as f64,
+        calc_us / calcs.max(1) as f64,
+        after.calc_us_max,
+        calc_us / device_us * 100.0
     );
 }
 
