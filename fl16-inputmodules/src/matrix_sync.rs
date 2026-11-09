@@ -47,27 +47,53 @@ pub struct Stats {
     pub flush_us_max: u32,
     /// Longest main loop iteration in microseconds
     pub loop_us_max: u32,
+    /// Main loop iterations
+    pub loops: u32,
+    /// Main loop iterations that didn't receive any USB data
+    pub idle_loops: u32,
+    /// Time spent in main loop iterations that didn't receive any USB data in microseconds
+    pub idle_us_total: u32,
+    /// Time spent in main loop iterations that received USB data in microseconds
+    pub busy_us_total: u32,
 }
 
 impl Stats {
-    /// Serialize as little-endian u32s and reset the max values
-    pub fn take_response(&mut self) -> [u8; 32] {
-        let vals = [
-            self.bytes_received,
-            self.cmds_parsed,
-            self.cmds_rejected,
-            self.frames_committed,
-            self.flushes,
-            self.flush_us_total,
-            self.flush_us_max,
-            self.loop_us_max,
-        ];
+    /// Serialize a page as little-endian u32s
+    ///
+    /// Page 0 resets the max values, page 1 doesn't have any.
+    pub fn take_response(&mut self, page: u8) -> [u8; 32] {
+        let vals = match page {
+            0 => {
+                let vals = [
+                    self.bytes_received,
+                    self.cmds_parsed,
+                    self.cmds_rejected,
+                    self.frames_committed,
+                    self.flushes,
+                    self.flush_us_total,
+                    self.flush_us_max,
+                    self.loop_us_max,
+                ];
+                self.flush_us_max = 0;
+                self.loop_us_max = 0;
+                vals
+            }
+            1 => [
+                self.loops,
+                self.idle_loops,
+                self.idle_us_total,
+                self.busy_us_total,
+                0,
+                0,
+                0,
+                0,
+            ],
+            _ => [0; 8],
+        };
         let mut response = [0; 32];
         for (i, val) in vals.iter().enumerate() {
             response[i * 4..i * 4 + 4].copy_from_slice(&val.to_le_bytes());
         }
-        self.flush_us_max = 0;
-        self.loop_us_max = 0;
         response
     }
 }
