@@ -55,12 +55,18 @@ pub struct Stats {
     pub idle_us_total: u32,
     /// Time spent in main loop iterations that received USB data in microseconds
     pub busy_us_total: u32,
+    /// Times the PWM values were calculated
+    pub calcs: u32,
+    /// Time spent calculating PWM values in microseconds
+    pub calc_us_total: u32,
+    /// Longest time spent calculating PWM values once in microseconds
+    pub calc_us_max: u32,
 }
 
 impl Stats {
     /// Serialize a page as little-endian u32s
     ///
-    /// Page 0 resets the max values, page 1 doesn't have any.
+    /// Each page resets the max values it contains.
     pub fn take_response(&mut self, page: u8) -> [u8; 32] {
         let vals = match page {
             0 => {
@@ -78,16 +84,20 @@ impl Stats {
                 self.loop_us_max = 0;
                 vals
             }
-            1 => [
-                self.loops,
-                self.idle_loops,
-                self.idle_us_total,
-                self.busy_us_total,
-                0,
-                0,
-                0,
-                0,
-            ],
+            1 => {
+                let vals = [
+                    self.loops,
+                    self.idle_loops,
+                    self.idle_us_total,
+                    self.busy_us_total,
+                    self.calcs,
+                    self.calc_us_total,
+                    self.calc_us_max,
+                    0,
+                ];
+                self.calc_us_max = 0;
+                vals
+            }
             _ => [0; 8],
         };
         let mut response = [0; 32];
@@ -118,7 +128,13 @@ impl MatrixSync {
 
     /// Fills the grid pixels but only sends the I2C commands if the PWM values changed
     pub fn flush_if_dirty(&mut self, state: &LedmatrixState) {
+        let calc_start = self.timer.get_counter().ticks();
         let brightnesses = calc_brightnesses(state, &self.matrix);
+        let calc_elapsed = (self.timer.get_counter().ticks() - calc_start) as u32;
+        self.stats.calcs = self.stats.calcs.wrapping_add(1);
+        self.stats.calc_us_total = self.stats.calc_us_total.wrapping_add(calc_elapsed);
+        self.stats.calc_us_max = self.stats.calc_us_max.max(calc_elapsed);
+
         if self.sent.as_ref() != Some(&brightnesses) {
             let start = self.timer.get_counter().ticks();
             self.matrix.device.fill_matrix(&brightnesses).unwrap();
