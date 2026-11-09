@@ -112,15 +112,26 @@ pub struct MatrixSync {
     matrix: Foo,
     /// PWM values last sent to the LED controller. None if unknown
     sent: Option<[u8; PWM_BUF_LEN]>,
+    /// Index into the PWM buffer of each pixel.
+    /// Calculated once, because calc_pixel builds its whole lookup table on every call.
+    pwm_index: [[u16; HEIGHT]; WIDTH],
     timer: Timer,
     pub stats: Stats,
 }
 
 impl MatrixSync {
     pub fn new(matrix: Foo, timer: Timer) -> Self {
+        let mut pwm_index = [[0; HEIGHT]; WIDTH];
+        for (x, col) in pwm_index.iter_mut().enumerate() {
+            for (y, index) in col.iter_mut().enumerate() {
+                let (register, page) = (matrix.device.calc_pixel)(x as u8, y as u8);
+                *index = (page as u16) * 0xB4 + (register as u16);
+            }
+        }
         Self {
             matrix,
             sent: None,
+            pwm_index,
             timer,
             stats: Stats::default(),
         }
@@ -129,7 +140,7 @@ impl MatrixSync {
     /// Fills the grid pixels but only sends the I2C commands if the PWM values changed
     pub fn flush_if_dirty(&mut self, state: &LedmatrixState) {
         let calc_start = self.timer.get_counter().ticks();
-        let brightnesses = calc_brightnesses(state, &self.matrix);
+        let brightnesses = calc_brightnesses(state, &self.pwm_index);
         let calc_elapsed = (self.timer.get_counter().ticks() - calc_start) as u32;
         self.stats.calcs = self.stats.calcs.wrapping_add(1);
         self.stats.calc_us_total = self.stats.calc_us_total.wrapping_add(calc_elapsed);
@@ -160,14 +171,17 @@ impl MatrixSync {
 }
 
 /// Calculate PWM values for the entire grid, so they can be sent with just two I2C commands
-fn calc_brightnesses(state: &LedmatrixState, matrix: &Foo) -> [u8; PWM_BUF_LEN] {
+fn calc_brightnesses(
+    state: &LedmatrixState,
+    pwm_index: &[[u16; HEIGHT]; WIDTH],
+) -> [u8; PWM_BUF_LEN] {
     let mut brightnesses = [0x00; PWM_BUF_LEN];
     for y in 0..HEIGHT {
         for x in 0..WIDTH {
-            let (register, page) = (matrix.device.calc_pixel)(x as u8, y as u8);
-            brightnesses[(page as usize) * 0xB4 + (register as usize)] =
-                ((state.grid.0[x][y] as u64) * (state.brightness as u64)
-                    / (BRIGHTNESS_LEVELS as u64)) as u8;
+            // u32 is plenty for 255 * 255 and avoids slow 64-bit division on the Cortex-M0+
+            brightnesses[pwm_index[x][y] as usize] =
+                ((state.grid.0[x][y] as u32) * (state.brightness as u32)
+                    / (BRIGHTNESS_LEVELS as u32)) as u8;
         }
     }
     brightnesses
