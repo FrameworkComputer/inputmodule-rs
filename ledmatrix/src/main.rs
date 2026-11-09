@@ -415,14 +415,18 @@ fn main() -> ! {
         );
 
         // Handle period display updates. Don't do it too often
+        // Without an animation, the display only changes through commands and games,
+        // which update it themselves. So there's no need to wake up for it.
+        let animating = state.upcoming_frames.is_some() || state.animate;
         let render_again = timer.get_counter().ticks() > animation_timer + state.animation_period;
-        if matches!(state.sleeping, SleepState::Awake) && render_again {
+        if matches!(state.sleeping, SleepState::Awake) && animating && render_again {
             if let Some(ref mut upcoming) = state.upcoming_frames {
                 if let Some(next_frame) = upcoming.next() {
                     state.grid = next_frame;
                 } else {
                     // Animation is over. Clear screen
                     state.grid = Grid::default();
+                    state.upcoming_frames = None;
                 }
             }
 
@@ -603,6 +607,9 @@ fn main() -> ! {
                 }
                 None => {}
             }
+            if matches!(state.sleeping, SleepState::Awake) {
+                display.flush_if_dirty(&state);
+            }
             game_timer = timer.get_counter().ticks();
         }
 
@@ -611,9 +618,10 @@ fn main() -> ! {
         let now = timer.get_counter().ticks();
         let mut deadline = (now + MAX_WAIT_US).min(game_timer + game_step_diff);
         if matches!(state.sleeping, SleepState::Awake) {
-            deadline = deadline
-                .min(animation_timer + state.animation_period)
-                .min(refresh_timer + DISPLAY_REFRESH_PERIOD);
+            deadline = deadline.min(refresh_timer + DISPLAY_REFRESH_PERIOD);
+            if state.upcoming_frames.is_some() || state.animate {
+                deadline = deadline.min(animation_timer + state.animation_period);
+            }
         }
         if !state.debug_mode {
             deadline = deadline.min(sleep_timer + SLEEP_TIMEOUT);
