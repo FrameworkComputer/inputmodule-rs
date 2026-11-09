@@ -9,10 +9,7 @@ use cortex_m::peripheral::NVIC;
 use defmt_rtt as _;
 use embedded_hal::digital::{InputPin, OutputPin};
 
-use rp2040_hal::{
-    gpio::bank0::Gpio29,
-    rosc::{Enabled, RingOscillator},
-};
+use rp2040_hal::rosc::{Enabled, RingOscillator};
 //#[cfg(debug_assertions)]
 //use panic_probe as _;
 use rp2040_panic_usb_boot as _;
@@ -110,7 +107,7 @@ const MAX_BRIGHTNESS: u8 = 50;
 //        .setup(&mut delay)
 //        .expect("failed to setup rgb controller");
 //
-//    let mut display = MatrixSync::new(matrix, timer);
+//    let mut display = MatrixSync::new(matrix, led_enable, timer);
 //    state.brightness = 255;
 //    state.grid = display_panic();
 //    display.force_flush(state);
@@ -318,7 +315,7 @@ fn main() -> ! {
         .set_scaling(MAX_BRIGHTNESS)
         .expect("failed to set scaling");
 
-    let mut display = MatrixSync::new(matrix, timer);
+    let mut display = MatrixSync::new(matrix, led_enable, timer);
     display.set_pwm_freq(state.pwm_freq);
     display.flush_if_dirty(&state);
 
@@ -415,13 +412,7 @@ fn main() -> ! {
             sleep_timer = timer.get_counter().ticks();
         }
 
-        handle_sleep(
-            sleep_reason,
-            &mut state,
-            &mut display,
-            &mut delay,
-            &mut led_enable,
-        );
+        handle_sleep(sleep_reason, &mut state, &mut display, &mut delay);
 
         // Handle period display updates. Don't do it too often
         // Without an animation, the display only changes through commands and games,
@@ -518,13 +509,7 @@ fn main() -> ! {
                                         SleepState::Sleeping((grid.clone(), new_brightness));
                                 }
                             }
-                            handle_sleep(
-                                sleep_reason,
-                                &mut state,
-                                &mut display,
-                                &mut delay,
-                                &mut led_enable,
-                            );
+                            handle_sleep(sleep_reason, &mut state, &mut display, &mut delay);
 
                             // If there's a very early command, cancel the startup animation
                             state.upcoming_frames = None;
@@ -721,7 +706,6 @@ fn handle_sleep(
     state: &mut LedmatrixState,
     display: &mut MatrixSync,
     delay: &mut Delay,
-    led_enable: &mut gpio::Pin<Gpio29, gpio::FunctionSioOutput, gpio::PullDown>,
 ) {
     match (state.sleeping.clone(), sleep_reason) {
         // Awake and staying awake
@@ -747,7 +731,7 @@ fn handle_sleep(
                 display.flush_if_dirty(state);
             } else {
                 // Turn LED controller off to save power
-                led_enable.set_low().unwrap();
+                display.set_powered(false);
             }
 
             // TODO: Set up SLEEP# pin as interrupt and wfi
@@ -769,7 +753,7 @@ fn handle_sleep(
 
             // Power LED controller back on. Even in debug mode, because it
             // might have been turned off before debug mode was enabled.
-            led_enable.set_high().unwrap();
+            display.set_powered(true);
             // Must be after powering on, the controller may not have accepted writes while off
             display.force_flush(state);
 
