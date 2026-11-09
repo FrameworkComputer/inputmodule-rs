@@ -636,6 +636,7 @@ fn main() -> ! {
             deadline = deadline.min(sleep_timer + SLEEP_TIMEOUT);
         }
         let wait = deadline.saturating_sub(now);
+        let mut wait_us = 0;
         if wait >= MIN_WAIT_US {
             alarm.clear_interrupt();
             alarm.schedule((wait as u32).micros()).unwrap();
@@ -655,12 +656,13 @@ fn main() -> ! {
             {
                 cortex_m::asm::wfe();
             }
-            let wait_us = (timer.get_counter().ticks() - now) as u32;
+            wait_us = (timer.get_counter().ticks() - now) as u32;
             display.stats.wait_us_total = display.stats.wait_us_total.wrapping_add(wait_us);
         }
 
         let loop_us = (timer.get_counter().ticks() - loop_start) as u32;
-        display.stats.loop_us_max = display.stats.loop_us_max.max(loop_us);
+        // Only the time spent working, sleeping isn't what makes the loop slow
+        display.stats.loop_us_max = display.stats.loop_us_max.max(loop_us - wait_us);
         display.stats.loops = display.stats.loops.wrapping_add(1);
         if received_data {
             display.stats.busy_us_total = display.stats.busy_us_total.wrapping_add(loop_us);
