@@ -99,25 +99,17 @@ impl PongState {
     }
     pub fn handle_control(&mut self, arg: &GameControlArg) {
         match arg {
-            GameControlArg::Left => {
-                if self.paddles.0 + PADDLE_WIDTH < WIDTH {
-                    self.paddles.0 += 1;
-                }
+            GameControlArg::Left if self.paddles.0 + PADDLE_WIDTH < WIDTH => {
+                self.paddles.0 += 1;
             }
-            GameControlArg::Right => {
-                if self.paddles.0 >= 1 {
-                    self.paddles.0 -= 1;
-                }
+            GameControlArg::Right if self.paddles.0 >= 1 => {
+                self.paddles.0 -= 1;
             }
-            GameControlArg::SecondLeft => {
-                if self.paddles.1 + PADDLE_WIDTH < WIDTH {
-                    self.paddles.1 += 1;
-                }
+            GameControlArg::SecondLeft if self.paddles.1 + PADDLE_WIDTH < WIDTH => {
+                self.paddles.1 += 1;
             }
-            GameControlArg::SecondRight => {
-                if self.paddles.1 >= 1 {
-                    self.paddles.1 -= 1;
-                }
+            GameControlArg::SecondRight if self.paddles.1 >= 1 => {
+                self.paddles.1 -= 1;
             }
             _ => {}
         }
