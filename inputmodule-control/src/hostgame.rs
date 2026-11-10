@@ -43,6 +43,7 @@ pub fn add_square(light: &mut Light, x: f32, y: f32, brightness: f32) {
 }
 
 /// Sparks flying apart from a point, like when the player crashes
+#[derive(Clone)]
 pub struct Burst {
     x: f32,
     y: f32,

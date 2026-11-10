@@ -4,6 +4,7 @@ mod b1display;
 mod bricks;
 mod c1minimal;
 mod cave;
+mod flap;
 mod font;
 mod hostgame;
 mod inputmodule;

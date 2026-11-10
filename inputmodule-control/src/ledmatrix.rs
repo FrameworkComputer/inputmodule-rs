@@ -199,7 +199,11 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub cave: bool,
 
-    /// Limit --demo, --bricks, --cave, --video or --camera to this many frames per second.
+    /// Play a one-button flying game, flap with space, up or a click
+    #[arg(long)]
+    pub flap: bool,
+
+    /// Limit --demo, the games, --video or --camera to this many frames per second.
     /// Uncapped for --demo and the games, the video's frame rate for --video
     /// and the camera's frame rate for --camera by default
     #[arg(long)]
