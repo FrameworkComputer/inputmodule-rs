@@ -107,7 +107,7 @@ const MAX_BRIGHTNESS: u8 = 50;
 //        .setup(&mut delay)
 //        .expect("failed to setup rgb controller");
 //
-//    let mut display = MatrixSync::new(matrix, led_enable, timer);
+//    let mut display = MatrixSync::new(matrix, led_enable, timer, MAX_BRIGHTNESS);
 //    state.brightness = 255;
 //    state.grid = display_panic();
 //    display.force_flush(state);
@@ -311,11 +311,7 @@ fn main() -> ! {
         .sw_enablement(is31fl3741::SwSetting::Sw1Sw8)
         .unwrap();
 
-    matrix
-        .set_scaling(MAX_BRIGHTNESS)
-        .expect("failed to set scaling");
-
-    let mut display = MatrixSync::new(matrix, led_enable, timer);
+    let mut display = MatrixSync::new(matrix, led_enable, timer, MAX_BRIGHTNESS);
     display.set_pwm_freq(state.pwm_freq);
     display.flush_if_dirty(&state);
 
