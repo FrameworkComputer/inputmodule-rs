@@ -14,6 +14,8 @@ use crate::c1minimal::C1MinimalSubcommand;
 use crate::inputmodule::{serial_commands, B1_LCD_PID, LED_MATRIX_PID};
 use crate::ledmatrix::LedMatrixSubcommand;
 
+// Parsed once at startup, the size doesn't matter
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 enum Commands {
     LedMatrix(LedMatrixSubcommand),
