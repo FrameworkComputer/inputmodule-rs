@@ -195,8 +195,12 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub bricks: bool,
 
-    /// Limit --demo, --bricks, --video or --camera to this many frames per second.
-    /// Uncapped for --demo and --bricks, the video's frame rate for --video
+    /// Play a cave descent game, with the arrow keys or the mouse in the terminal
+    #[arg(long)]
+    pub cave: bool,
+
+    /// Limit --demo, --bricks, --cave, --video or --camera to this many frames per second.
+    /// Uncapped for --demo and the games, the video's frame rate for --video
     /// and the camera's frame rate for --camera by default
     #[arg(long)]
     pub fps: Option<u32>,
