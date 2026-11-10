@@ -47,6 +47,7 @@ enum Command {
     Fps = 0x1A,
     PowerMode = 0x1B,
     AnimationPeriod = 0x1C,
+    Gamma = 0x1D,
     PwmFreq = 0x1E,
     DebugMode = 0x1F,
     Version = 0x20,
@@ -235,6 +236,9 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 }
                 if let Some(debug_mode) = ledmatrix_args.debug_mode {
                     debug_mode_cmd(serialdev, debug_mode);
+                }
+                if let Some(gamma) = ledmatrix_args.gamma {
+                    gamma_cmd(serialdev, gamma);
                 }
 
                 if ledmatrix_args.stop_game {
@@ -501,6 +505,26 @@ fn debug_mode_cmd(serialdev: &str, arg: Option<bool>) {
     }
 }
 
+fn gamma_cmd(serialdev: &str, arg: Option<bool>) {
+    let mut port = serialport::new(serialdev, 115_200)
+        .timeout(SERIAL_TIMEOUT)
+        .open()
+        .expect("Failed to open port");
+
+    if let Some(enable) = arg {
+        simple_cmd_port(&mut port, Command::Gamma, &[u8::from(enable)]);
+    } else {
+        simple_cmd_port(&mut port, Command::Gamma, &[]);
+
+        let mut response: Vec<u8> = vec![0; 32];
+        port.read_exact(response.as_mut_slice())
+            .expect("Found no data!");
+
+        let gamma: bool = response[0] == 1;
+        println!("Gamma correction enabled: {gamma}");
+    }
+}
+
 fn brightness_cmd(serialdev: &str, arg: Option<u8>) {
     let mut port = serialport::new(serialdev, 115_200)
         .timeout(SERIAL_TIMEOUT)
@@ -576,6 +600,7 @@ struct DeviceStats {
     wait_us_total: u32,
     led_power_ons: u32,
     led_off_us_total: u32,
+    scale_flushes: u32,
 }
 
 /// Read one page of performance counters. None if the firmware doesn't support it.
@@ -617,6 +642,7 @@ fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
         wait_us_total: page1[7],
         led_power_ons: page2[0],
         led_off_us_total: page2[1],
+        scale_flushes: page2[2],
     })
 }
 
@@ -773,6 +799,12 @@ fn benchmark_cmd(serialdev: &str, duration: Duration, mode: BenchmarkMode) {
         flush_us_total as f64 / flushes.max(1) as f64,
         after.flush_us_max,
         flush_us_total as f64 / 1e6 / elapsed * 100.0
+    );
+    let scale_flushes = delta(|s| s.scale_flushes);
+    println!(
+        "Scaling flushes:   {} ({:.0}% of I2C flushes)",
+        scale_flushes,
+        scale_flushes as f64 / flushes.max(1) as f64 * 100.0
     );
     println!("Main loop:         {}us max", after.loop_us_max);
 

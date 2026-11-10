@@ -157,6 +157,11 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub debug_mode: Option<Option<bool>>,
 
+    /// Turn gamma correction on/off or get whether it's on, if no value provided.
+    /// While on, greyscale values are sRGB, like in images, instead of linear light
+    #[arg(long)]
+    pub gamma: Option<Option<bool>>,
+
     /// Stream frames for this many seconds and report throughput
     #[arg(long)]
     pub benchmark: Option<u64>,

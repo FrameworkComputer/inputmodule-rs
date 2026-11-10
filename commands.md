@@ -56,6 +56,8 @@ When no parameters are given, the current value is queried and returned.
 | InvertScreen | 0x15 |   ` D ` |          |       bool | Invert scren on/off      |
 | SetPxCol     | 0x16 |   ` D ` |          |   50 Bytes | Send a column of pixels  |
 | FlushFB      | 0x17 |   ` D ` |          |            | Flush all columns        |
+| Gamma        | 0x1D |   `L  ` |          |       bool | sRGB greyscale on/off    |
+| GetGamma     | 0x1D |   `L  ` |     bool |            | Check gamma correction   |
 | Version      | 0x20 |   `LDM` |  3 Bytes |            | Get firmware version     |
 
 #### Pattern (0x01)
@@ -88,6 +90,19 @@ TODO
 
 #### FlushFB (0x17)
 TODO
+
+#### Gamma (0x1D)
+
+Off by default. Greyscale values from `StageCol`, patterns and animations
+are then linear: The LED's light is proportional to the value.
+
+While on, greyscale values are sRGB, like in images, and are converted to
+linear light. Use the pixel values of a greyscale image directly. Dark values
+stay distinct and light up, because the firmware also lowers the LED's
+current for them. Changing dark pixels then takes about twice as long to send
+to the LED controller.
+
+Black/white values (0 and 255) look the same either way.
 
 #### Version (0x20)
 
