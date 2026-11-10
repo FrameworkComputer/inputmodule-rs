@@ -1,8 +1,8 @@
 use crate::control::PwmFreqArg;
 use crate::led_hal as bsp;
 use crate::matrix::{LedmatrixState, HEIGHT, WIDTH};
-use crate::patterns::BRIGHTNESS_LEVELS;
 use embedded_hal::digital::OutputPin;
+use embedded_hal::i2c::I2c;
 use is31fl3741::devices::LedMatrix;
 use rp2040_hal::{
     gpio::{
@@ -28,6 +28,14 @@ pub type LedEnable = Pin<Gpio29, FunctionSioOutput, PullDown>;
 
 /// 0xB4 LEDs on the first page, 0xAB on the second page
 const PWM_BUF_LEN: usize = 0xB4 + 0xAB;
+
+// LED controller registers, which the is31fl3741 crate doesn't expose
+const PAGE_SELECT_REGISTER: u8 = 0xFD;
+const CONFIG_LOCK_REGISTER: u8 = 0xFE;
+const CONFIG_WRITE_ENABLE: u8 = 0xC5;
+const CONFIG_PAGE: u8 = 0x04;
+/// Scales the current of all LEDs, in the config page
+const GLOBAL_CURRENT_REGISTER: u8 = 0x01;
 
 /// Performance counters, read by the host with the Stats command.
 ///
@@ -108,16 +116,7 @@ impl Stats {
                 self.calc_us_max = 0;
                 vals
             }
-            2 => [
-                self.led_power_ons,
-                self.led_off_us_total,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
+            2 => [self.led_power_ons, self.led_off_us_total, 0, 0, 0, 0, 0, 0],
             _ => [0; 8],
         };
         let mut response = [0; 32];
@@ -138,7 +137,9 @@ pub struct MatrixSync {
     /// When the LED controller was powered off, or when its off time was last counted
     off_since: u64,
     /// PWM values last sent to the LED controller. None if unknown
-    sent: Option<[u8; PWM_BUF_LEN]>,
+    sent_pwm: Option<[u8; PWM_BUF_LEN]>,
+    /// Global current last sent to the LED controller. None if unknown
+    sent_current: Option<u8>,
     /// Index into the PWM buffer of each pixel.
     /// Calculated once, because calc_pixel builds its whole lookup table on every call.
     pwm_index: [[u16; HEIGHT]; WIDTH],
@@ -162,7 +163,8 @@ impl MatrixSync {
             enabled: true,
             powered: true,
             off_since: 0,
-            sent: None,
+            sent_pwm: None,
+            sent_current: None,
             pwm_index,
             timer,
             stats: Stats::default(),
@@ -173,34 +175,59 @@ impl MatrixSync {
     /// Powers the LED controller off while no LED is lit and back on when one is.
     pub fn flush_if_dirty(&mut self, state: &LedmatrixState) {
         let calc_start = self.timer.get_counter().ticks();
-        let brightnesses = calc_brightnesses(state, &self.pwm_index);
+        let pwm = calc_pwm(state, &self.pwm_index);
         let calc_elapsed = (self.timer.get_counter().ticks() - calc_start) as u32;
         self.stats.calcs = self.stats.calcs.wrapping_add(1);
         self.stats.calc_us_total = self.stats.calc_us_total.wrapping_add(calc_elapsed);
         self.stats.calc_us_max = self.stats.calc_us_max.max(calc_elapsed);
 
-        let lit = brightnesses.iter().any(|&b| b != 0);
+        let lit = state.brightness != 0 && pwm.iter().any(|&b| b != 0);
         self.set_powered(self.enabled && lit);
         if !self.powered {
             return;
         }
 
-        if self.sent.as_ref() != Some(&brightnesses) {
-            let start = self.timer.get_counter().ticks();
-            self.matrix.device.fill_matrix(&brightnesses).unwrap();
+        let start = self.timer.get_counter().ticks();
+        let mut flushed = false;
+        // Brightness scales the current instead of the PWM values,
+        // so that all 256 PWM levels are available at every brightness
+        if self.sent_current != Some(state.brightness) {
+            self.write_config_register(GLOBAL_CURRENT_REGISTER, state.brightness);
+            self.sent_current = Some(state.brightness);
+            flushed = true;
+        }
+        if self.sent_pwm.as_ref() != Some(&pwm) {
+            self.matrix.device.fill_matrix(&pwm).unwrap();
+            self.sent_pwm = Some(pwm);
+            flushed = true;
+        }
+        if flushed {
             let elapsed = (self.timer.get_counter().ticks() - start) as u32;
-            self.sent = Some(brightnesses);
-
             self.stats.flushes = self.stats.flushes.wrapping_add(1);
             self.stats.flush_us_total = self.stats.flush_us_total.wrapping_add(elapsed);
             self.stats.flush_us_max = self.stats.flush_us_max.max(elapsed);
         }
     }
 
+    /// Write a register in the config page of the LED controller
+    fn write_config_register(&mut self, register: u8, value: u8) {
+        let device = &mut self.matrix.device;
+        let address = device.address;
+        device
+            .i2c
+            .write(address, &[CONFIG_LOCK_REGISTER, CONFIG_WRITE_ENABLE])
+            .unwrap();
+        device
+            .i2c
+            .write(address, &[PAGE_SELECT_REGISTER, CONFIG_PAGE])
+            .unwrap();
+        device.i2c.write(address, &[register, value]).unwrap();
+    }
+
     /// Sends the full grid, even if the controller should already have it.
     /// Recovers from the controller losing or corrupting its state.
     pub fn force_flush(&mut self, state: &LedmatrixState) {
-        self.sent = None;
+        self.forget_sent();
         self.flush_if_dirty(state);
     }
 
@@ -220,13 +247,19 @@ impl MatrixSync {
         self.count_off_time();
         if powered {
             self.led_enable.set_high().unwrap();
-            // It may not have kept or accepted PWM values while off
-            self.sent = None;
+            // It may not have kept or accepted register values while off
+            self.forget_sent();
             self.stats.led_power_ons = self.stats.led_power_ons.wrapping_add(1);
         } else {
             self.led_enable.set_low().unwrap();
         }
         self.powered = powered;
+    }
+
+    /// Send everything again on the next flush
+    fn forget_sent(&mut self) {
+        self.sent_pwm = None;
+        self.sent_current = None;
     }
 
     /// Add the time the LED controller has been off since the last call to the stats
@@ -253,18 +286,12 @@ impl MatrixSync {
 }
 
 /// Calculate PWM values for the entire grid, so they can be sent with just two I2C commands
-fn calc_brightnesses(
-    state: &LedmatrixState,
-    pwm_index: &[[u16; HEIGHT]; WIDTH],
-) -> [u8; PWM_BUF_LEN] {
-    let mut brightnesses = [0x00; PWM_BUF_LEN];
+fn calc_pwm(state: &LedmatrixState, pwm_index: &[[u16; HEIGHT]; WIDTH]) -> [u8; PWM_BUF_LEN] {
+    let mut pwm = [0x00; PWM_BUF_LEN];
     for y in 0..HEIGHT {
         for x in 0..WIDTH {
-            // u32 is plenty for 255 * 255 and avoids slow 64-bit division on the Cortex-M0+
-            brightnesses[pwm_index[x][y] as usize] =
-                ((state.grid.0[x][y] as u32) * (state.brightness as u32)
-                    / (BRIGHTNESS_LEVELS as u32)) as u8;
+            pwm[pwm_index[x][y] as usize] = state.grid.0[x][y];
         }
     }
-    brightnesses
+    pwm
 }
