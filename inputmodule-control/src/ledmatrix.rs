@@ -42,6 +42,8 @@ pub enum Demo {
     Fire,
     /// Text scrolling up smoothly, set with --demo-text
     Text,
+    /// Falling-sand hourglass timer, set the time with --demo-minutes
+    Hourglass,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, clap::ValueEnum)]
@@ -174,6 +176,11 @@ pub struct LedMatrixSubcommand {
     /// Text for --demo text
     #[arg(long, default_value = "FRAMEWORK")]
     pub demo_text: String,
+
+    /// Minutes until the sand of --demo hourglass runs out. With several values
+    /// it flips over after each and cycles through them, like 25 5 for Pomodoro
+    #[arg(long, num_args = 1.., default_values_t = [1.0])]
+    pub demo_minutes: Vec<f32>,
 
     /// Play a video file in greyscale. Requires ffmpeg in PATH
     #[arg(long)]

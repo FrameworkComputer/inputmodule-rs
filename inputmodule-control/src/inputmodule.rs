@@ -289,6 +289,7 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     &serialdevs,
                     demo,
                     &ledmatrix_args.demo_text,
+                    &ledmatrix_args.demo_minutes,
                     ledmatrix_args.fps,
                 );
             }
@@ -1091,6 +1092,263 @@ impl ScrollingText {
     }
 }
 
+/// Each LED is split into this many sand cells per side, so grains move by a fraction of an LED
+const SAND_SUB: usize = 4;
+const SAND_W: usize = WIDTH * SAND_SUB;
+const SAND_H: usize = HEIGHT * SAND_SUB;
+/// First row of the bottom chamber, the neck is between this and the row above
+const SAND_NECK: usize = SAND_H / 2;
+/// Sand simulation steps per second, grains fall by one cell per step
+const SAND_STEPS_PER_SEC: f32 = 60.0;
+/// Share of one chamber that's filled with sand
+const SAND_FILL: f32 = 0.55;
+/// Brightness of the LEDs that the edge of the glass goes through
+const GLASS_BRIGHTNESS: f32 = 0.06;
+/// How long the sand blinks after running out, before the hourglass flips over
+const SAND_BLINK_SECS: f32 = 2.0;
+
+/// One flag per sand cell, indexed like GreyGrid: [x][y]
+type SandGrid = [[bool; SAND_H]; SAND_W];
+
+/// Whether a sand cell is inside the glass.
+/// Two chambers, joined by a neck two cells wide. Towards the neck and the ends,
+/// the walls slant by one cell per row, which is the steepest slope sand can rest on,
+/// so it all runs out.
+fn inside_glass(x: usize, y: usize) -> bool {
+    let (to_neck, to_end) = if y < SAND_NECK {
+        (SAND_NECK - 1 - y, y)
+    } else {
+        (y - SAND_NECK, SAND_H - 1 - y)
+    };
+    let half = SAND_W / 2;
+    let half_width = half.min(1 + to_neck).min(8 + to_end);
+    (half - half_width..half + half_width).contains(&x)
+}
+
+/// Hourglass timer with falling sand. Lets sand through the neck just fast enough
+/// that the top chamber runs out when the time is up. Then it blinks, flips over
+/// and starts the next timer.
+struct Hourglass {
+    glass: SandGrid,
+    /// LEDs that the edge of the glass goes through, to show its outline
+    edge: [[bool; HEIGHT]; WIDTH],
+    /// Sand after the previous and the next simulation step
+    prev: SandGrid,
+    next: SandGrid,
+    steps: u64,
+    rng: ThreadRng,
+    /// Seconds of each timer, repeating
+    timers: Vec<f32>,
+    timer: usize,
+    /// Simulation time when the current timer is up
+    timer_end: f32,
+    /// Grains in the top chamber
+    top: usize,
+    /// How many grains may pass the neck, adds up to whole grains over several steps
+    allowance: f32,
+    /// Simulation time when the top chamber ran empty and all sand settled
+    empty_since: Option<f32>,
+}
+
+impl Hourglass {
+    fn new(minutes: &[f32]) -> Self {
+        let mut glass = [[false; SAND_H]; SAND_W];
+        for (x, col) in glass.iter_mut().enumerate() {
+            for (y, cell) in col.iter_mut().enumerate() {
+                *cell = inside_glass(x, y);
+            }
+        }
+
+        let mut edge = [[false; HEIGHT]; WIDTH];
+        for (x, col) in edge.iter_mut().enumerate() {
+            for (y, led) in col.iter_mut().enumerate() {
+                let inside = (0..SAND_SUB * SAND_SUB)
+                    .filter(|i| glass[x * SAND_SUB + i % SAND_SUB][y * SAND_SUB + i / SAND_SUB])
+                    .count();
+                *led = inside > 0 && inside < SAND_SUB * SAND_SUB;
+            }
+        }
+
+        // Fill the top chamber from the neck upwards, whole rows at a time
+        let chamber: usize = glass.iter().flatten().count() / 2;
+        let mut sand = [[false; SAND_H]; SAND_W];
+        let mut grains = 0;
+        for y in (0..SAND_NECK).rev() {
+            let row = (0..SAND_W).filter(|&x| glass[x][y]).count();
+            if (grains + row) as f32 > chamber as f32 * SAND_FILL {
+                break;
+            }
+            for x in 0..SAND_W {
+                sand[x][y] = glass[x][y];
+            }
+            grains += row;
+        }
+
+        let timers: Vec<f32> = minutes.iter().map(|m| m * 60.0).collect();
+        Self {
+            glass,
+            edge,
+            prev: sand,
+            next: sand,
+            steps: 0,
+            rng: thread_rng(),
+            timer_end: timers[0],
+            timers,
+            timer: 0,
+            top: grains,
+            allowance: 0.0,
+            empty_since: None,
+        }
+    }
+
+    /// Turn upside down and start the next timer
+    fn flip(&mut self, now: f32) {
+        let old = self.next;
+        for x in 0..SAND_W {
+            for y in 0..SAND_H {
+                self.next[x][y] = old[SAND_W - 1 - x][SAND_H - 1 - y];
+            }
+        }
+        // Don't blend between before and after flipping
+        self.prev = self.next;
+        self.top = self
+            .next
+            .iter()
+            .flat_map(|col| &col[..SAND_NECK])
+            .filter(|&&g| g)
+            .count();
+        self.allowance = 0.0;
+        self.empty_since = None;
+        self.timer = (self.timer + 1) % self.timers.len();
+        self.timer_end = now + self.timers[self.timer];
+    }
+
+    fn step(&mut self) {
+        self.prev = self.next;
+        let dt = 1.0 / SAND_STEPS_PER_SEC;
+        let now = self.steps as f32 * dt;
+        self.steps += 1;
+
+        if let Some(empty_since) = self.empty_since {
+            if now - empty_since >= SAND_BLINK_SECS {
+                self.flip(now);
+            }
+            return;
+        }
+
+        // Spread the remaining grains evenly over the remaining time.
+        // At most as many as fit through the neck in one step.
+        let time_left = (self.timer_end - now).max(dt);
+        self.allowance = (self.allowance + self.top as f32 * dt / time_left).min(2.0);
+
+        let glass = &self.glass;
+        let sand = &mut self.next;
+        let mut moved = false;
+        // Bottom to top, so every grain moves at most once per step.
+        // Alternate the direction, so piles don't lean to one side.
+        let right_to_left = self.steps.is_multiple_of(2);
+        for y in (0..SAND_H - 1).rev() {
+            let through_neck = y == SAND_NECK - 1;
+            let free = |sand: &SandGrid, x: usize| glass[x][y + 1] && !sand[x][y + 1];
+            // First let the whole row fall straight down, then slide down diagonally.
+            // So a gap gets filled from above before from the side, and travels up
+            // the middle. The middle drains first and leaves a crater, like in a real
+            // hourglass, instead of the sand flowing down along the walls.
+            for diagonal in [false, true] {
+                for i in 0..SAND_W {
+                    if through_neck && self.allowance < 1.0 {
+                        break;
+                    }
+                    let x = if right_to_left { SAND_W - 1 - i } else { i };
+                    if !sand[x][y] {
+                        continue;
+                    }
+                    let to = if diagonal {
+                        // To a random side first
+                        let (first, second) = if self.rng.gen() {
+                            (x.checked_sub(1), Some(x + 1).filter(|&x| x < SAND_W))
+                        } else {
+                            (Some(x + 1).filter(|&x| x < SAND_W), x.checked_sub(1))
+                        };
+                        [first, second]
+                            .into_iter()
+                            .flatten()
+                            .find(|&to| free(sand, to))
+                    } else {
+                        Some(x).filter(|&to| free(sand, to))
+                    };
+                    if let Some(to) = to {
+                        sand[x][y] = false;
+                        sand[to][y + 1] = true;
+                        moved = true;
+                        if through_neck {
+                            self.top -= 1;
+                            self.allowance -= 1.0;
+                        }
+                    }
+                }
+            }
+        }
+
+        if self.top == 0 && !moved {
+            self.empty_since = Some(now);
+        }
+    }
+
+    /// Time left on the current timer, for showing in the terminal
+    fn status(&self, t: f32) -> String {
+        let counter = if self.timers.len() > 1 {
+            format!("Timer {}/{}: ", self.timer + 1, self.timers.len())
+        } else {
+            String::new()
+        };
+        if self.empty_since.is_some() {
+            return format!("{}Time's up!", counter);
+        }
+        let secs = (self.timer_end - t).max(0.0).ceil() as u32;
+        format!("{}{}:{:02} left", counter, secs / 60, secs % 60)
+    }
+
+    /// Each LED is as bright as the share of its cells that hold sand.
+    /// Blends between simulation steps, so falling grains glide at any frame rate.
+    fn frame(&mut self, t: f32) -> GreyGrid {
+        let pos = t * SAND_STEPS_PER_SEC;
+        while self.steps <= pos as u64 + 1 {
+            self.step();
+        }
+        let blend = (pos - (self.steps - 2) as f32).clamp(0.0, 1.0);
+
+        // Blink three times per second when the time is up
+        let sand_brightness = match self.empty_since {
+            Some(since) if ((t - since).max(0.0) * 6.0) as u32 % 2 == 1 => 0.15,
+            _ => 1.0,
+        };
+
+        let cells = (SAND_SUB * SAND_SUB) as f32;
+        let mut grid = [[0; HEIGHT]; WIDTH];
+        for x in 0..WIDTH {
+            for y in 0..HEIGHT {
+                let count = |sand: &SandGrid| {
+                    (0..SAND_SUB * SAND_SUB)
+                        .filter(|i| sand[x * SAND_SUB + i % SAND_SUB][y * SAND_SUB + i / SAND_SUB])
+                        .count() as f32
+                };
+                let prev = count(&self.prev);
+                let coverage = (prev + (count(&self.next) - prev) * blend) / cells;
+                let glass = if self.edge[x][y] {
+                    GLASS_BRIGHTNESS
+                } else {
+                    0.0
+                };
+                // Linear instead of gamma, so the total light stays the same while moving
+                let brightness = glass + coverage * sand_brightness * (1.0 - glass);
+                grid[x][y] = (brightness * 255.0) as u8;
+            }
+        }
+        grid
+    }
+}
+
 /// Open ports for streaming frames and wake up the LED matrices
 fn open_stream_ports(serialdevs: &[String]) -> Vec<Box<dyn SerialPort>> {
     serialdevs
@@ -1123,6 +1381,8 @@ struct FpsReporter {
     start: Option<std::time::Instant>,
     /// Frames sent since then
     frames: u64,
+    /// Shown after the frame rate
+    status: String,
 }
 
 impl FpsReporter {
@@ -1130,6 +1390,7 @@ impl FpsReporter {
         Self {
             start: None,
             frames: 0,
+            status: String::new(),
         }
     }
 
@@ -1142,7 +1403,7 @@ impl FpsReporter {
         self.frames += 1;
         if start.elapsed() >= Duration::from_secs(1) {
             let rate = self.frames as f64 / start.elapsed().as_secs_f64();
-            print!("\r{:.1} FPS ", rate);
+            print!("\r{:.1} FPS {}   ", rate, self.status);
             let _ = std::io::Write::flush(&mut std::io::stdout());
             self.start = Some(std::time::Instant::now());
             self.frames = 0;
@@ -1309,12 +1570,18 @@ fn ffmpeg_stream(serialdevs: &[String], input: &[&str], fps: Option<u32>, frame_
     println!();
 }
 
-/// Run a greyscale demo forever, as fast as possible or limited to fps
-fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, fps: Option<u32>) {
+/// Run a greyscale demo forever, as fast as possible or limited to fps.
+/// The hourglass runs at its simulation rate by default, it doesn't get smoother beyond that.
+fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, minutes: &[f32], fps: Option<u32>) {
     let mut ports = open_stream_ports(serialdevs);
 
     let mut fire = Fire::new();
     let scrolling_text = ScrollingText::new(text);
+    let mut hourglass = Hourglass::new(minutes);
+    let fps = match demo {
+        Demo::Hourglass => fps.or(Some(SAND_STEPS_PER_SEC as u32)),
+        _ => fps,
+    };
 
     let start = std::time::Instant::now();
     let mut frames: u64 = 0;
@@ -1325,6 +1592,11 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, fps: Option<u32>) {
             Demo::Plasma => plasma_frame(t),
             Demo::Fire => fire.frame(t),
             Demo::Text => scrolling_text.frame(t),
+            Demo::Hourglass => {
+                let grid = hourglass.frame(t);
+                reporter.status = hourglass.status(t);
+                grid
+            }
         };
         send_grey_frame(&mut ports, &grid);
         frames += 1;
@@ -1854,5 +2126,40 @@ fn b1_display_pattern(serialdev: &str, pattern: B1Pattern) {
     match pattern {
         B1Pattern::Black => b1_display_color(serialdev, true),
         B1Pattern::White => b1_display_color(serialdev, false),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn grains(sand: &SandGrid) -> usize {
+        sand.iter().flatten().filter(|&&g| g).count()
+    }
+
+    #[test]
+    fn hourglass_runs_out_on_time() {
+        for minutes in [0.5, 2.0] {
+            let mut hourglass = Hourglass::new(&[minutes, 0.25]);
+            let total = grains(&hourglass.next);
+            assert_eq!(hourglass.top, total);
+
+            let mut t = 0.0;
+            while hourglass.empty_since.is_none() {
+                hourglass.frame(t);
+                t += 1.0 / 30.0;
+                assert!(t < minutes * 60.0 + 10.0, "Sand didn't run out");
+            }
+            let ran_out = hourglass.empty_since.unwrap();
+            println!("{} min ran out after {:.1}s", minutes, ran_out);
+            assert!((ran_out - minutes * 60.0).abs() < 2.0);
+            assert_eq!(grains(&hourglass.next), total);
+
+            // Flips over and starts the second timer, with all sand on top
+            hourglass.frame(t + SAND_BLINK_SECS + 0.1);
+            assert!(hourglass.empty_since.is_none());
+            assert_eq!(hourglass.timer, 1);
+            assert_eq!(hourglass.top, total);
+        }
     }
 }
