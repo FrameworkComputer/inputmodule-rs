@@ -6,7 +6,9 @@ use std::f32::consts::PI;
 
 use rand::prelude::*;
 
-use crate::hostgame::{add_rect, add_square, play, to_grid, HostGame, Input, Light, FIELD_W};
+use crate::hostgame::{
+    add_rect, add_square, play, to_grid, Burst, HostGame, Input, Light, FIELD_W,
+};
 use crate::inputmodule::{GreyGrid, HEIGHT, WIDTH};
 
 /// Physics steps per second, independent of the frame rate
@@ -54,7 +56,6 @@ const GEM_SIZE: f32 = 0.7;
 const GEM_FADE_SECS: f32 = 0.25;
 
 const CRASH_SECS: f32 = 1.0;
-const SPARKS: usize = 14;
 
 struct Segment {
     depth: f32,
@@ -66,12 +67,6 @@ struct Gem {
     depth: f32,
     x: f32,
     taken_at: Option<f32>,
-}
-
-/// Flies away from where the player crashed
-struct Spark {
-    vel_x: f32,
-    vel_y: f32,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -96,7 +91,8 @@ struct Game {
     gems: VecDeque<Gem>,
     gems_taken: u32,
     best: u32,
-    sparks: Vec<Spark>,
+    /// Where the player crashed
+    burst: Option<Burst>,
     /// Recent player positions with the time, for the trail. Newest last.
     trail: VecDeque<(f32, f32)>,
 }
@@ -113,7 +109,7 @@ impl Game {
             gems: VecDeque::new(),
             gems_taken: 0,
             best: 0,
-            sparks: vec![],
+            burst: None,
             trail: VecDeque::new(),
         };
         game.restart();
@@ -221,16 +217,7 @@ impl Game {
         if self.crashed() {
             self.state = State::Crashed { since: now };
             self.best = self.best.max(self.score());
-            self.sparks = (0..SPARKS)
-                .map(|i| {
-                    let angle = i as f32 / SPARKS as f32 * 2.0 * PI + self.rng.gen_range(0.0..0.4);
-                    let speed = self.rng.gen_range(3.0..10.0);
-                    Spark {
-                        vel_x: speed * angle.cos(),
-                        vel_y: speed * angle.sin(),
-                    }
-                })
-                .collect();
+            self.burst = Some(Burst::new(&mut self.rng, self.player_x, PLAYER_Y));
         }
     }
 }
@@ -314,12 +301,8 @@ impl HostGame for Game {
 
         match self.state {
             State::Crashed { since } => {
-                let age = (now - since).min(CRASH_SECS);
-                let fade = 1.0 - age / CRASH_SECS;
-                for spark in &self.sparks {
-                    let x = self.player_x + spark.vel_x * age;
-                    let y = PLAYER_Y + spark.vel_y * age;
-                    add_square(&mut light, x, y, 0.8 * fade);
+                if let Some(burst) = &self.burst {
+                    burst.draw(&mut light, now - since, CRASH_SECS);
                 }
             }
             _ => {

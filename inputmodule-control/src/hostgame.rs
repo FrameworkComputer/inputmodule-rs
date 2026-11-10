@@ -14,6 +14,7 @@ use crossterm::event::{
     PushKeyboardEnhancementFlags,
 };
 use crossterm::{cursor, execute, terminal};
+use rand::Rng;
 
 use crate::inputmodule::{open_stream_ports, send_grey_frame, GreyGrid, HEIGHT, WIDTH};
 
@@ -39,6 +40,44 @@ pub fn add_rect(light: &mut Light, (x0, y0): (f32, f32), (x1, y1): (f32, f32), b
 /// A square one LED wide, centered on x, y
 pub fn add_square(light: &mut Light, x: f32, y: f32, brightness: f32) {
     add_rect(light, (x - 0.5, y - 0.5), (x + 0.5, y + 0.5), brightness);
+}
+
+/// Sparks flying apart from a point, like when the player crashes
+pub struct Burst {
+    x: f32,
+    y: f32,
+    /// Velocity of each spark in LEDs per second
+    sparks: Vec<(f32, f32)>,
+}
+
+impl Burst {
+    pub fn new(rng: &mut impl Rng, x: f32, y: f32) -> Self {
+        const SPARKS: usize = 14;
+        let sparks = (0..SPARKS)
+            .map(|i| {
+                // Evenly around the circle, a bit random so it's different every time
+                let angle =
+                    i as f32 / SPARKS as f32 * std::f32::consts::TAU + rng.gen_range(0.0..0.4);
+                let speed = rng.gen_range(3.0..10.0);
+                (speed * angle.cos(), speed * angle.sin())
+            })
+            .collect();
+        Self { x, y, sparks }
+    }
+
+    /// Draw it age seconds after it started, faded out after duration
+    pub fn draw(&self, light: &mut Light, age: f32, duration: f32) {
+        let age = age.clamp(0.0, duration);
+        let fade = 1.0 - age / duration;
+        for &(vel_x, vel_y) in &self.sparks {
+            add_square(
+                light,
+                self.x + vel_x * age,
+                self.y + vel_y * age,
+                0.8 * fade,
+            );
+        }
+    }
 }
 
 /// Convert to a frame for the LED matrix, scaling everything by dim
