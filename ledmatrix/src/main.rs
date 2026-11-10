@@ -267,6 +267,7 @@ fn main() -> ! {
         animation_period: 31_250, // 31,250 us = 32 FPS
         pwm_freq: PwmFreqArg::P29k,
         debug_mode: false,
+        gamma: false,
         upcoming_frames: None,
     };
     state.debug_mode = dip1.is_low().unwrap();

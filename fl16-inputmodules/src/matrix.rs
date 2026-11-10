@@ -48,6 +48,8 @@ pub struct LedmatrixState {
     /// - Sleep/wake transition is instant, no animation/fading
     /// - No automatic sleeping
     pub debug_mode: bool,
+    /// Whether greyscale values are sRGB, like in images, instead of linear light
+    pub gamma: bool,
     pub upcoming_frames: Option<Animation>,
 }
 

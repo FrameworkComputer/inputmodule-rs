@@ -13,6 +13,8 @@ pub mod fl16;
 #[cfg(feature = "ledmatrix")]
 pub mod games;
 #[cfg(feature = "ledmatrix")]
+pub mod gamma;
+#[cfg(feature = "ledmatrix")]
 pub mod led_hal;
 #[cfg(feature = "ledmatrix")]
 #[rustfmt::skip]

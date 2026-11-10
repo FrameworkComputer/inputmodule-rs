@@ -70,6 +70,7 @@ pub enum CommandVals {
     SetFps = 0x1A,
     SetPowerMode = 0x1B,
     AnimationPeriod = 0x1C,
+    Gamma = 0x1D,
     PwmFreq = 0x1E,
     DebugMode = 0x1F,
     Version = 0x20,
@@ -214,6 +215,9 @@ pub enum Command {
     GetPwmFreq,
     SetDebugMode(bool),
     GetDebugMode,
+    /// Turn gamma correction on or off
+    SetGamma(bool),
+    GetGamma,
     /// Get a page of performance counters
     GetStats(u8),
     _Unknown,
@@ -403,6 +407,11 @@ pub fn parse_module_command(count: usize, buf: &[u8]) -> Option<Command> {
                 Command::GetDebugMode
             }),
             Some(CommandVals::Stats) => Some(Command::GetStats(arg.unwrap_or(0))),
+            Some(CommandVals::Gamma) => Some(if let Some(gamma) = arg {
+                Command::SetGamma(gamma == 1)
+            } else {
+                Command::GetGamma
+            }),
             _ => None,
         }
     } else {
@@ -644,6 +653,15 @@ pub fn handle_command(
             Some(response)
         }
         Command::GetStats(page) => Some(display.take_stats(*page)),
+        Command::SetGamma(arg) => {
+            state.gamma = *arg;
+            None
+        }
+        Command::GetGamma => {
+            let mut response: [u8; 32] = [0; 32];
+            response[0] = state.gamma as u8;
+            Some(response)
+        }
         _ => handle_generic_command(command),
     }
 }

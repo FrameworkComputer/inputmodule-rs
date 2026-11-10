@@ -1,4 +1,5 @@
 use crate::control::PwmFreqArg;
+use crate::gamma::{srgb_levels, LedLevel};
 use crate::led_hal as bsp;
 use crate::matrix::{LedmatrixState, HEIGHT, WIDTH};
 use embedded_hal::digital::OutputPin;
@@ -158,6 +159,8 @@ pub struct MatrixSync {
     sent_current: Option<u8>,
     /// Per-LED scaling at full current. Limits how much current the LEDs draw
     max_scale: u8,
+    /// How to drive an LED for each greyscale value, with gamma correction
+    srgb_levels: [LedLevel; 256],
     /// Index into the PWM buffer of each pixel.
     /// Calculated once, because calc_pixel builds its whole lookup table on every call.
     pwm_index: [[u16; HEIGHT]; WIDTH],
@@ -186,6 +189,7 @@ impl MatrixSync {
             sent_scale: None,
             sent_current: None,
             max_scale,
+            srgb_levels: srgb_levels(max_scale),
             pwm_index,
             timer,
             stats: Stats::default(),
@@ -240,10 +244,18 @@ impl MatrixSync {
     /// so each can be sent with just two I2C commands
     fn calc_frame(&self, state: &LedmatrixState) -> ([u8; PWM_BUF_LEN], [u8; PWM_BUF_LEN]) {
         let mut pwm = [0x00; PWM_BUF_LEN];
-        let scale = [self.max_scale; PWM_BUF_LEN];
+        let mut scale = [self.max_scale; PWM_BUF_LEN];
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
-                pwm[self.pwm_index[x][y] as usize] = state.grid.0[x][y];
+                let index = self.pwm_index[x][y] as usize;
+                let value = state.grid.0[x][y];
+                if state.gamma {
+                    let level = self.srgb_levels[value as usize];
+                    pwm[index] = level.pwm;
+                    scale[index] = level.scale;
+                } else {
+                    pwm[index] = value;
+                }
             }
         }
         (pwm, scale)
