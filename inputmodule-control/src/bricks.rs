@@ -1,25 +1,13 @@
-//! Brick breaker game, played on the host and streamed to the LED matrix.
-//!
-//! Positions are in LEDs, but not rounded to whole LEDs. Each LED lights up by how
-//! much of it the ball, paddle or bricks cover, so they glide smoothly instead of
-//! jumping from LED to LED. The higher the frame rate, the smoother it looks.
+//! Brick breaker game, played on the host and streamed to the LED matrix
 
 use std::collections::VecDeque;
-use std::io::{stdout, Write};
-use std::time::{Duration, Instant};
 
-use crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
-    KeyboardEnhancementFlags, MouseButton, MouseEventKind, PopKeyboardEnhancementFlags,
-    PushKeyboardEnhancementFlags,
-};
-use crossterm::{cursor, execute, terminal};
 use rand::prelude::*;
 
-use crate::inputmodule::{open_stream_ports, send_grey_frame, GreyGrid, HEIGHT, WIDTH};
-
-const FIELD_W: f32 = WIDTH as f32;
-const FIELD_H: f32 = HEIGHT as f32;
+use crate::hostgame::{
+    add_rect, add_square, play, to_grid, HostGame, Input, Light, FIELD_H, FIELD_W,
+};
+use crate::inputmodule::{GreyGrid, HEIGHT, WIDTH};
 
 /// Physics steps per second, independent of the frame rate.
 /// Small enough steps that even the fastest ball can't skip through a brick.
@@ -100,18 +88,6 @@ enum State {
     GameOver,
 }
 
-/// What the player wants, collected from terminal events
-#[derive(Default)]
-struct Input {
-    /// Where the paddle should go, from the mouse or arrow key presses
-    target: Option<f32>,
-    /// Arrow keys currently held, only known if the terminal reports key releases
-    held_left: bool,
-    held_right: bool,
-    launch: bool,
-    quit: bool,
-}
-
 struct Game {
     rng: ThreadRng,
     state: State,
@@ -188,64 +164,6 @@ impl Game {
         self.balls = BALLS;
         self.build_level();
         self.serve(now);
-    }
-
-    fn move_paddle(&mut self, input: &mut Input, dt: f32) {
-        let held = input.held_right as i32 - input.held_left as i32;
-        if held != 0 {
-            self.paddle_x += held as f32 * PADDLE_KEY_SPEED * dt;
-            input.target = None;
-        } else if let Some(target) = input.target {
-            let max_step = PADDLE_MAX_SPEED * dt;
-            self.paddle_x += (target - self.paddle_x).clamp(-max_step, max_step);
-        }
-        let half = PADDLE_WIDTH / 2.0;
-        self.paddle_x = self.paddle_x.clamp(half, FIELD_W - half);
-    }
-
-    fn update(&mut self, input: &mut Input, now: f32, dt: f32) {
-        self.move_paddle(input, dt);
-        match self.state {
-            State::Serving { since } => {
-                self.ball_x = self.paddle_x;
-                self.ball_y = PADDLE_Y - BALL_RADIUS;
-                if input.launch || now - since >= AUTO_LAUNCH_SECS {
-                    self.launch();
-                }
-            }
-            State::Playing => {
-                let steps = (dt * STEPS_PER_SEC).ceil().max(1.0);
-                for i in 0..steps as u32 {
-                    let step_time = now - dt + dt * (i + 1) as f32 / steps;
-                    self.step_ball(dt / steps, step_time);
-                    if self.state != State::Playing {
-                        break;
-                    }
-                }
-            }
-            State::Lost { since } => {
-                if now - since >= LOST_SECS {
-                    if self.balls == 0 {
-                        self.state = State::GameOver;
-                    } else {
-                        self.serve(now);
-                    }
-                }
-            }
-            State::Cleared { since } => {
-                if now - since >= CLEARED_SECS {
-                    self.level += 1;
-                    self.build_level();
-                    self.serve(now);
-                }
-            }
-            State::GameOver => {
-                if input.launch {
-                    self.restart(now);
-                }
-            }
-        }
-        input.launch = false;
     }
 
     fn step_ball(&mut self, dt: f32, now: f32) {
@@ -334,9 +252,62 @@ impl Game {
             self.state = State::Lost { since: now };
         }
     }
+}
+
+impl HostGame for Game {
+    fn player_x(&self) -> f32 {
+        self.paddle_x
+    }
+
+    fn update(&mut self, input: &mut Input, now: f32, dt: f32) {
+        let half = PADDLE_WIDTH / 2.0;
+        self.paddle_x = input
+            .steer(self.paddle_x, dt, PADDLE_KEY_SPEED, PADDLE_MAX_SPEED)
+            .clamp(half, FIELD_W - half);
+        match self.state {
+            State::Serving { since } => {
+                self.ball_x = self.paddle_x;
+                self.ball_y = PADDLE_Y - BALL_RADIUS;
+                if input.action || now - since >= AUTO_LAUNCH_SECS {
+                    self.launch();
+                }
+            }
+            State::Playing => {
+                let steps = (dt * STEPS_PER_SEC).ceil().max(1.0);
+                for i in 0..steps as u32 {
+                    let step_time = now - dt + dt * (i + 1) as f32 / steps;
+                    self.step_ball(dt / steps, step_time);
+                    if self.state != State::Playing {
+                        break;
+                    }
+                }
+            }
+            State::Lost { since } => {
+                if now - since >= LOST_SECS {
+                    if self.balls == 0 {
+                        self.state = State::GameOver;
+                    } else {
+                        self.serve(now);
+                    }
+                }
+            }
+            State::Cleared { since } => {
+                if now - since >= CLEARED_SECS {
+                    self.level += 1;
+                    self.build_level();
+                    self.serve(now);
+                }
+            }
+            State::GameOver => {
+                if input.action {
+                    self.restart(now);
+                }
+            }
+        }
+    }
 
     fn render(&self, now: f32) -> GreyGrid {
-        let mut light = [[0.0f32; HEIGHT]; WIDTH];
+        let mut light: Light = [[0.0; HEIGHT]; WIDTH];
 
         for brick in &self.bricks {
             let since_hit = brick.hit_at.map_or(f32::MAX, |t| now - t);
@@ -382,10 +353,10 @@ impl Game {
             for &(ago, brightness) in &TRAIL {
                 if let Some(&(_, x, y)) = self.trail.iter().rev().find(|&&(t, _, _)| now - t >= ago)
                 {
-                    add_ball(&mut light, x, y, brightness);
+                    add_square(&mut light, x, y, brightness);
                 }
             }
-            add_ball(&mut light, self.ball_x, self.ball_y, 1.0);
+            add_square(&mut light, self.ball_x, self.ball_y, 1.0);
         }
 
         // Spare balls as dim dots in the bottom right corner
@@ -408,14 +379,7 @@ impl Game {
         } else {
             1.0
         };
-        let mut grid = [[0; HEIGHT]; WIDTH];
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
-                // Linear instead of gamma, so the total light stays the same while moving
-                grid[x][y] = (light[x][y].min(1.0) * dim * 255.0) as u8;
-            }
-        }
-        grid
+        to_grid(&light, dim)
     }
 
     fn status(&self, fps: f64) -> String {
@@ -433,165 +397,14 @@ impl Game {
     }
 }
 
-/// Light up the LEDs by how much of them the rectangle covers
-fn add_rect(
-    light: &mut [[f32; HEIGHT]; WIDTH],
-    (x0, y0): (f32, f32),
-    (x1, y1): (f32, f32),
-    brightness: f32,
-) {
-    let cols = (x0.floor().max(0.0) as usize)..(x1.ceil().min(FIELD_W) as usize);
-    let rows = (y0.floor().max(0.0) as usize)..(y1.ceil().min(FIELD_H) as usize);
-    for x in cols {
-        let cover_x = x1.min(x as f32 + 1.0) - x0.max(x as f32);
-        for y in rows.clone() {
-            let cover_y = y1.min(y as f32 + 1.0) - y0.max(y as f32);
-            light[x][y] += brightness * cover_x * cover_y;
-        }
-    }
-}
-
-fn add_ball(light: &mut [[f32; HEIGHT]; WIDTH], x: f32, y: f32, brightness: f32) {
-    let r = BALL_RADIUS;
-    add_rect(light, (x - r, y - r), (x + r, y + r), brightness);
-}
-
-/// Puts the terminal into raw mode with mouse reporting, and back when dropped,
-/// even if the game panics
-struct RawTerminal {
-    /// Whether the terminal reports key releases, so keys can be held
-    key_releases: bool,
-}
-
-impl RawTerminal {
-    fn new() -> std::io::Result<Self> {
-        terminal::enable_raw_mode()?;
-        execute!(stdout(), EnableMouseCapture, cursor::Hide)?;
-        // Windows always reports releases, other terminals only with the kitty keyboard protocol
-        let enhanced = matches!(terminal::supports_keyboard_enhancement(), Ok(true));
-        if enhanced {
-            execute!(
-                stdout(),
-                PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES)
-            )?;
-        }
-        Ok(Self {
-            key_releases: enhanced || cfg!(windows),
-        })
-    }
-}
-
-impl Drop for RawTerminal {
-    fn drop(&mut self) {
-        if self.key_releases && !cfg!(windows) {
-            let _ = execute!(stdout(), PopKeyboardEnhancementFlags);
-        }
-        let _ = execute!(stdout(), DisableMouseCapture, cursor::Show);
-        let _ = terminal::disable_raw_mode();
-        println!();
-    }
-}
-
-/// Apply all pending terminal events to the input
-fn read_input(input: &mut Input, key_releases: bool, paddle_x: f32) -> std::io::Result<()> {
-    while event::poll(Duration::ZERO)? {
-        match event::read()? {
-            Event::Key(key) => {
-                let pressed = key.kind != KeyEventKind::Release;
-                let ctrl_c =
-                    key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL);
-                let dir = match key.code {
-                    KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => -1.0,
-                    KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => 1.0,
-                    _ => 0.0,
-                };
-                if dir != 0.0 {
-                    if key_releases {
-                        if dir < 0.0 {
-                            input.held_left = pressed;
-                        } else {
-                            input.held_right = pressed;
-                        }
-                    } else if pressed {
-                        // Without releases, every press and key repeat moves by one LED
-                        let from = input.target.unwrap_or(paddle_x);
-                        input.target = Some(from + dir);
-                    }
-                } else if pressed {
-                    match key.code {
-                        KeyCode::Char(' ') | KeyCode::Up | KeyCode::Enter => input.launch = true,
-                        KeyCode::Char('q') | KeyCode::Esc => input.quit = true,
-                        _ if ctrl_c => input.quit = true,
-                        _ => {}
-                    }
-                }
-            }
-            Event::Mouse(mouse) => {
-                // The width of the terminal maps to the width of the LED matrix
-                let (cols, _) = terminal::size()?;
-                let x = (mouse.column as f32 + 0.5) / cols.max(1) as f32 * FIELD_W;
-                match mouse.kind {
-                    MouseEventKind::Moved | MouseEventKind::Drag(_) => input.target = Some(x),
-                    MouseEventKind::Down(MouseButton::Left) => input.launch = true,
-                    _ => {}
-                }
-            }
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
 /// Play until the player quits, as fast as possible or limited to fps
 pub fn bricks_cmd(serialdevs: &[String], fps: Option<u32>) {
-    let mut ports = open_stream_ports(serialdevs);
-    println!("Steer with the arrow keys, or move the mouse across this terminal.");
-    println!("Space or a click launches the ball. Q or Esc quits.");
-
-    let term = RawTerminal::new().expect("Failed to set up the terminal");
-    let mut input = Input::default();
-    let mut game = Game::new();
-
-    let start = Instant::now();
-    let mut last = 0.0;
-    let mut frames: u64 = 0;
-    let mut fps_frames = 0;
-    let mut fps_since = start;
-    let mut measured_fps = 0.0;
-    loop {
-        read_input(&mut input, term.key_releases, game.paddle_x).expect("Failed to read input");
-        if input.quit {
-            break;
-        }
-        let now = start.elapsed().as_secs_f32();
-        // Don't jump ahead after a hiccup, like the matrix not responding for a while
-        let dt = (now - last).min(0.05);
-        last = now;
-        game.update(&mut input, now, dt);
-        send_grey_frame(&mut ports, &game.render(now));
-        frames += 1;
-
-        fps_frames += 1;
-        if fps_since.elapsed() >= Duration::from_millis(500) {
-            measured_fps = fps_frames as f64 / fps_since.elapsed().as_secs_f64();
-            fps_frames = 0;
-            fps_since = Instant::now();
-            print!("\r{}\x1b[K", game.status(measured_fps));
-            let _ = stdout().flush();
-        }
-
-        if let Some(fps) = fps {
-            let next_frame = start + Duration::from_secs_f64(frames as f64 / fps as f64);
-            if let Some(wait) = next_frame.checked_duration_since(Instant::now()) {
-                std::thread::sleep(wait);
-            }
-        }
-    }
-
-    // Leave the matrix dark instead of on the last frame
-    send_grey_frame(&mut ports, &[[0; HEIGHT]; WIDTH]);
-    drop(term);
-    println!("{}", game.status(measured_fps));
+    play(
+        serialdevs,
+        fps,
+        "Space or a click launches the ball.",
+        &mut Game::new(),
+    );
 }
 
 #[cfg(test)]
@@ -607,7 +420,7 @@ mod tests {
         let mut now = 0.0;
         while game.level == 1 {
             input.target = Some(game.ball_x + 0.4);
-            input.launch = true;
+            input.action = true;
             now += dt;
             game.update(&mut input, now, dt);
             game.render(now);
@@ -615,15 +428,5 @@ mod tests {
             assert!(now < 300.0, "Didn't clear the level");
         }
         println!("Cleared level 1 in {:.1}s, score {}", now, game.score);
-    }
-
-    #[test]
-    fn rect_covers_partial_leds() {
-        let mut light = [[0.0f32; HEIGHT]; WIDTH];
-        add_ball(&mut light, 1.25, 1.5, 1.0);
-        let total: f32 = light.iter().flatten().sum();
-        assert!((total - 1.0).abs() < 1e-5);
-        assert!((light[0][1] - 0.25).abs() < 1e-5);
-        assert!((light[1][1] - 0.75).abs() < 1e-5);
     }
 }

@@ -1,0 +1,248 @@
+//! Shared parts of the games that run on the host and stream frames to the LED matrix:
+//! drawing by area, terminal input and the frame loop.
+//!
+//! Positions are in LEDs, but not rounded to whole LEDs. Each LED lights up by how
+//! much of it a shape covers, so things glide smoothly instead of jumping from LED
+//! to LED. The higher the frame rate, the smoother it looks.
+
+use std::io::{stdout, Write};
+use std::time::{Duration, Instant};
+
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
+    KeyboardEnhancementFlags, MouseButton, MouseEventKind, PopKeyboardEnhancementFlags,
+    PushKeyboardEnhancementFlags,
+};
+use crossterm::{cursor, execute, terminal};
+
+use crate::inputmodule::{open_stream_ports, send_grey_frame, GreyGrid, HEIGHT, WIDTH};
+
+pub const FIELD_W: f32 = WIDTH as f32;
+pub const FIELD_H: f32 = HEIGHT as f32;
+
+/// Brightness of each LED, 1.0 is fully on. Adds up where shapes overlap.
+pub type Light = [[f32; HEIGHT]; WIDTH];
+
+/// Light up the LEDs by how much of them the rectangle covers
+pub fn add_rect(light: &mut Light, (x0, y0): (f32, f32), (x1, y1): (f32, f32), brightness: f32) {
+    let cols = (x0.floor().max(0.0) as usize)..(x1.ceil().min(FIELD_W) as usize);
+    let rows = (y0.floor().max(0.0) as usize)..(y1.ceil().min(FIELD_H) as usize);
+    for x in cols {
+        let cover_x = x1.min(x as f32 + 1.0) - x0.max(x as f32);
+        for y in rows.clone() {
+            let cover_y = y1.min(y as f32 + 1.0) - y0.max(y as f32);
+            light[x][y] += brightness * cover_x * cover_y;
+        }
+    }
+}
+
+/// A square one LED wide, centered on x, y
+pub fn add_square(light: &mut Light, x: f32, y: f32, brightness: f32) {
+    add_rect(light, (x - 0.5, y - 0.5), (x + 0.5, y + 0.5), brightness);
+}
+
+/// Convert to a frame for the LED matrix, scaling everything by dim
+pub fn to_grid(light: &Light, dim: f32) -> GreyGrid {
+    let mut grid = [[0; HEIGHT]; WIDTH];
+    for x in 0..WIDTH {
+        for y in 0..HEIGHT {
+            // Linear instead of gamma, so the total light stays the same while moving
+            grid[x][y] = (light[x][y].clamp(0.0, 1.0) * dim * 255.0) as u8;
+        }
+    }
+    grid
+}
+
+/// What the player wants, collected from terminal events
+#[derive(Default)]
+pub struct Input {
+    /// Where the player should go, from the mouse or arrow key presses
+    pub target: Option<f32>,
+    /// Arrow keys currently held, only known if the terminal reports key releases
+    pub held_left: bool,
+    pub held_right: bool,
+    /// Space, Enter, up arrow or a click since the last update
+    pub action: bool,
+    pub quit: bool,
+}
+
+impl Input {
+    /// Move x the way the player steers: at key_speed while an arrow key is held,
+    /// otherwise towards the mouse or the last key press, at most at max_speed
+    pub fn steer(&mut self, x: f32, dt: f32, key_speed: f32, max_speed: f32) -> f32 {
+        let held = self.held_right as i32 - self.held_left as i32;
+        if held != 0 {
+            self.target = None;
+            x + held as f32 * key_speed * dt
+        } else if let Some(target) = self.target {
+            let max_step = max_speed * dt;
+            x + (target - x).clamp(-max_step, max_step)
+        } else {
+            x
+        }
+    }
+}
+
+/// A game that runs on the host, see play()
+pub trait HostGame {
+    /// Where the player is, arrow key presses move on from there
+    fn player_x(&self) -> f32;
+    /// Advance to now, dt seconds after the last update
+    fn update(&mut self, input: &mut Input, now: f32, dt: f32);
+    fn render(&self, now: f32) -> GreyGrid;
+    /// One line for the terminal, like the score
+    fn status(&self, fps: f64) -> String;
+}
+
+/// Puts the terminal into raw mode with mouse reporting, and back when dropped,
+/// even if the game panics
+struct RawTerminal {
+    /// Whether the terminal reports key releases, so keys can be held
+    key_releases: bool,
+}
+
+impl RawTerminal {
+    fn new() -> std::io::Result<Self> {
+        terminal::enable_raw_mode()?;
+        execute!(stdout(), EnableMouseCapture, cursor::Hide)?;
+        // Windows always reports releases, other terminals only with the kitty keyboard protocol
+        let enhanced = matches!(terminal::supports_keyboard_enhancement(), Ok(true));
+        if enhanced {
+            execute!(
+                stdout(),
+                PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::REPORT_EVENT_TYPES)
+            )?;
+        }
+        Ok(Self {
+            key_releases: enhanced || cfg!(windows),
+        })
+    }
+}
+
+impl Drop for RawTerminal {
+    fn drop(&mut self) {
+        if self.key_releases && !cfg!(windows) {
+            let _ = execute!(stdout(), PopKeyboardEnhancementFlags);
+        }
+        let _ = execute!(stdout(), DisableMouseCapture, cursor::Show);
+        let _ = terminal::disable_raw_mode();
+        println!();
+    }
+}
+
+/// Apply all pending terminal events to the input
+fn read_input(input: &mut Input, key_releases: bool, player_x: f32) -> std::io::Result<()> {
+    while event::poll(Duration::ZERO)? {
+        match event::read()? {
+            Event::Key(key) => {
+                let pressed = key.kind != KeyEventKind::Release;
+                let ctrl_c =
+                    key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL);
+                let dir = match key.code {
+                    KeyCode::Left | KeyCode::Char('a') | KeyCode::Char('h') => -1.0,
+                    KeyCode::Right | KeyCode::Char('d') | KeyCode::Char('l') => 1.0,
+                    _ => 0.0,
+                };
+                if dir != 0.0 {
+                    if key_releases {
+                        if dir < 0.0 {
+                            input.held_left = pressed;
+                        } else {
+                            input.held_right = pressed;
+                        }
+                    } else if pressed {
+                        // Without releases, every press and key repeat moves by one LED
+                        let from = input.target.unwrap_or(player_x);
+                        input.target = Some(from + dir);
+                    }
+                } else if pressed {
+                    match key.code {
+                        KeyCode::Char(' ') | KeyCode::Up | KeyCode::Enter => input.action = true,
+                        KeyCode::Char('q') | KeyCode::Esc => input.quit = true,
+                        _ if ctrl_c => input.quit = true,
+                        _ => {}
+                    }
+                }
+            }
+            Event::Mouse(mouse) => {
+                // The width of the terminal maps to the width of the LED matrix
+                let (cols, _) = terminal::size()?;
+                let x = (mouse.column as f32 + 0.5) / cols.max(1) as f32 * FIELD_W;
+                match mouse.kind {
+                    MouseEventKind::Moved | MouseEventKind::Drag(_) => input.target = Some(x),
+                    MouseEventKind::Down(MouseButton::Left) => input.action = true,
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// Play until the player quits, as fast as possible or limited to fps
+pub fn play(serialdevs: &[String], fps: Option<u32>, help: &str, game: &mut impl HostGame) {
+    let mut ports = open_stream_ports(serialdevs);
+    println!("Steer with the arrow keys, or move the mouse across this terminal.");
+    println!("{} Q or Esc quits.", help);
+
+    let term = RawTerminal::new().expect("Failed to set up the terminal");
+    let mut input = Input::default();
+
+    let start = Instant::now();
+    let mut last = 0.0;
+    let mut frames: u64 = 0;
+    let mut fps_frames = 0;
+    let mut fps_since = start;
+    let mut measured_fps = 0.0;
+    loop {
+        read_input(&mut input, term.key_releases, game.player_x()).expect("Failed to read input");
+        if input.quit {
+            break;
+        }
+        let now = start.elapsed().as_secs_f32();
+        // Don't jump ahead after a hiccup, like the matrix not responding for a while
+        let dt = (now - last).min(0.05);
+        last = now;
+        game.update(&mut input, now, dt);
+        input.action = false;
+        send_grey_frame(&mut ports, &game.render(now));
+        frames += 1;
+
+        fps_frames += 1;
+        if fps_since.elapsed() >= Duration::from_millis(500) {
+            measured_fps = fps_frames as f64 / fps_since.elapsed().as_secs_f64();
+            fps_frames = 0;
+            fps_since = Instant::now();
+            print!("\r{}\x1b[K", game.status(measured_fps));
+            let _ = stdout().flush();
+        }
+
+        if let Some(fps) = fps {
+            let next_frame = start + Duration::from_secs_f64(frames as f64 / fps as f64);
+            if let Some(wait) = next_frame.checked_duration_since(Instant::now()) {
+                std::thread::sleep(wait);
+            }
+        }
+    }
+
+    // Leave the matrix dark instead of on the last frame
+    send_grey_frame(&mut ports, &[[0; HEIGHT]; WIDTH]);
+    drop(term);
+    println!("{}", game.status(measured_fps));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn square_covers_partial_leds() {
+        let mut light = [[0.0f32; HEIGHT]; WIDTH];
+        add_square(&mut light, 1.25, 1.5, 1.0);
+        let total: f32 = light.iter().flatten().sum();
+        assert!((total - 1.0).abs() < 1e-5);
+        assert!((light[0][1] - 0.25).abs() < 1e-5);
+        assert!((light[1][1] - 0.75).abs() < 1e-5);
+    }
+}
