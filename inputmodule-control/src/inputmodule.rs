@@ -63,8 +63,8 @@ enum GameControlArg {
     _SecondRight = 6,
 }
 
-const WIDTH: usize = 9;
-const HEIGHT: usize = 34;
+pub const WIDTH: usize = 9;
+pub const HEIGHT: usize = 34;
 
 const SERIAL_TIMEOUT: Duration = Duration::from_millis(20);
 
@@ -282,6 +282,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
 
             if let Some(device) = &ledmatrix_args.camera {
                 camera_cmd(&serialdevs, device.as_deref(), ledmatrix_args.fps);
+            }
+
+            if ledmatrix_args.bricks {
+                crate::bricks::bricks_cmd(&serialdevs, ledmatrix_args.fps);
             }
 
             if let Some(demo) = ledmatrix_args.demo {
@@ -955,7 +959,7 @@ fn display_gray_image_cmd(serialdev: &str, image_path: &str) {
     commit_cols(&mut port);
 }
 
-type GreyGrid = [[u8; HEIGHT]; WIDTH];
+pub type GreyGrid = [[u8; HEIGHT]; WIDTH];
 
 /// Make dim values dimmer, so the LEDs show more contrast
 fn gamma(brightness: f32) -> u8 {
@@ -1350,7 +1354,7 @@ impl Hourglass {
 }
 
 /// Open ports for streaming frames and wake up the LED matrices
-fn open_stream_ports(serialdevs: &[String]) -> Vec<Box<dyn SerialPort>> {
+pub fn open_stream_ports(serialdevs: &[String]) -> Vec<Box<dyn SerialPort>> {
     serialdevs
         .iter()
         .map(|serialdev| {
@@ -1366,7 +1370,7 @@ fn open_stream_ports(serialdevs: &[String]) -> Vec<Box<dyn SerialPort>> {
 }
 
 /// Send a greyscale frame to every port
-fn send_grey_frame(ports: &mut [Box<dyn SerialPort>], grid: &GreyGrid) {
+pub fn send_grey_frame(ports: &mut [Box<dyn SerialPort>], grid: &GreyGrid) {
     for port in ports {
         for (x, col) in grid.iter().enumerate() {
             send_col(port, x as u8, col);

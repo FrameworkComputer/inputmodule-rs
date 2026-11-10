@@ -191,8 +191,12 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub camera: Option<Option<String>>,
 
-    /// Limit --demo, --video or --camera to this many frames per second.
-    /// Uncapped for --demo, the video's frame rate for --video
+    /// Play a brick breaker game, with the arrow keys or the mouse in the terminal
+    #[arg(long)]
+    pub bricks: bool,
+
+    /// Limit --demo, --bricks, --video or --camera to this many frames per second.
+    /// Uncapped for --demo and --bricks, the video's frame rate for --video
     /// and the camera's frame rate for --camera by default
     #[arg(long)]
     pub fps: Option<u32>,

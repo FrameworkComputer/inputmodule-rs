@@ -1,6 +1,7 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::single_match)]
 mod b1display;
+mod bricks;
 mod c1minimal;
 mod font;
 mod inputmodule;
