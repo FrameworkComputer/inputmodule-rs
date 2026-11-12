@@ -17,6 +17,7 @@ const FWK_MAGIC: &[u8] = &[0x32, 0xAC];
 pub const FRAMEWORK_VID: u16 = 0x32AC;
 pub const LED_MATRIX_PID: u16 = 0x0020;
 pub const B1_LCD_PID: u16 = 0x0021;
+pub const C1_MINIMAL_PID: u16 = 0x0022;
 
 type Brightness = u8;
 
@@ -87,7 +88,7 @@ fn match_serialdevs(
             vec![pid]
         } else {
             // By default accept any type
-            vec![LED_MATRIX_PID, B1_LCD_PID, 0x22, 0xFF]
+            vec![LED_MATRIX_PID, B1_LCD_PID, C1_MINIMAL_PID, 0xFF]
         };
         // Find all supported Framework devices
         for p in ports {
@@ -130,6 +131,16 @@ pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<Str
                             println!("  USB     {:X?}", loc);
                             if let Some(slot) = crate::usbport::fw16_position(&loc) {
                                 println!("  Slot    {} (from the left)", slot);
+                            }
+                        }
+                        // Only ask our own modules, other devices don't speak the protocol
+                        if args.list
+                            && usbinfo.vid == FRAMEWORK_VID
+                            && [LED_MATRIX_PID, B1_LCD_PID, C1_MINIMAL_PID].contains(&usbinfo.pid)
+                        {
+                            match query_device_version(&p.port_name) {
+                                Ok(version) => println!("  FW      {}", version),
+                                Err(err) => println!("  FW      unknown ({})", err),
                             }
                         }
                     }
@@ -408,27 +419,41 @@ pub fn serial_commands(args: &crate::ClapCli) {
     }
 }
 
-fn get_device_version(serialdev: &str) {
+/// Ask the firmware for its version, formatted like "0.2.1" or "0.2.1 (Pre-Release)"
+fn query_device_version(serialdev: &str) -> Result<String, String> {
+    // Longer than SERIAL_TIMEOUT, the first response after opening the port
+    // sometimes takes longer than 20ms
     let mut port = serialport::new(serialdev, 115_200)
-        .timeout(SERIAL_TIMEOUT)
+        .timeout(Duration::from_millis(500))
         .open()
-        .expect("Failed to open port");
+        .map_err(|e| format!("failed to open port: {e}"))?;
 
-    simple_cmd_port(&mut port, Command::Version, &[]);
+    let mut buffer = [0; 3];
+    buffer[..2].copy_from_slice(FWK_MAGIC);
+    buffer[2] = Command::Version as u8;
+    port.write_all(&buffer)
+        .map_err(|e| format!("write failed: {e}"))?;
 
-    let mut response: Vec<u8> = vec![0; 32];
-    port.read_exact(response.as_mut_slice())
-        .expect("Found no data!");
+    let mut response = [0; 32];
+    port.read_exact(&mut response)
+        .map_err(|e| format!("no response: {e}"))?;
 
     let major = response[0];
     let minor = (response[1] & 0xF0) >> 4;
     let patch = response[1] & 0x0F;
     let pre_release = response[2] == 1;
-    print!("Device Version: {major}.{minor}.{patch}");
+    let mut version = format!("{major}.{minor}.{patch}");
     if pre_release {
-        print!(" (Pre-Release)");
+        version.push_str(" (Pre-Release)");
     }
-    println!();
+    Ok(version)
+}
+
+fn get_device_version(serialdev: &str) {
+    match query_device_version(serialdev) {
+        Ok(version) => println!("Device Version: {version}"),
+        Err(err) => println!("Failed to get device version: {err}"),
+    }
 }
 
 fn bootloader_cmd(serialdev: &str) {
