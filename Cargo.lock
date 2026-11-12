@@ -861,7 +861,7 @@ checksum = "8591b0bcc8a98a64310a2fae1bb3e9b8564dd10e381e6e28010fde8e8e8568db"
 
 [[package]]
 name = "fl16-inputmodules"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -1261,7 +1261,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "ledmatrix"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
