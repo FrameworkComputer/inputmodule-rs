@@ -331,6 +331,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 crate::flap::flap_cmd(&serialdevs, extend, ledmatrix_args.fps);
             }
 
+            if ledmatrix_args.ledris {
+                crate::ledris::ledris_cmd(&serialdevs, extend, ledmatrix_args.fps);
+            }
+
             if let Some(demo) = ledmatrix_args.demo {
                 demo_cmd(
                     &serialdevs,
