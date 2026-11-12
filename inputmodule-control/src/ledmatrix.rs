@@ -203,6 +203,12 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub flap: bool,
 
+    /// Show --demo, the games, --video and --camera across all LED matrices,
+    /// as one wide screen, instead of the same on each. They're side by side from
+    /// left to right in the order of --serial-dev, or sorted by name without it
+    #[arg(long)]
+    pub extend: bool,
+
     /// Limit --demo, the games, --video or --camera to this many frames per second.
     /// Uncapped for --demo and the games, the video's frame rate for --video
     /// and the camera's frame rate for --camera by default

@@ -52,9 +52,10 @@ pub struct ClapCli {
     #[arg(short, long)]
     verbose: bool,
 
-    /// Serial device, like /dev/ttyACM0 or COM0
+    /// Serial device, like /dev/ttyACM0 or COM0.
+    /// Repeat it for several, like for --extend, which puts them left to right in this order
     #[arg(long)]
-    pub serial_dev: Option<String>,
+    pub serial_dev: Vec<String>,
 
     /// Retry connecting to the device until it works
     #[arg(long)]

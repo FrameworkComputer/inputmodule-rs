@@ -6,10 +6,8 @@ use std::f32::consts::PI;
 
 use rand::prelude::*;
 
-use crate::hostgame::{
-    add_rect, add_square, play, to_grid, Burst, HostGame, Input, Light, FIELD_W,
-};
-use crate::inputmodule::{GreyGrid, HEIGHT, WIDTH};
+use crate::hostgame::{add_rect, add_square, dark, play, to_grid, Burst, HostGame, Input, Light};
+use crate::inputmodule::{GreyGrid, HEIGHT};
 
 /// Physics steps per second, independent of the frame rate
 const STEPS_PER_SEC: f32 = 480.0;
@@ -81,6 +79,8 @@ enum State {
 
 struct Game {
     rng: ThreadRng,
+    /// Screen width in LEDs, one or more LED matrices side by side
+    width: f32,
     state: State,
     /// Depth of the top of the screen, how far the player has fallen
     depth: f32,
@@ -98,13 +98,14 @@ struct Game {
 }
 
 impl Game {
-    fn new() -> Self {
+    fn new(width: usize) -> Self {
         let mut game = Self {
             rng: thread_rng(),
+            width: width as f32,
             state: State::Ready,
             depth: 0.0,
             speed: START_SPEED,
-            player_x: FIELD_W / 2.0,
+            player_x: width as f32 / 2.0,
             segments: VecDeque::new(),
             gems: VecDeque::new(),
             gems_taken: 0,
@@ -120,14 +121,14 @@ impl Game {
         self.state = State::Ready;
         self.depth = 0.0;
         self.speed = START_SPEED;
-        self.player_x = FIELD_W / 2.0;
+        self.player_x = self.width / 2.0;
         self.segments.clear();
         self.gems.clear();
         self.gems_taken = 0;
         self.trail.clear();
         self.segments.push_back(Segment {
             depth: -SEGMENT,
-            center: FIELD_W / 2.0,
+            center: self.width / 2.0,
             half_width: START_HALF_WIDTH,
         });
         self.extend_cave();
@@ -146,14 +147,14 @@ impl Game {
             let narrowed = START_HALF_WIDTH - NARROWING * depth.max(0.0);
             let half_width = (narrowed + self.rng.gen_range(-0.3..0.3)).max(MIN_HALF_WIDTH);
             let center = if depth < STRAIGHT_START {
-                FIELD_W / 2.0
+                self.width / 2.0
             } else {
                 // Not steeper than the player can follow at the current speed.
                 // Curving with a cosine is steepest in the middle, at pi/2 times the average.
                 let steepness = (MAX_STEEPNESS * PLAYER_KEY_SPEED / self.speed).min(1.0);
                 let max_shift = steepness * SEGMENT * 2.0 / PI;
                 let shifted = last.center + self.rng.gen_range(-max_shift..max_shift);
-                shifted.clamp(half_width, FIELD_W - half_width)
+                shifted.clamp(half_width, self.width - half_width)
             };
             if depth >= STRAIGHT_START && self.rng.gen_bool(GEM_CHANCE) {
                 let room = half_width - GEM_SIZE;
@@ -237,7 +238,7 @@ impl HostGame for Game {
 
         self.player_x = input
             .steer(self.player_x, dt, PLAYER_KEY_SPEED, PLAYER_MAX_SPEED)
-            .clamp(0.5, FIELD_W - 0.5);
+            .clamp(0.5, self.width - 0.5);
         self.trail.push_back((now, self.player_x));
         while self.trail.front().is_some_and(|&(t, _)| now - t > 0.1) {
             self.trail.pop_front();
@@ -260,7 +261,7 @@ impl HostGame for Game {
     }
 
     fn render(&self, now: f32) -> GreyGrid {
-        let mut light: Light = [[0.0; HEIGHT]; WIDTH];
+        let mut light: Light = dark(self.width as usize);
 
         // How much of the span x0..x1 lies within a..b
         let overlap = |x0: f32, x1: f32, a: f32, b: f32| (x1.min(b) - x0.max(a)).max(0.0);
@@ -343,54 +344,59 @@ impl HostGame for Game {
 }
 
 /// Play until the player quits, as fast as possible or limited to fps
-pub fn cave_cmd(serialdevs: &[String], fps: Option<u32>) {
+pub fn cave_cmd(serialdevs: &[String], extend: bool, fps: Option<u32>) {
     play(
         serialdevs,
+        extend,
         fps,
         "Space or a click starts.",
-        &mut Game::new(),
+        Game::new,
     );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::inputmodule::WIDTH;
 
     /// Following the middle of the cave gets through, even at full speed and width
     #[test]
     fn autoplay_survives() {
-        let mut game = Game::new();
-        let mut input = Input {
-            action: true,
-            ..Default::default()
-        };
-        let dt = 1.0 / 120.0;
-        let mut now = 0.0;
-        while now < 200.0 {
-            let (left, right) = game.walls(game.depth + PLAYER_Y + 1.0);
-            input.target = Some((left + right) / 2.0);
-            now += dt;
-            game.update(&mut input, now, dt);
-            game.render(now);
-            assert!(
-                !matches!(game.state, State::Crashed { .. }),
-                "Crashed at depth {}",
-                game.depth
-            );
+        // One LED matrix, and two side by side with --extend
+        for width in [WIDTH, 2 * WIDTH] {
+            let mut game = Game::new(width);
+            let mut input = Input {
+                action: true,
+                ..Default::default()
+            };
+            let dt = 1.0 / 120.0;
+            let mut now = 0.0;
+            while now < 200.0 {
+                let (left, right) = game.walls(game.depth + PLAYER_Y + 1.0);
+                input.target = Some((left + right) / 2.0);
+                now += dt;
+                game.update(&mut input, now, dt);
+                game.render(now);
+                assert!(
+                    !matches!(game.state, State::Crashed { .. }),
+                    "Crashed at depth {}",
+                    game.depth
+                );
 
-            for y in 0..HEIGHT {
-                let (left, right) = game.walls(game.depth + y as f32);
-                assert!(
-                    left >= -0.01 && right <= FIELD_W + 0.01,
-                    "Cave leaves the screen"
-                );
-                assert!(
-                    right - left >= 2.0 * MIN_HALF_WIDTH - 0.01,
-                    "Cave too narrow"
-                );
+                for y in 0..HEIGHT {
+                    let (left, right) = game.walls(game.depth + y as f32);
+                    assert!(
+                        left >= -0.01 && right <= game.width + 0.01,
+                        "Cave leaves the screen"
+                    );
+                    assert!(
+                        right - left >= 2.0 * MIN_HALF_WIDTH - 0.01,
+                        "Cave too narrow"
+                    );
+                }
             }
+            assert_eq!(game.speed, MAX_SPEED);
+            println!("Depth {:.0}, {} gems", game.depth, game.gems_taken);
         }
-        assert_eq!(game.speed, MAX_SPEED);
-        println!("Depth {:.0}, {} gems", game.depth, game.gems_taken);
     }
 }
