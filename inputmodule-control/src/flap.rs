@@ -6,10 +6,8 @@ use std::collections::VecDeque;
 
 use rand::prelude::*;
 
-use crate::hostgame::{
-    add_rect, add_square, play, to_grid, Burst, HostGame, Input, Light, FIELD_W,
-};
-use crate::inputmodule::{GreyGrid, HEIGHT, WIDTH};
+use crate::hostgame::{add_rect, add_square, dark, play, to_grid, Burst, HostGame, Input, Light};
+use crate::inputmodule::{GreyGrid, HEIGHT};
 
 /// Physics steps per second, independent of the frame rate
 const STEPS_PER_SEC: f32 = 480.0;
@@ -74,6 +72,8 @@ enum State {
 #[derive(Clone)]
 struct Game {
     rng: ThreadRng,
+    /// Screen width in LEDs, one or more LED matrices side by side
+    width: f32,
     state: State,
     /// Center of the player
     y: f32,
@@ -91,9 +91,10 @@ struct Game {
 }
 
 impl Game {
-    fn new() -> Self {
+    fn new(width: usize) -> Self {
         let mut game = Self {
             rng: thread_rng(),
+            width: width as f32,
             state: State::Ready,
             y: 0.0,
             vel_y: 0.0,
@@ -128,11 +129,11 @@ impl Game {
         while self
             .walls
             .back()
-            .is_none_or(|w| w.x < FIELD_W + WALL_SPACING)
+            .is_none_or(|w| w.x < self.width + WALL_SPACING)
         {
             let (x, center) = match self.walls.back() {
                 // The first wall comes in after a moment
-                None => (FIELD_W + 2.0, GROUND / 2.0),
+                None => (self.width + 2.0, GROUND / 2.0),
                 Some(last) => {
                     let last_center = (last.gap_top + last.gap_bottom) / 2.0;
                     // Anywhere, but not higher than the player can climb in time.
@@ -242,11 +243,11 @@ impl HostGame for Game {
     }
 
     fn render(&self, now: f32) -> GreyGrid {
-        let mut light: Light = [[0.0; HEIGHT]; WIDTH];
+        let mut light: Light = dark(self.width as usize);
 
         // Dashed ground, scrolling along with the walls
         let offset = self.scrolled % 2.0;
-        for i in 0..=WIDTH / 2 + 1 {
+        for i in 0..=self.width as usize / 2 + 1 {
             let x = i as f32 * 2.0 - offset;
             add_rect(
                 &mut light,
@@ -323,18 +324,20 @@ impl HostGame for Game {
 }
 
 /// Play until the player quits, as fast as possible or limited to fps
-pub fn flap_cmd(serialdevs: &[String], fps: Option<u32>) {
+pub fn flap_cmd(serialdevs: &[String], extend: bool, fps: Option<u32>) {
     play(
         serialdevs,
+        extend,
         fps,
         "Space, up or a click flaps.",
-        &mut Game::new(),
+        Game::new,
     );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::inputmodule::WIDTH;
 
     /// Simple rule: flap whenever below the middle of the next gap,
     /// but while in a wall or about to enter one, stay in its gap
@@ -371,34 +374,42 @@ mod tests {
     /// the smallest gaps, so the hardest walls are still fair
     #[test]
     fn autoplay_survives() {
-        let mut game = Game::new();
-        let mut input = Input::default();
-        let dt = 1.0 / 60.0;
-        let lookahead = 1.0;
-        let mut now = 0.0;
-        while now < 150.0 {
-            // Flap only if not flapping would crash
-            input.action = game.state == State::Ready
-                || (survives(game.clone(), false, now, dt, lookahead) < lookahead
-                    && survives(game.clone(), true, now, dt, lookahead)
-                        > survives(game.clone(), false, now, dt, lookahead));
-            now += dt;
-            game.update(&mut input, now, dt);
-            game.render(now);
-            assert!(
-                !matches!(game.state, State::Crashed { .. }),
-                "Crashed after {} walls at y {:.2}, speed {:.1}, walls {:?}",
-                game.score,
-                game.y,
-                game.vel_y,
-                game.walls
-                    .iter()
-                    .map(|w| (w.x, w.gap_top, w.gap_bottom))
-                    .collect::<Vec<_>>()
-            );
+        // One LED matrix, and two side by side with --extend
+        for width in [WIDTH, 2 * WIDTH] {
+            let mut game = Game::new(width);
+            let mut input = Input::default();
+            let dt = 1.0 / 60.0;
+            let lookahead = 1.0;
+            let mut now = 0.0;
+            while now < 150.0 {
+                let without = survives(game.clone(), false, now, dt, lookahead);
+                input.action = game.state == State::Ready
+                    || if without < lookahead {
+                        // Not flapping would crash, flap if that's better
+                        survives(game.clone(), true, now, dt, lookahead) > without
+                    } else {
+                        // Nothing in the way yet, like while the first wall is far away
+                        // on a wide screen. Head for the next gap.
+                        greedy_flap(&game)
+                    };
+                now += dt;
+                game.update(&mut input, now, dt);
+                game.render(now);
+                assert!(
+                    !matches!(game.state, State::Crashed { .. }),
+                    "Crashed after {} walls at y {:.2}, speed {:.1}, walls {:?}",
+                    game.score,
+                    game.y,
+                    game.vel_y,
+                    game.walls
+                        .iter()
+                        .map(|w| (w.x, w.gap_top, w.gap_bottom))
+                        .collect::<Vec<_>>()
+                );
+            }
+            assert_eq!(game.speed, MAX_SPEED);
+            assert_eq!(game.gap, MIN_GAP);
+            println!("Passed {} walls", game.score);
         }
-        assert_eq!(game.speed, MAX_SPEED);
-        assert_eq!(game.gap, MIN_GAP);
-        println!("Passed {} walls", game.score);
     }
 }

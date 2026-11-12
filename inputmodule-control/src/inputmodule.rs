@@ -70,16 +70,17 @@ const SERIAL_TIMEOUT: Duration = Duration::from_millis(20);
 
 fn match_serialdevs(
     ports: &[SerialPortInfo],
-    requested: &Option<String>,
+    requested: &[String],
     pid: Option<u16>,
 ) -> Vec<String> {
-    if let Some(requested) = requested {
-        for p in ports {
-            if requested == &p.port_name {
-                return vec![p.port_name.clone()];
-            }
+    if !requested.is_empty() {
+        // All of them in the order requested, or none if one is missing
+        let found = |name: &String| ports.iter().any(|p| &p.port_name == name);
+        if requested.iter().all(found) {
+            requested.to_vec()
+        } else {
+            vec![]
         }
-        vec![]
     } else {
         let mut compatible_devs = vec![];
         let pids = if let Some(pid) = pid {
@@ -255,6 +256,16 @@ pub fn serial_commands(args: &crate::ClapCli) {
                     );
                 }
             }
+
+            // Streaming to all LED matrices side by side. Without --serial-dev, they're
+            // found in no particular order, so at least make it the same every time.
+            let extend = ledmatrix_args.extend;
+            let mut serialdevs = serialdevs;
+            if extend && args.serial_dev.is_empty() {
+                // COM9 before COM10
+                serialdevs.sort_by_key(|dev| (dev.len(), dev.clone()));
+            }
+
             // Commands that block and need manual looping
             if ledmatrix_args.blinking {
                 blinking_cmd(&serialdevs);
@@ -277,28 +288,29 @@ pub fn serial_commands(args: &crate::ClapCli) {
             }
 
             if let Some(path) = &ledmatrix_args.video {
-                video_cmd(&serialdevs, path, ledmatrix_args.fps);
+                video_cmd(&serialdevs, extend, path, ledmatrix_args.fps);
             }
 
             if let Some(device) = &ledmatrix_args.camera {
-                camera_cmd(&serialdevs, device.as_deref(), ledmatrix_args.fps);
+                camera_cmd(&serialdevs, extend, device.as_deref(), ledmatrix_args.fps);
             }
 
             if ledmatrix_args.bricks {
-                crate::bricks::bricks_cmd(&serialdevs, ledmatrix_args.fps);
+                crate::bricks::bricks_cmd(&serialdevs, extend, ledmatrix_args.fps);
             }
 
             if ledmatrix_args.cave {
-                crate::cave::cave_cmd(&serialdevs, ledmatrix_args.fps);
+                crate::cave::cave_cmd(&serialdevs, extend, ledmatrix_args.fps);
             }
 
             if ledmatrix_args.flap {
-                crate::flap::flap_cmd(&serialdevs, ledmatrix_args.fps);
+                crate::flap::flap_cmd(&serialdevs, extend, ledmatrix_args.fps);
             }
 
             if let Some(demo) = ledmatrix_args.demo {
                 demo_cmd(
                     &serialdevs,
+                    extend,
                     demo,
                     &ledmatrix_args.demo_text,
                     &ledmatrix_args.demo_minutes,
@@ -967,7 +979,9 @@ fn display_gray_image_cmd(serialdev: &str, image_path: &str) {
     commit_cols(&mut port);
 }
 
-pub type GreyGrid = [[u8; HEIGHT]; WIDTH];
+/// Greyscale frame, indexed [x][y]. As wide as one LED matrix,
+/// or as all of them side by side with --extend.
+pub type GreyGrid = Vec<[u8; HEIGHT]>;
 
 /// Make dim values dimmer, so the LEDs show more contrast
 fn gamma(brightness: f32) -> u8 {
@@ -976,10 +990,11 @@ fn gamma(brightness: f32) -> u8 {
 }
 
 /// Overlapping sine waves, depends only on the time, not on the frame rate
-fn plasma_frame(t: f32) -> GreyGrid {
-    let mut grid = [[0; HEIGHT]; WIDTH];
+fn plasma_frame(t: f32, width: usize) -> GreyGrid {
+    let mut grid = vec![[0; HEIGHT]; width];
     // Center of the circular wave moves around
-    let cx = 4.0 + (t * 0.5).sin() * 3.0;
+    let half = width as f32 / 2.0;
+    let cx = half - 0.5 + (t * 0.5).sin() * (half - 1.5);
     let cy = 17.0 + (t * 0.3).cos() * 12.0;
     for (x, col) in grid.iter_mut().enumerate() {
         for (y, val) in col.iter_mut().enumerate() {
@@ -1002,25 +1017,26 @@ const FIRE_STEPS_PER_SEC: f32 = 30.0;
 /// Fire effect like in PSX Doom: heat rises from the bottom row, cools down and drifts sideways
 struct Fire {
     /// Heat from 0.0 to 1.0 after the previous and the next simulation step
-    prev: [[f32; HEIGHT]; WIDTH],
-    next: [[f32; HEIGHT]; WIDTH],
+    prev: Vec<[f32; HEIGHT]>,
+    next: Vec<[f32; HEIGHT]>,
     steps: u64,
     rng: ThreadRng,
 }
 
 impl Fire {
-    fn new() -> Self {
+    fn new(width: usize) -> Self {
         Self {
-            prev: [[0.0; HEIGHT]; WIDTH],
-            next: [[0.0; HEIGHT]; WIDTH],
+            prev: vec![[0.0; HEIGHT]; width],
+            next: vec![[0.0; HEIGHT]; width],
             steps: 0,
             rng: thread_rng(),
         }
     }
 
     fn step(&mut self) {
-        self.prev = self.next;
+        self.prev.clone_from(&self.next);
         let heat = &mut self.next;
+        let width = heat.len();
         // Flickering source of heat in the bottom row
         for col in heat.iter_mut() {
             col[HEIGHT - 1] = self.rng.gen_range(0.6..1.0);
@@ -1028,9 +1044,9 @@ impl Fire {
         // Each pixel takes the heat of the pixel below, cooled down and moved sideways.
         // Top to bottom, so every row only moves up by one per step.
         for y in 0..HEIGHT - 1 {
-            for x in 0..WIDTH {
+            for x in 0..width {
                 let drift: isize = self.rng.gen_range(-1..=1);
-                let to_x = (x as isize + drift).clamp(0, WIDTH as isize - 1) as usize;
+                let to_x = (x as isize + drift).clamp(0, width as isize - 1) as usize;
                 let cooling = self.rng.gen_range(0.0..0.09);
                 heat[to_x][y] = (heat[x][y + 1] - cooling).max(0.0);
             }
@@ -1045,11 +1061,11 @@ impl Fire {
             self.step();
         }
         let blend = pos - (self.steps - 2) as f32;
-        let mut grid = [[0; HEIGHT]; WIDTH];
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
+        let mut grid = vec![[0; HEIGHT]; self.next.len()];
+        for (x, col) in grid.iter_mut().enumerate() {
+            for (y, val) in col.iter_mut().enumerate() {
                 let heat = self.prev[x][y] + (self.next[x][y] - self.prev[x][y]) * blend;
-                grid[x][y] = gamma(heat);
+                *val = gamma(heat);
             }
         }
         grid
@@ -1059,16 +1075,21 @@ impl Fire {
 /// Rows per second that the text moves up
 const TEXT_ROWS_PER_SEC: f32 = 12.0;
 
-/// Text stacked vertically, scrolling up by fractions of a pixel
+/// Text stacked vertically, scrolling up by fractions of a pixel.
+/// On several LED matrices side by side, it continues like columns in a newspaper:
+/// from the top of the left one down to its bottom, then on the next one.
 struct ScrollingText {
     /// Brightness from 0.0 to 1.0 of each row of the rendered text, starting with an empty screen
     rows: Vec<[f32; WIDTH]>,
+    /// How many LED matrices the text continues on
+    matrices: usize,
 }
 
 impl ScrollingText {
-    fn new(text: &str) -> Self {
-        // Start with an empty screen, so the text scrolls in from the bottom and out at the top
-        let mut rows = vec![[0.0; WIDTH]; HEIGHT];
+    fn new(text: &str, width: usize) -> Self {
+        let matrices = (width / WIDTH).max(1);
+        // Start with all screens empty, so the text scrolls in from the bottom and out at the top
+        let mut rows = vec![[0.0; WIDTH]; HEIGHT * matrices];
         // Same layout as show_font: 5x6 pixel characters, two columns from the left, one row apart
         for c in text.to_uppercase().chars() {
             let pixels = convert_font(c);
@@ -1081,23 +1102,25 @@ impl ScrollingText {
             }
             rows.push([0.0; WIDTH]);
         }
-        Self { rows }
+        Self { rows, matrices }
     }
 
     /// Blend between neighboring rows, so the text glides instead of jumping by whole pixels
     fn frame(&self, t: f32) -> GreyGrid {
         let len = self.rows.len();
         let offset = (t * TEXT_ROWS_PER_SEC) % len as f32;
-        let mut grid = [[0; HEIGHT]; WIDTH];
-        for y in 0..HEIGHT {
-            let pos = offset + y as f32;
-            let blend = pos.fract();
-            let upper = &self.rows[pos as usize % len];
-            let lower = &self.rows[(pos as usize + 1) % len];
-            for x in 0..WIDTH {
-                // Linear instead of gamma, so the total light stays the same while moving
-                let brightness = upper[x] * (1.0 - blend) + lower[x] * blend;
-                grid[x][y] = (brightness * 255.0) as u8;
+        let mut grid = vec![[0; HEIGHT]; WIDTH * self.matrices];
+        for matrix in 0..self.matrices {
+            for y in 0..HEIGHT {
+                let pos = offset + (matrix * HEIGHT + y) as f32;
+                let blend = pos.fract();
+                let upper = &self.rows[pos as usize % len];
+                let lower = &self.rows[(pos as usize + 1) % len];
+                for x in 0..WIDTH {
+                    // Linear instead of gamma, so the total light stays the same while moving
+                    let brightness = upper[x] * (1.0 - blend) + lower[x] * blend;
+                    grid[matrix * WIDTH + x][y] = (brightness * 255.0) as u8;
+                }
             }
         }
         grid
@@ -1106,34 +1129,35 @@ impl ScrollingText {
 
 /// Each LED is split into this many sand cells per side, so grains move by a fraction of an LED
 const SAND_SUB: usize = 4;
-const SAND_W: usize = WIDTH * SAND_SUB;
 const SAND_H: usize = HEIGHT * SAND_SUB;
 /// First row of the bottom chamber, the neck is between this and the row above
 const SAND_NECK: usize = SAND_H / 2;
 /// Sand simulation steps per second, grains fall by one cell per step
 const SAND_STEPS_PER_SEC: f32 = 60.0;
 /// Share of one chamber that's filled with sand
-const SAND_FILL: f32 = 0.55;
+const SAND_FILL: f32 = 0.65;
 /// Brightness of the LEDs that the edge of the glass goes through
 const GLASS_BRIGHTNESS: f32 = 0.06;
 /// How long the sand blinks after running out, before the hourglass flips over
 const SAND_BLINK_SECS: f32 = 2.0;
 
 /// One flag per sand cell, indexed like GreyGrid: [x][y]
-type SandGrid = [[bool; SAND_H]; SAND_W];
+type SandGrid = Vec<[bool; SAND_H]>;
 
 /// Whether a sand cell is inside the glass.
 /// Two chambers, joined by a neck two cells wide. Towards the neck and the ends,
 /// the walls slant by one cell per row, which is the steepest slope sand can rest on,
 /// so it all runs out.
-fn inside_glass(x: usize, y: usize) -> bool {
+fn inside_glass(x: usize, y: usize, sand_w: usize) -> bool {
     let (to_neck, to_end) = if y < SAND_NECK {
         (SAND_NECK - 1 - y, y)
     } else {
         (y - SAND_NECK, SAND_H - 1 - y)
     };
-    let half = SAND_W / 2;
-    let half_width = half.min(1 + to_neck).min(8 + to_end);
+    let half = sand_w / 2;
+    // The ends are a bit less than half as wide as the middle
+    let end = half * 4 / 9;
+    let half_width = half.min(1 + to_neck).min(end + to_end);
     (half - half_width..half + half_width).contains(&x)
 }
 
@@ -1143,7 +1167,7 @@ fn inside_glass(x: usize, y: usize) -> bool {
 struct Hourglass {
     glass: SandGrid,
     /// LEDs that the edge of the glass goes through, to show its outline
-    edge: [[bool; HEIGHT]; WIDTH],
+    edge: Vec<[bool; HEIGHT]>,
     /// Sand after the previous and the next simulation step
     prev: SandGrid,
     next: SandGrid,
@@ -1163,15 +1187,16 @@ struct Hourglass {
 }
 
 impl Hourglass {
-    fn new(minutes: &[f32]) -> Self {
-        let mut glass = [[false; SAND_H]; SAND_W];
+    fn new(minutes: &[f32], width: usize) -> Self {
+        let sand_w = width * SAND_SUB;
+        let mut glass = vec![[false; SAND_H]; sand_w];
         for (x, col) in glass.iter_mut().enumerate() {
             for (y, cell) in col.iter_mut().enumerate() {
-                *cell = inside_glass(x, y);
+                *cell = inside_glass(x, y, sand_w);
             }
         }
 
-        let mut edge = [[false; HEIGHT]; WIDTH];
+        let mut edge = vec![[false; HEIGHT]; width];
         for (x, col) in edge.iter_mut().enumerate() {
             for (y, led) in col.iter_mut().enumerate() {
                 let inside = (0..SAND_SUB * SAND_SUB)
@@ -1182,15 +1207,15 @@ impl Hourglass {
         }
 
         // Fill the top chamber from the neck upwards, whole rows at a time
-        let chamber: usize = glass.iter().flatten().count() / 2;
-        let mut sand = [[false; SAND_H]; SAND_W];
+        let chamber: usize = glass.iter().flatten().filter(|&&cell| cell).count() / 2;
+        let mut sand = vec![[false; SAND_H]; sand_w];
         let mut grains = 0;
         for y in (0..SAND_NECK).rev() {
-            let row = (0..SAND_W).filter(|&x| glass[x][y]).count();
+            let row = (0..sand_w).filter(|&x| glass[x][y]).count();
             if (grains + row) as f32 > chamber as f32 * SAND_FILL {
                 break;
             }
-            for x in 0..SAND_W {
+            for x in 0..sand_w {
                 sand[x][y] = glass[x][y];
             }
             grains += row;
@@ -1200,7 +1225,7 @@ impl Hourglass {
         Self {
             glass,
             edge,
-            prev: sand,
+            prev: sand.clone(),
             next: sand,
             steps: 0,
             rng: thread_rng(),
@@ -1215,14 +1240,15 @@ impl Hourglass {
 
     /// Turn upside down and start the next timer
     fn flip(&mut self, now: f32) {
-        let old = self.next;
-        for x in 0..SAND_W {
+        let old = self.next.clone();
+        let sand_w = old.len();
+        for x in 0..sand_w {
             for y in 0..SAND_H {
-                self.next[x][y] = old[SAND_W - 1 - x][SAND_H - 1 - y];
+                self.next[x][y] = old[sand_w - 1 - x][SAND_H - 1 - y];
             }
         }
         // Don't blend between before and after flipping
-        self.prev = self.next;
+        self.prev.clone_from(&self.next);
         self.top = self
             .next
             .iter()
@@ -1236,7 +1262,7 @@ impl Hourglass {
     }
 
     fn step(&mut self) {
-        self.prev = self.next;
+        self.prev.clone_from(&self.next);
         let dt = 1.0 / SAND_STEPS_PER_SEC;
         let now = self.steps as f32 * dt;
         self.steps += 1;
@@ -1253,6 +1279,7 @@ impl Hourglass {
         let time_left = (self.timer_end - now).max(dt);
         self.allowance = (self.allowance + self.top as f32 * dt / time_left).min(2.0);
 
+        let sand_w = self.next.len();
         let glass = &self.glass;
         let sand = &mut self.next;
         let mut moved = false;
@@ -1267,20 +1294,20 @@ impl Hourglass {
             // the middle. The middle drains first and leaves a crater, like in a real
             // hourglass, instead of the sand flowing down along the walls.
             for diagonal in [false, true] {
-                for i in 0..SAND_W {
+                for i in 0..sand_w {
                     if through_neck && self.allowance < 1.0 {
                         break;
                     }
-                    let x = if right_to_left { SAND_W - 1 - i } else { i };
+                    let x = if right_to_left { sand_w - 1 - i } else { i };
                     if !sand[x][y] {
                         continue;
                     }
                     let to = if diagonal {
                         // To a random side first
                         let (first, second) = if self.rng.gen() {
-                            (x.checked_sub(1), Some(x + 1).filter(|&x| x < SAND_W))
+                            (x.checked_sub(1), Some(x + 1).filter(|&x| x < sand_w))
                         } else {
-                            (Some(x + 1).filter(|&x| x < SAND_W), x.checked_sub(1))
+                            (Some(x + 1).filter(|&x| x < sand_w), x.checked_sub(1))
                         };
                         [first, second]
                             .into_iter()
@@ -1337,8 +1364,8 @@ impl Hourglass {
         };
 
         let cells = (SAND_SUB * SAND_SUB) as f32;
-        let mut grid = [[0; HEIGHT]; WIDTH];
-        for x in 0..WIDTH {
+        let mut grid = vec![[0; HEIGHT]; self.edge.len()];
+        for x in 0..grid.len() {
             for y in 0..HEIGHT {
                 let count = |sand: &SandGrid| {
                     (0..SAND_SUB * SAND_SUB)
@@ -1361,29 +1388,76 @@ impl Hourglass {
     }
 }
 
-/// Open ports for streaming frames and wake up the LED matrices
-pub fn open_stream_ports(serialdevs: &[String]) -> Vec<Box<dyn SerialPort>> {
-    serialdevs
-        .iter()
-        .map(|serialdev| {
-            // Long timeout, for waiting until the LED matrix is done fading in
-            let mut port = serialport::new(serialdev, 115_200)
-                .timeout(Duration::from_secs(10))
-                .open()
-                .expect("Failed to open port");
-            wake_and_wait(&mut port);
-            port
-        })
-        .collect()
+/// LED matrices that frames are streamed to
+pub struct Matrices {
+    ports: Vec<Box<dyn SerialPort>>,
+    /// Side by side as one wide screen, instead of all showing the same
+    extend: bool,
 }
 
-/// Send a greyscale frame to every port
-pub fn send_grey_frame(ports: &mut [Box<dyn SerialPort>], grid: &GreyGrid) {
-    for port in ports {
-        for (x, col) in grid.iter().enumerate() {
-            send_col(port, x as u8, col);
+impl Matrices {
+    /// Open the ports and wake up the LED matrices.
+    /// With extend, they are side by side from left to right in the order of serialdevs.
+    pub fn open(serialdevs: &[String], extend: bool) -> Self {
+        let ports = serialdevs
+            .iter()
+            .map(|serialdev| {
+                // Long timeout, for waiting until the LED matrix is done fading in
+                let mut port = serialport::new(serialdev, 115_200)
+                    .timeout(Duration::from_secs(10))
+                    .open()
+                    .expect("Failed to open port");
+                wake_and_wait(&mut port);
+                port
+            })
+            .collect();
+        if extend && serialdevs.len() > 1 {
+            println!("LED matrices from left to right: {}", serialdevs.join(", "));
+            println!("If that's the wrong order, list them with --serial-dev in the right order.");
         }
-        commit_cols(port);
+        Self { ports, extend }
+    }
+
+    /// Width of the frames to send, in LEDs
+    pub fn width(&self) -> usize {
+        if self.extend {
+            WIDTH * self.ports.len()
+        } else {
+            WIDTH
+        }
+    }
+
+    /// Send a greyscale frame, as wide as width(). Each LED matrix gets its part
+    /// of it with --extend, otherwise all of it.
+    pub fn send(&mut self, grid: &GreyGrid) {
+        assert_eq!(grid.len(), self.width(), "Frame has the wrong width");
+        fn send_cols(port: &mut Box<dyn SerialPort>, cols: &[[u8; HEIGHT]]) {
+            for (x, col) in cols.iter().enumerate() {
+                send_col(port, x as u8, col);
+            }
+            commit_cols(port);
+        }
+        let extend = self.extend;
+        if let [port] = &mut self.ports[..] {
+            send_cols(port, grid);
+            return;
+        }
+        // All at the same time, so more LED matrices don't make the frame rate drop
+        thread::scope(|s| {
+            for (i, port) in self.ports.iter_mut().enumerate() {
+                let cols = if extend {
+                    &grid[i * WIDTH..(i + 1) * WIDTH]
+                } else {
+                    &grid[..]
+                };
+                s.spawn(move || send_cols(port, cols));
+            }
+        });
+    }
+
+    /// Turn all LEDs off, instead of leaving them on the last frame
+    pub fn clear(&mut self) {
+        self.send(&vec![[0; HEIGHT]; self.width()]);
     }
 }
 
@@ -1451,7 +1525,7 @@ fn ffmpeg_available() -> bool {
 }
 
 /// Play a video in greyscale at its own frame rate, or resampled to fps
-fn video_cmd(serialdevs: &[String], path: &str, fps: Option<u32>) {
+fn video_cmd(serialdevs: &[String], extend: bool, path: &str, fps: Option<u32>) {
     if !ffmpeg_available() {
         return;
     }
@@ -1462,7 +1536,7 @@ fn video_cmd(serialdevs: &[String], path: &str, fps: Option<u32>) {
             30.0
         }),
     };
-    ffmpeg_stream(serialdevs, &["-i", path], fps, Some(frame_rate));
+    ffmpeg_stream(serialdevs, extend, &["-i", path], fps, Some(frame_rate));
 }
 
 /// Name of the first DirectShow video device, like "Laptop Webcam Module (2nd Gen)"
@@ -1489,7 +1563,7 @@ fn first_dshow_camera() -> Option<String> {
 
 /// Show a live view from the webcam in greyscale.
 /// Uses the first camera by default, or the device name or path.
-fn camera_cmd(serialdevs: &[String], device: Option<&str>, fps: Option<u32>) {
+fn camera_cmd(serialdevs: &[String], extend: bool, device: Option<&str>, fps: Option<u32>) {
     if !ffmpeg_available() {
         return;
     }
@@ -1524,20 +1598,27 @@ fn camera_cmd(serialdevs: &[String], device: Option<&str>, fps: Option<u32>) {
 
     let input: Vec<&str> = input.iter().map(String::as_str).collect();
     // Frames come in live, no need to pace them
-    ffmpeg_stream(serialdevs, &input, fps, None);
+    ffmpeg_stream(serialdevs, extend, &input, fps, None);
 }
 
 /// Stream greyscale frames from ffmpeg to the LED matrices until the input ends.
 /// ffmpeg decodes, scales and crops the input, which is given as ffmpeg arguments.
 /// If frame_rate is set, frames are sent at that rate, otherwise as soon as they are decoded.
-fn ffmpeg_stream(serialdevs: &[String], input: &[&str], fps: Option<u32>, frame_rate: Option<f64>) {
+fn ffmpeg_stream(
+    serialdevs: &[String],
+    extend: bool,
+    input: &[&str],
+    fps: Option<u32>,
+    frame_rate: Option<f64>,
+) {
     // Before starting ffmpeg, so a camera doesn't have to buffer frames while the matrix wakes up
-    let mut ports = open_stream_ports(serialdevs);
+    let mut matrices = Matrices::open(serialdevs, extend);
+    let width = matrices.width();
 
     // Scale to the height of the matrix and crop the middle, like the Python version.
     // Videos narrower than the matrix get padded.
     let mut filter = format!(
-        "scale=-2:{HEIGHT}:flags=area,crop=w=min({WIDTH}\\,iw):h={HEIGHT},pad={WIDTH}:{HEIGHT}:(ow-iw)/2:0,format=gray"
+        "scale=-2:{HEIGHT}:flags=area,crop=w=min({width}\\,iw):h={HEIGHT},pad={width}:{HEIGHT}:(ow-iw)/2:0,format=gray"
     );
     if let Some(fps) = fps {
         filter = format!("fps={fps},{filter}");
@@ -1553,7 +1634,7 @@ fn ffmpeg_stream(serialdevs: &[String], input: &[&str], fps: Option<u32>, frame_
 
     let mut reporter = FpsReporter::new();
     // One byte per pixel, row by row
-    let mut pixels = [0; WIDTH * HEIGHT];
+    let mut pixels = vec![0; width * HEIGHT];
     let mut start = None;
     let mut frames: u64 = 0;
     while std::io::Read::read_exact(&mut video, &mut pixels).is_ok() {
@@ -1568,14 +1649,14 @@ fn ffmpeg_stream(serialdevs: &[String], input: &[&str], fps: Option<u32>, frame_
             frames += 1;
         }
 
-        let mut grid = [[0; HEIGHT]; WIDTH];
+        let mut grid = vec![[0; HEIGHT]; width];
         for (x, col) in grid.iter_mut().enumerate() {
             for (y, val) in col.iter_mut().enumerate() {
                 // Video brightness is gamma encoded, LED brightness is linear
-                *val = gamma(pixels[x + y * WIDTH] as f32 / 255.0);
+                *val = gamma(pixels[x + y * width] as f32 / 255.0);
             }
         }
-        send_grey_frame(&mut ports, &grid);
+        matrices.send(&grid);
         reporter.frame_sent();
     }
     let _ = ffmpeg.wait();
@@ -1584,12 +1665,20 @@ fn ffmpeg_stream(serialdevs: &[String], input: &[&str], fps: Option<u32>, frame_
 
 /// Run a greyscale demo forever, as fast as possible or limited to fps.
 /// The hourglass runs at its simulation rate by default, it doesn't get smoother beyond that.
-fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, minutes: &[f32], fps: Option<u32>) {
-    let mut ports = open_stream_ports(serialdevs);
+fn demo_cmd(
+    serialdevs: &[String],
+    extend: bool,
+    demo: Demo,
+    text: &str,
+    minutes: &[f32],
+    fps: Option<u32>,
+) {
+    let mut matrices = Matrices::open(serialdevs, extend);
+    let width = matrices.width();
 
-    let mut fire = Fire::new();
-    let scrolling_text = ScrollingText::new(text);
-    let mut hourglass = Hourglass::new(minutes);
+    let mut fire = Fire::new(width);
+    let scrolling_text = ScrollingText::new(text, width);
+    let mut hourglass = Hourglass::new(minutes, width);
     let fps = match demo {
         Demo::Hourglass => fps.or(Some(SAND_STEPS_PER_SEC as u32)),
         _ => fps,
@@ -1601,7 +1690,7 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, minutes: &[f32], fps:
     loop {
         let t = start.elapsed().as_secs_f32();
         let grid = match demo {
-            Demo::Plasma => plasma_frame(t),
+            Demo::Plasma => plasma_frame(t, width),
             Demo::Fire => fire.frame(t),
             Demo::Text => scrolling_text.frame(t),
             Demo::Hourglass => {
@@ -1610,7 +1699,7 @@ fn demo_cmd(serialdevs: &[String], demo: Demo, text: &str, minutes: &[f32], fps:
                 grid
             }
         };
-        send_grey_frame(&mut ports, &grid);
+        matrices.send(&grid);
         frames += 1;
         reporter.frame_sent();
 
@@ -2151,8 +2240,9 @@ mod tests {
 
     #[test]
     fn hourglass_runs_out_on_time() {
-        for minutes in [0.5, 2.0] {
-            let mut hourglass = Hourglass::new(&[minutes, 0.25]);
+        // One LED matrix, and two side by side with --extend
+        for (minutes, width) in [(0.5, WIDTH), (2.0, WIDTH), (1.0, 2 * WIDTH)] {
+            let mut hourglass = Hourglass::new(&[minutes, 0.25], width);
             let total = grains(&hourglass.next);
             assert_eq!(hourglass.top, total);
 
@@ -2163,7 +2253,10 @@ mod tests {
                 assert!(t < minutes * 60.0 + 10.0, "Sand didn't run out");
             }
             let ran_out = hourglass.empty_since.unwrap();
-            println!("{} min ran out after {:.1}s", minutes, ran_out);
+            println!(
+                "{} min, {} wide ran out after {:.1}s",
+                minutes, width, ran_out
+            );
             assert!((ran_out - minutes * 60.0).abs() < 2.0);
             assert_eq!(grains(&hourglass.next), total);
 

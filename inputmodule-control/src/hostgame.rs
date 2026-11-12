@@ -16,17 +16,22 @@ use crossterm::event::{
 use crossterm::{cursor, execute, terminal};
 use rand::Rng;
 
-use crate::inputmodule::{open_stream_ports, send_grey_frame, GreyGrid, HEIGHT, WIDTH};
+use crate::inputmodule::{GreyGrid, Matrices, HEIGHT};
 
-pub const FIELD_W: f32 = WIDTH as f32;
 pub const FIELD_H: f32 = HEIGHT as f32;
 
 /// Brightness of each LED, 1.0 is fully on. Adds up where shapes overlap.
-pub type Light = [[f32; HEIGHT]; WIDTH];
+/// Indexed [x][y], as wide as the screen, which can be several LED matrices.
+pub type Light = Vec<[f32; HEIGHT]>;
+
+/// All LEDs off, for a screen this many LEDs wide
+pub fn dark(width: usize) -> Light {
+    vec![[0.0; HEIGHT]; width]
+}
 
 /// Light up the LEDs by how much of them the rectangle covers
 pub fn add_rect(light: &mut Light, (x0, y0): (f32, f32), (x1, y1): (f32, f32), brightness: f32) {
-    let cols = (x0.floor().max(0.0) as usize)..(x1.ceil().min(FIELD_W) as usize);
+    let cols = (x0.floor().max(0.0) as usize)..(x1.ceil().min(light.len() as f32) as usize);
     let rows = (y0.floor().max(0.0) as usize)..(y1.ceil().min(FIELD_H) as usize);
     for x in cols {
         let cover_x = x1.min(x as f32 + 1.0) - x0.max(x as f32);
@@ -83,14 +88,13 @@ impl Burst {
 
 /// Convert to a frame for the LED matrix, scaling everything by dim
 pub fn to_grid(light: &Light, dim: f32) -> GreyGrid {
-    let mut grid = [[0; HEIGHT]; WIDTH];
-    for x in 0..WIDTH {
-        for y in 0..HEIGHT {
+    light
+        .iter()
+        .map(|col| {
             // Linear instead of gamma, so the total light stays the same while moving
-            grid[x][y] = (light[x][y].clamp(0.0, 1.0) * dim * 255.0) as u8;
-        }
-    }
-    grid
+            col.map(|l| (l.clamp(0.0, 1.0) * dim * 255.0) as u8)
+        })
+        .collect()
 }
 
 /// What the player wants, collected from terminal events
@@ -170,8 +174,13 @@ impl Drop for RawTerminal {
     }
 }
 
-/// Apply all pending terminal events to the input
-fn read_input(input: &mut Input, key_releases: bool, player_x: f32) -> std::io::Result<()> {
+/// Apply all pending terminal events to the input, for a screen width LEDs wide
+fn read_input(
+    input: &mut Input,
+    key_releases: bool,
+    player_x: f32,
+    width: f32,
+) -> std::io::Result<()> {
     while event::poll(Duration::ZERO)? {
         match event::read()? {
             Event::Key(key) => {
@@ -205,9 +214,9 @@ fn read_input(input: &mut Input, key_releases: bool, player_x: f32) -> std::io::
                 }
             }
             Event::Mouse(mouse) => {
-                // The width of the terminal maps to the width of the LED matrix
+                // The width of the terminal maps to the width of the screen
                 let (cols, _) = terminal::size()?;
-                let x = (mouse.column as f32 + 0.5) / cols.max(1) as f32 * FIELD_W;
+                let x = (mouse.column as f32 + 0.5) / cols.max(1) as f32 * width;
                 match mouse.kind {
                     MouseEventKind::Moved | MouseEventKind::Drag(_) => input.target = Some(x),
                     MouseEventKind::Down(MouseButton::Left) => input.action = true,
@@ -220,9 +229,19 @@ fn read_input(input: &mut Input, key_releases: bool, player_x: f32) -> std::io::
     Ok(())
 }
 
-/// Play until the player quits, as fast as possible or limited to fps
-pub fn play(serialdevs: &[String], fps: Option<u32>, help: &str, game: &mut impl HostGame) {
-    let mut ports = open_stream_ports(serialdevs);
+/// Play until the player quits, as fast as possible or limited to fps.
+/// new_game makes the game for a screen that many LEDs wide.
+/// With extend, that's all LED matrices side by side.
+pub fn play<G: HostGame>(
+    serialdevs: &[String],
+    extend: bool,
+    fps: Option<u32>,
+    help: &str,
+    new_game: impl FnOnce(usize) -> G,
+) {
+    let mut matrices = Matrices::open(serialdevs, extend);
+    let width = matrices.width();
+    let mut game = new_game(width);
     println!("Steer with the arrow keys, or move the mouse across this terminal.");
     println!("{} Q or Esc quits.", help);
 
@@ -236,7 +255,8 @@ pub fn play(serialdevs: &[String], fps: Option<u32>, help: &str, game: &mut impl
     let mut fps_since = start;
     let mut measured_fps = 0.0;
     loop {
-        read_input(&mut input, term.key_releases, game.player_x()).expect("Failed to read input");
+        read_input(&mut input, term.key_releases, game.player_x(), width as f32)
+            .expect("Failed to read input");
         if input.quit {
             break;
         }
@@ -246,7 +266,7 @@ pub fn play(serialdevs: &[String], fps: Option<u32>, help: &str, game: &mut impl
         last = now;
         game.update(&mut input, now, dt);
         input.action = false;
-        send_grey_frame(&mut ports, &game.render(now));
+        matrices.send(&game.render(now));
         frames += 1;
 
         fps_frames += 1;
@@ -267,7 +287,7 @@ pub fn play(serialdevs: &[String], fps: Option<u32>, help: &str, game: &mut impl
     }
 
     // Leave the matrix dark instead of on the last frame
-    send_grey_frame(&mut ports, &[[0; HEIGHT]; WIDTH]);
+    matrices.clear();
     drop(term);
     println!("{}", game.status(measured_fps));
 }
@@ -278,7 +298,7 @@ mod tests {
 
     #[test]
     fn square_covers_partial_leds() {
-        let mut light = [[0.0f32; HEIGHT]; WIDTH];
+        let mut light = dark(crate::inputmodule::WIDTH);
         add_square(&mut light, 1.25, 1.5, 1.0);
         let total: f32 = light.iter().flatten().sum();
         assert!((total - 1.0).abs() < 1e-5);

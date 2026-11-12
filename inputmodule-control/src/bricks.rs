@@ -4,10 +4,8 @@ use std::collections::VecDeque;
 
 use rand::prelude::*;
 
-use crate::hostgame::{
-    add_rect, add_square, play, to_grid, HostGame, Input, Light, FIELD_H, FIELD_W,
-};
-use crate::inputmodule::{GreyGrid, HEIGHT, WIDTH};
+use crate::hostgame::{add_rect, add_square, dark, play, to_grid, HostGame, Input, Light, FIELD_H};
+use crate::inputmodule::{GreyGrid, HEIGHT};
 
 /// Physics steps per second, independent of the frame rate.
 /// Small enough steps that even the fastest ball can't skip through a brick.
@@ -90,6 +88,8 @@ enum State {
 
 struct Game {
     rng: ThreadRng,
+    /// Screen width in LEDs, one or more LED matrices side by side
+    width: f32,
     state: State,
     level: u32,
     score: u32,
@@ -108,15 +108,16 @@ struct Game {
 }
 
 impl Game {
-    fn new() -> Self {
+    fn new(width: usize) -> Self {
         let mut game = Self {
             rng: thread_rng(),
+            width: width as f32,
             state: State::Serving { since: 0.0 },
             level: 1,
             score: 0,
             balls: BALLS,
             bricks: vec![],
-            paddle_x: FIELD_W / 2.0,
+            paddle_x: width as f32 / 2.0,
             ball_x: 0.0,
             ball_y: 0.0,
             vel_x: 0.0,
@@ -132,9 +133,10 @@ impl Game {
     fn build_level(&mut self) {
         let rows = (3 + self.level as usize).min(10);
         let tough_rows = (self.level as usize - 1).min(rows - 2);
+        let cols = self.width as usize / BRICK_WIDTH;
         self.bricks = (0..rows)
             .flat_map(|row| {
-                (0..WIDTH / BRICK_WIDTH).map(move |col| Brick {
+                (0..cols).map(move |col| Brick {
                     x: col * BRICK_WIDTH,
                     y: BRICK_TOP + row,
                     hits: if row < tough_rows { 2 } else { 1 },
@@ -184,8 +186,8 @@ impl Game {
             self.ball_x = BALL_RADIUS;
             self.vel_x = self.vel_x.abs();
         }
-        if self.ball_x + BALL_RADIUS > FIELD_W {
-            self.ball_x = FIELD_W - BALL_RADIUS;
+        if self.ball_x + BALL_RADIUS > self.width {
+            self.ball_x = self.width - BALL_RADIUS;
             self.vel_x = -self.vel_x.abs();
         }
         if self.ball_y - BALL_RADIUS < 0.0 {
@@ -263,7 +265,7 @@ impl HostGame for Game {
         let half = PADDLE_WIDTH / 2.0;
         self.paddle_x = input
             .steer(self.paddle_x, dt, PADDLE_KEY_SPEED, PADDLE_MAX_SPEED)
-            .clamp(half, FIELD_W - half);
+            .clamp(half, self.width - half);
         match self.state {
             State::Serving { since } => {
                 self.ball_x = self.paddle_x;
@@ -307,7 +309,7 @@ impl HostGame for Game {
     }
 
     fn render(&self, now: f32) -> GreyGrid {
-        let mut light: Light = [[0.0; HEIGHT]; WIDTH];
+        let mut light: Light = dark(self.width as usize);
 
         for brick in &self.bricks {
             let since_hit = brick.hit_at.map_or(f32::MAX, |t| now - t);
@@ -365,13 +367,13 @@ impl HostGame for Game {
             _ => self.balls,
         };
         for i in 0..spare as usize {
-            light[WIDTH - 1 - 2 * i][HEIGHT - 1] += 0.15;
+            light[self.width as usize - 1 - 2 * i][HEIGHT - 1] += 0.15;
         }
 
         // A bright band sweeps up after clearing a level
         if let State::Cleared { since } = self.state {
             let y = FIELD_H - (now - since) / CLEARED_SECS * (FIELD_H + 2.0);
-            add_rect(&mut light, (0.0, y), (FIELD_W, y + 2.0), 0.8);
+            add_rect(&mut light, (0.0, y), (self.width, y + 2.0), 0.8);
         }
 
         let dim = if self.state == State::GameOver {
@@ -398,35 +400,41 @@ impl HostGame for Game {
 }
 
 /// Play until the player quits, as fast as possible or limited to fps
-pub fn bricks_cmd(serialdevs: &[String], fps: Option<u32>) {
+pub fn bricks_cmd(serialdevs: &[String], extend: bool, fps: Option<u32>) {
     play(
         serialdevs,
+        extend,
         fps,
         "Space or a click launches the ball.",
-        &mut Game::new(),
+        Game::new,
     );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::inputmodule::WIDTH;
 
     /// Ball that the paddle always catches clears the level and never gets stuck
     #[test]
     fn autoplay_clears_level() {
-        let mut game = Game::new();
-        let mut input = Input::default();
-        let dt = 1.0 / 120.0;
-        let mut now = 0.0;
-        while game.level == 1 {
-            input.target = Some(game.ball_x + 0.4);
-            input.action = true;
-            now += dt;
-            game.update(&mut input, now, dt);
-            game.render(now);
-            assert_eq!(game.balls, BALLS, "Lost a ball");
-            assert!(now < 300.0, "Didn't clear the level");
+        // One LED matrix, and two side by side with --extend
+        for width in [WIDTH, 2 * WIDTH] {
+            let mut game = Game::new(width);
+            let mut input = Input::default();
+            let dt = 1.0 / 120.0;
+            let mut now: f32 = 0.0;
+            while game.level == 1 {
+                // Hit it at different spots on the paddle, so it doesn't bounce in a loop
+                input.target = Some(game.ball_x + 0.4 + 0.6 * (now * 0.7).sin());
+                input.action = true;
+                now += dt;
+                game.update(&mut input, now, dt);
+                game.render(now);
+                assert_eq!(game.balls, BALLS, "Lost a ball");
+                assert!(now < 300.0, "Didn't clear the level");
+            }
+            println!("Cleared level 1 in {:.1}s, score {}", now, game.score);
         }
-        println!("Cleared level 1 in {:.1}s, score {}", now, game.score);
     }
 }
