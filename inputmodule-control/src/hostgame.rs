@@ -107,6 +107,8 @@ pub struct Input {
     pub held_right: bool,
     /// Space, Enter, up arrow or a click since the last update
     pub action: bool,
+    /// Every key pressed since the last update, including key repeats, in order
+    pub presses: Vec<KeyCode>,
     pub quit: bool,
 }
 
@@ -185,6 +187,9 @@ fn read_input(
         match event::read()? {
             Event::Key(key) => {
                 let pressed = key.kind != KeyEventKind::Release;
+                if pressed {
+                    input.presses.push(key.code);
+                }
                 let ctrl_c =
                     key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL);
                 let dir = match key.code {
@@ -230,7 +235,7 @@ fn read_input(
 }
 
 /// Play until the player quits, as fast as possible or limited to fps.
-/// new_game makes the game for a screen that many LEDs wide.
+/// help explains the controls. new_game makes the game for a screen that many LEDs wide.
 /// With extend, that's all LED matrices side by side.
 pub fn play<G: HostGame>(
     serialdevs: &[String],
@@ -242,7 +247,6 @@ pub fn play<G: HostGame>(
     let mut matrices = Matrices::open(serialdevs, extend);
     let width = matrices.width();
     let mut game = new_game(width);
-    println!("Steer with the arrow keys, or move the mouse across this terminal.");
     println!("{} Q or Esc quits.", help);
 
     let term = RawTerminal::new().expect("Failed to set up the terminal");
@@ -266,6 +270,7 @@ pub fn play<G: HostGame>(
         last = now;
         game.update(&mut input, now, dt);
         input.action = false;
+        input.presses.clear();
         matrices.send(&game.render(now));
         frames += 1;
 

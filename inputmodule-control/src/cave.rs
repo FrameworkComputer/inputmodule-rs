@@ -349,7 +349,8 @@ pub fn cave_cmd(serialdevs: &[String], extend: bool, fps: Option<u32>) {
         serialdevs,
         extend,
         fps,
-        "Space or a click starts.",
+        "Steer with the arrow keys, or move the mouse across this terminal.
+Space or a click starts.",
         Game::new,
     );
 }

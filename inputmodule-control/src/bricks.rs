@@ -405,7 +405,8 @@ pub fn bricks_cmd(serialdevs: &[String], extend: bool, fps: Option<u32>) {
         serialdevs,
         extend,
         fps,
-        "Space or a click launches the ball.",
+        "Steer with the arrow keys, or move the mouse across this terminal.
+Space or a click launches the ball.",
         Game::new,
     );
 }
