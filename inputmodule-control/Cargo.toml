@@ -19,6 +19,15 @@ rand = "0.8.5"
 # Depending on an experimental crate, therefore optional dependency
 vis-core = { git = 'https://github.com/Rahix/visualizer2.git', rev = '1fe908012a9c156695921f3b6bb47178e1332b92', optional = true }
 crossterm = "0.29"
+
+[target.'cfg(windows)'.dependencies]
+# To find which USB port each LED matrix is plugged into
+windows-sys = { version = "0.52", features = [
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Foundation",
+    "Win32_System_Registry",
+] }
+
 [features]
 audio-visualizations = ["vis-core"]
 
