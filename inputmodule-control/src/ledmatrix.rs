@@ -203,6 +203,10 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub flap: bool,
 
+    /// Play Ledris, a falling block puzzle, with the arrow keys in the terminal
+    #[arg(long)]
+    pub ledris: bool,
+
     /// Show --demo, the games, --video and --camera across all LED matrices,
     /// as one wide screen, instead of the same on each. They're side by side from
     /// left to right in the order of --serial-dev, or sorted by name without it

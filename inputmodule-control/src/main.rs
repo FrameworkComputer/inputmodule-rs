@@ -9,6 +9,7 @@ mod font;
 mod hostgame;
 mod inputmodule;
 mod ledmatrix;
+mod ledris;
 mod usbport;
 
 use clap::{Parser, Subcommand};
