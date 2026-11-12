@@ -108,16 +108,7 @@ impl Stats {
                 self.calc_us_max = 0;
                 vals
             }
-            2 => [
-                self.led_power_ons,
-                self.led_off_us_total,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
+            2 => [self.led_power_ons, self.led_off_us_total, 0, 0, 0, 0, 0, 0],
             _ => [0; 8],
         };
         let mut response = [0; 32];
