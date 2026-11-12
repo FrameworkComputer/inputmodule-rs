@@ -126,6 +126,12 @@ pub fn find_serialdevs(args: &crate::ClapCli, wait_for_device: bool) -> (Vec<Str
                             // TODO: Seems to replace the spaces with underscore, not sure why
                             println!("  Product {}", product);
                         }
+                        if let Some(loc) = crate::usbport::location(&p.port_name) {
+                            println!("  USB     {:X?}", loc);
+                            if let Some(slot) = crate::usbport::fw16_position(&loc) {
+                                println!("  Slot    {} (from the left)", slot);
+                            }
+                        }
                     }
                     _ => {
                         //println!("{}", p.port_name);
@@ -258,12 +264,19 @@ pub fn serial_commands(args: &crate::ClapCli) {
             }
 
             // Streaming to all LED matrices side by side. Without --serial-dev, they're
-            // found in no particular order, so at least make it the same every time.
+            // found in no particular order. Order them by their slot in the
+            // Framework 16 input deck. Else at least the same every time.
             let extend = ledmatrix_args.extend;
             let mut serialdevs = serialdevs;
             if extend && args.serial_dev.is_empty() {
-                // COM9 before COM10
-                serialdevs.sort_by_key(|dev| (dev.len(), dev.clone()));
+                // Known slots first, then COM9 before COM10
+                serialdevs.sort_by_cached_key(|dev| {
+                    let slot = crate::usbport::fw16_position_of(dev);
+                    (slot.is_none(), slot, dev.len(), dev.clone())
+                });
+                if args.verbose {
+                    println!("Left to right: {:?}", serialdevs);
+                }
             }
 
             // Commands that block and need manual looping

@@ -1148,6 +1148,7 @@ dependencies = [
  "serialport",
  "static_vcruntime",
  "vis-core",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
