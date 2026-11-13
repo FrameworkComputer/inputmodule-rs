@@ -6,25 +6,24 @@
 
 // TODO:
 // - [x] Basic keyscan
-// - [x] Send UP/LEFT/RIGHT/CAPS HID reports, DOWN to go into bootloader
+// - [x] Basic HID keymaps for all five variants
 // - [x] Can go into D2 (tested on Linux)
 // - [x] Can wake host (remote wakeup)
 // - [ ] Both serial and HID keyboard as composite device
-// - [ ] Key Debouncing
+// - [x] Key Debouncing
 // - [ ] 1-Zone PWM backlight
 // - [x] RGB backlight (needs new/modified Rust driver)
 //   - [x] Working (all white)
 //   - [ ] Map all LEDs
-// - [ ] Separate builds for different keyboard variants
+// - [x] Separate builds for different keyboard variants
 // - [ ] Measure and optimize scan frequency
-// - [ ] Implement full key matrix with all keys
-// - [ ] Implement second layer for FN (including FN lock)
+// - [x] Implement full basic key matrix
+// - [x] Implement second layer for FN (including volatile FN lock)
 // - [ ] Persist brightness setting and FN lock through reset
 // - [ ] Media keys
 
-use cortex_m::delay::Delay;
 //use defmt::*;
-use crate::rgb_matrix::{LedMatrix, DVT2_CALC_PIXEL};
+use crate::rgb_matrix::LedMatrix;
 use defmt_rtt as _;
 use embedded_hal::digital::{InputPin, OutputPin, StatefulOutputPin};
 use embedded_hal_02::adc::OneShot;
@@ -32,13 +31,33 @@ use rp2040_hal::gpio::bank0::Gpio28;
 use rp2040_hal::gpio::{self, FunctionSioInput, PullUp};
 use usbd_human_interface_device::page::Keyboard;
 use usbd_human_interface_device::prelude::UsbHidClassBuilder;
-use usbd_human_interface_device::prelude::*;
 use usbd_human_interface_device::UsbHidError;
 
+mod keymap;
 mod rgb_matrix;
+use keymap::{COLS as MATRIX_COLS, ROWS as MATRIX_ROWS};
 
-use core::fmt::Display;
-use core::fmt::{self, Formatter};
+const SCAN_COLS: usize = if cfg!(any(feature = "numpad", feature = "macropad")) {
+    8
+} else {
+    16
+};
+const SCAN_ROWS: usize = if cfg!(any(feature = "numpad", feature = "macropad")) {
+    4
+} else {
+    8
+};
+
+#[cfg(feature = "ansi")]
+use keymap::layouts::ANSI as LAYOUT;
+#[cfg(feature = "iso")]
+use keymap::layouts::ISO as LAYOUT;
+#[cfg(feature = "jis")]
+use keymap::layouts::JIS as LAYOUT;
+#[cfg(feature = "macropad")]
+use keymap::layouts::MACROPAD as LAYOUT;
+#[cfg(feature = "numpad")]
+use keymap::layouts::NUMPAD as LAYOUT;
 
 use rp2040_hal::{
     gpio::{
@@ -64,30 +83,13 @@ use fl16_inputmodules::keyboard_hal as bsp;
 //use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
-use bsp::hal::{
-    clocks::{init_clocks_and_plls, Clock},
-    pac,
-    sio::Sio,
-    usb,
-    watchdog::Watchdog,
-};
+use bsp::hal::{clocks::init_clocks_and_plls, pac, sio::Sio, usb, watchdog::Watchdog};
 use fugit::RateExtU32;
 
 // USB Device support
 use usb_device::{class_prelude::*, prelude::*};
 
-// USB Communications Class Device support
-use usbd_serial::{SerialPort, USB_CLASS_CDC};
-
-// Used to demonstrate writing formatted strings
-use core::fmt::Write;
-use heapless::String;
-
 use fl16_inputmodules::serialnum::device_release;
-
-const MATRIX_COLS: usize = 16;
-const MATRIX_ROWS: usize = 8;
-const ADC_THRESHOLD: usize = 2900;
 
 struct Mux {
     a: Pin<Gpio1, FunctionSioOutput, PullDown>,
@@ -107,33 +109,6 @@ impl Mux {
         self.a.set_state(PinState::from(index & 0x01 != 0)).unwrap();
         self.b.set_state(PinState::from(index & 0x02 != 0)).unwrap();
         self.c.set_state(PinState::from(index & 0x04 != 0)).unwrap();
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
-pub struct Col(u8);
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
-struct Matrix([Col; MATRIX_COLS]);
-
-impl Matrix {
-    pub fn set(&mut self, row: usize, col: usize, val: bool) {
-        let mask = 1 << row;
-
-        self.0[col].0 = if val {
-            self.0[col].0 | mask
-        } else {
-            self.0[col].0 & !mask
-        };
-    }
-}
-
-impl Display for Col {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        for row in 0..MATRIX_ROWS {
-            let val = (self.0 & (1 << row)) >> row;
-            write!(f, "{:b}", val)?
-        }
-        Ok(())
     }
 }
 
@@ -186,58 +161,25 @@ impl Scanner {
             _ => unreachable!(),
         }
     }
-    fn read_voltage(&mut self) -> usize {
-        let _adc_read: u16 = self.adc.0.read(&mut self.adc.1).unwrap();
-        33000
-    }
-    pub fn measure_key(&mut self, row: usize, col: usize) -> (usize, usize) {
-        for col in 0..MATRIX_COLS {
-            self.drive_col(col, PinState::High);
-        }
+    /// Scan one column at a time so USB is serviced between columns.
+    fn scan_column(&mut self, col: usize) -> [u16; MATRIX_ROWS] {
         self.drive_col(col, PinState::Low);
-
-        self.mux.select_row(row);
-        // Let column and mux settle a bit
-        cortex_m::asm::delay(2000);
-        let adc_read: u16 = self.adc.0.read(&mut self.adc.1).unwrap();
-
+        let mut voltages = [3300; MATRIX_ROWS];
+        for (row, voltage) in voltages.iter_mut().enumerate().take(SCAN_ROWS) {
+            self.mux.select_row(row);
+            // Retain the settling time used by the original single-key reader.
+            cortex_m::asm::delay(2000);
+            let sample: u16 = self.adc.0.read(&mut self.adc.1).unwrap();
+            *voltage = ((sample as u32 * 3300) / 4096) as u16;
+        }
         self.drive_col(col, PinState::High);
-
-        let voltage_10k = ((adc_read as usize) * 3300) / 4096;
-        (voltage_10k / 1_000, voltage_10k % 1_000)
-    }
-    pub fn scan(&mut self) -> Matrix {
-        let mut matrix = Matrix::default();
-
-        // Initialize all cols as high
-        for col in 0..MATRIX_COLS {
-            self.drive_col(col, PinState::High);
-        }
-
-        for col in 0..MATRIX_COLS {
-            self.drive_col(col, PinState::Low);
-
-            for row in 0..MATRIX_ROWS {
-                self.mux.select_row(row);
-
-                if self.read_voltage() < ADC_THRESHOLD {
-                    matrix.set(row, col, true);
-                }
-            }
-
-            self.drive_col(col, PinState::High);
-        }
-
-        matrix.set(3, 4, true);
-        matrix.set(0, 4, true);
-        matrix
+        voltages
     }
 }
 
 #[entry]
 fn main() -> ! {
     let mut pac = pac::Peripherals::take().unwrap();
-    let core = pac::CorePeripherals::take().unwrap();
     let mut watchdog = Watchdog::new(pac.WATCHDOG);
     let sio = Sio::new(pac.SIO);
 
@@ -399,7 +341,7 @@ fn main() -> ! {
         }
     }
 
-    let mut scan_timer = timer.get_counter().ticks();
+    let mut tick_timer = timer.get_counter().ticks();
     let mut capslock_timer = timer.get_counter().ticks();
     caps_led.set_high().unwrap();
 
@@ -419,6 +361,12 @@ fn main() -> ! {
         adc: (adc, adc_x),
     };
 
+    for col in 0..MATRIX_COLS {
+        scanner.drive_col(col, PinState::High);
+    }
+    let mut keys = keymap::Keys::new();
+    let mut voltages = [[3300; MATRIX_COLS]; MATRIX_ROWS];
+    let mut scan_col = 0;
     let mut usb_initialized;
     let mut usb_suspended = false;
     loop {
@@ -448,89 +396,50 @@ fn main() -> ! {
             capslock_timer = timer.get_counter().ticks();
         }
 
-        let mut keycode: Option<Keyboard> = None;
-        if timer.get_counter().ticks() > scan_timer + 250_000 {
-            cfg_if::cfg_if! {
-                if #[cfg(any(feature = "ansi", feature = "iso", feature = "jis"))] {
-                    let left = scanner.measure_key(6, 11);
-                    let up = scanner.measure_key(1, 13);
-                    let down = scanner.measure_key(1, 8);
-                    let right = scanner.measure_key(2, 15);
-                    let caps = scanner.measure_key(4, 4);
-
-                    let left_p = left.0 < 2 || (left.0 == 2 && left.1 < 290);
-                    let right_p = right.0 < 2 || (right.0 == 2 && right.1 < 290);
-                    let up_p = up.0 < 2 || (up.0 == 2 && up.1 < 290);
-                    let down_p = down.0 < 2 || (down.0 == 2 && down.1 < 290);
-                    let caps_p = caps.0 < 2 || (caps.0 == 2 && caps.1 < 290);
-
-                    if left_p {
-                        keycode = Some(Keyboard::LeftArrow);
-                    } else if right_p {
-                        keycode = Some(Keyboard::RightArrow);
-                    } else if up_p {
-                        keycode = Some(Keyboard::UpArrow);
-                    } else if down_p {
-                        keycode = None;
-                        rp2040_hal::rom_data::reset_to_usb_boot(0, 0);
-                    } else if caps_p {
-                        keycode = Some(Keyboard::CapsLock);
-                    } else {
-                        keycode = None;
-                    }
-                }
-            }
-
-            cfg_if::cfg_if! {
-                if #[cfg(any(feature = "numpad", feature = "macropad"))] {
-                    let one = scanner.measure_key(0, 3);
-                    let two = scanner.measure_key(0, 7);
-                    let three = scanner.measure_key(1, 4);
-                    let four = scanner.measure_key(2, 6);
-
-                    let one_p = one.0 < 2 || (one.0 == 2 && one.1 < 290);
-                    let two_p = two.0 < 2 || (two.0 == 2 && two.1 < 290);
-                    let three_p = three.0 < 2 || (three.0 == 2 && three.1 < 290);
-                    let four_p = four.0 < 2 || (four.0 == 2 && four.1 < 290);
-
-                    if one_p {
-                        keycode = Some(Keyboard::Keyboard1);
-                    } else if two_p {
-                        keycode = Some(Keyboard::Keyboard2);
-                    } else if three_p {
-                        keycode = Some(Keyboard::Keyboard3);
-                    } else if four_p {
-                        keycode = Some(Keyboard::Keyboard4);
-                    } else {
-                        keycode = None;
-                    }
-                }
-            }
-
-            scan_timer = timer.get_counter().ticks();
+        let readings = scanner.scan_column(scan_col);
+        for row in 0..MATRIX_ROWS {
+            voltages[row][scan_col] = readings[row];
+        }
+        scan_col += 1;
+        if scan_col == SCAN_COLS {
+            let pressed = if sleep.is_high().unwrap() {
+                keymap::interpret(&voltages)
+            } else {
+                [[false; MATRIX_COLS]; MATRIX_ROWS]
+            };
+            keys.update(pressed, timer.get_counter().ticks(), &LAYOUT);
+            scan_col = 0;
         }
 
         if !usb_suspended {
             let _ = keyboard_hid.device().read_report();
 
-            // Setup the report for the control channel
-            let keycodes = if let Some(keycode) = keycode {
-                [keycode]
-            } else {
-                [Keyboard::NoEventIndicated]
-            };
-            match keyboard_hid.device().write_report(keycodes) {
+            // Retry the full held state if the USB endpoint was busy.
+            match keyboard_hid
+                .device()
+                .write_report(keys.pressed().map(Keyboard::from))
+            {
                 Err(UsbHidError::WouldBlock) | Err(UsbHidError::Duplicate) | Ok(_) => {}
                 Err(e) => panic!("Failed to write keyboard report: {:?}", e),
             }
-            match keyboard_hid.tick() {
-                Err(UsbHidError::WouldBlock) | Ok(_) => {}
-                Err(e) => panic!("Failed to process keyboard tick: {:?}", e),
+        }
+        // The HID idle timer expects a 1 ms tick, independently of scan speed.
+        let now = timer.get_counter().ticks();
+        while now - tick_timer >= 1_000 {
+            tick_timer += 1_000;
+            if !usb_suspended {
+                match keyboard_hid.tick() {
+                    Err(UsbHidError::WouldBlock) | Ok(_) => {}
+                    Err(e) => panic!("Failed to process keyboard tick: {:?}", e),
+                }
             }
         }
 
-        // Wake the host.
-        if keycode.is_some() && usb_suspended && usb_dev.remote_wakeup_enabled() {
+        if keys.any_pressed()
+            && sleep.is_high().unwrap()
+            && usb_suspended
+            && usb_dev.remote_wakeup_enabled()
+        {
             usb_dev.bus().remote_wakeup();
         }
 
@@ -559,35 +468,7 @@ fn main() -> ! {
             let _ = usb_initialized;
             let _ = usb_suspended;
 
-            //let kb = Matrix::default();
-            //let kb = scanner.scan();
-
             keyboard_hid.poll();
-
-            // let mut buf = [0u8; 64];
-            // match serial.read(&mut buf) {
-            //     Err(_e) => {
-            //         // Do nothing
-            //     }
-            //     Ok(0) => {
-            //         // Do nothing
-            //     }
-            //     Ok(_count) => {
-            //         match buf[0] {
-            //             b'r' => rp2040_hal::rom_data::reset_to_usb_boot(0, 0),
-            //             _ => (),
-            //         }
-            //         //let mut text: String<64> = String::new();
-            //         //write!(&mut text, "    01234567\r\n").unwrap();
-            //         //let _ = serial.write(text.as_bytes());
-
-            //         //for col in 0..MATRIX_COLS {
-            //         //    let mut text: String<64> = String::new();
-            //         //    write!(&mut text, "{:2}: {}\r\n", col, kb.0[col]).unwrap();
-            //         //    let _ = serial.write(text.as_bytes());
-            //         //}
-            //     }
-            // }
         } else {
             match usb_dev.state() {
                 // No new data
