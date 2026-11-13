@@ -25,7 +25,7 @@
 //use defmt::*;
 use crate::rgb_matrix::LedMatrix;
 use defmt_rtt as _;
-use embedded_hal::digital::{InputPin, OutputPin, StatefulOutputPin};
+use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_02::adc::OneShot;
 use rp2040_hal::gpio::bank0::Gpio28;
 use rp2040_hal::gpio::{self, FunctionSioInput, PullUp};
@@ -342,8 +342,10 @@ fn main() -> ! {
     }
 
     let mut tick_timer = timer.get_counter().ticks();
-    let mut capslock_timer = timer.get_counter().ticks();
-    caps_led.set_high().unwrap();
+    let mut backlight_timer = timer.get_counter().ticks();
+    let mut backlight_on = true;
+    let mut caps_lock = false;
+    caps_led.set_low().unwrap();
 
     let adc = Adc::new(pac.ADC, &mut pac.RESETS);
     let adc_x = rp2040_hal::adc::AdcPin::new(pins.analog_in.into_pull_up_input()).unwrap();
@@ -372,28 +374,25 @@ fn main() -> ! {
     loop {
         let _ = sleep.is_high();
 
-        // Turn back on when not suspended anymore
-        if !usb_suspended {
-            if caps_led.is_set_low().unwrap() {
-                caps_led.set_high().unwrap();
-                #[cfg(any(feature = "ansi", feature = "macropad"))]
-                matrix.device.fill(0xFF);
-            }
+        // Keep the RGB status animation independent of the Caps Lock indicator.
+        if !usb_suspended && !backlight_on {
+            #[cfg(any(feature = "ansi", feature = "macropad"))]
+            let _ = matrix.device.fill(0xFF);
+            backlight_on = true;
         }
 
         // Blink when in USB Suspend
         // 500_000us = 500ms = 0.5s
-        if usb_suspended && timer.get_counter().ticks() > capslock_timer + 500_000 {
-            if caps_led.is_set_high().unwrap() {
+        if usb_suspended && timer.get_counter().ticks() > backlight_timer + 500_000 {
+            if backlight_on {
                 #[cfg(any(feature = "ansi", feature = "macropad"))]
-                matrix.device.fill(0x00);
-                caps_led.set_low().unwrap();
+                let _ = matrix.device.fill(0x00);
             } else {
-                caps_led.set_high().unwrap();
                 #[cfg(any(feature = "ansi", feature = "macropad"))]
-                matrix.device.fill(0xFF);
+                let _ = matrix.device.fill(0xFF);
             }
-            capslock_timer = timer.get_counter().ticks();
+            backlight_on = !backlight_on;
+            backlight_timer = timer.get_counter().ticks();
         }
 
         let readings = scanner.scan_column(scan_col);
@@ -412,7 +411,9 @@ fn main() -> ! {
         }
 
         if !usb_suspended {
-            let _ = keyboard_hid.device().read_report();
+            if let Ok(leds) = keyboard_hid.device().read_report() {
+                caps_lock = leds.caps_lock;
+            }
 
             // Retry the full held state if the USB endpoint was busy.
             match keyboard_hid
@@ -488,5 +489,16 @@ fn main() -> ! {
             let _ = usb_initialized;
             let _ = usb_suspended;
         }
+        // The host owns lock state, including changes from another keyboard.
+        // Clear stale state on USB reset, and blank the indicator in suspend.
+        if matches!(
+            usb_dev.state(),
+            UsbDeviceState::Default | UsbDeviceState::Addressed
+        ) {
+            caps_lock = false;
+        }
+        caps_led
+            .set_state(PinState::from(caps_lock && !usb_suspended))
+            .unwrap();
     }
 }
