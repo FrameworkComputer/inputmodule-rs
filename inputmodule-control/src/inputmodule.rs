@@ -296,6 +296,10 @@ pub fn serial_commands(args: &crate::ClapCli) {
                 crate::flap::flap_cmd(&serialdevs, ledmatrix_args.fps);
             }
 
+            if ledmatrix_args.claude {
+                crate::claude::claude_cmd(args);
+            }
+
             if let Some(demo) = ledmatrix_args.demo {
                 demo_cmd(
                     &serialdevs,
@@ -466,12 +470,20 @@ fn simple_open_cmd(serialport: &mut Box<dyn SerialPort>, command: Command, args:
 }
 
 fn simple_cmd_port(port: &mut Box<dyn SerialPort>, command: Command, args: &[u8]) {
+    try_cmd_port(port, command, args).expect("Write failed!");
+}
+
+/// Like simple_cmd_port, but returns the error, for programs that recover from it
+fn try_cmd_port(
+    port: &mut Box<dyn SerialPort>,
+    command: Command,
+    args: &[u8],
+) -> std::io::Result<()> {
     let mut buffer: [u8; 64] = [0; 64];
     buffer[..2].copy_from_slice(FWK_MAGIC);
     buffer[2] = command as u8;
     buffer[3..3 + args.len()].copy_from_slice(args);
     port.write_all(&buffer[..3 + args.len()])
-        .expect("Write failed!");
 }
 
 fn sleeping_cmd(serialdev: &str, arg: Option<bool>) {
@@ -637,12 +649,16 @@ fn get_stats(port: &mut Box<dyn SerialPort>) -> Option<DeviceStats> {
 /// While fading in, the firmware doesn't service USB, so sending frames would stall.
 /// The port needs a long enough timeout.
 fn wake_and_wait(port: &mut Box<dyn SerialPort>) {
-    simple_cmd_port(port, Command::Sleeping, &[0]);
+    try_wake_and_wait(port).expect("Device didn't respond to version request");
+}
+
+/// Like wake_and_wait, but returns the error, for programs that recover from it
+pub fn try_wake_and_wait(port: &mut Box<dyn SerialPort>) -> std::io::Result<()> {
+    try_cmd_port(port, Command::Sleeping, &[0])?;
     // Only responds after the fade-in, because commands are handled in order
-    simple_cmd_port(port, Command::Version, &[]);
+    try_cmd_port(port, Command::Version, &[])?;
     let mut response = [0; 32];
     port.read_exact(&mut response)
-        .expect("Device didn't respond to version request");
 }
 
 /// Stream changing greyscale frames as fast as possible and report the throughput
@@ -1385,6 +1401,17 @@ pub fn send_grey_frame(ports: &mut [Box<dyn SerialPort>], grid: &GreyGrid) {
         }
         commit_cols(port);
     }
+}
+
+/// Send a greyscale frame to one port, returning the error instead of panicking
+pub fn try_send_grey_frame(port: &mut Box<dyn SerialPort>, grid: &GreyGrid) -> std::io::Result<()> {
+    for (x, col) in grid.iter().enumerate() {
+        let mut buffer = [0; HEIGHT + 1];
+        buffer[0] = x as u8;
+        buffer[1..].copy_from_slice(col);
+        try_cmd_port(port, Command::SendCol, &buffer)?;
+    }
+    try_cmd_port(port, Command::CommitCols, &[])
 }
 
 /// Prints the achieved frame rate once per second

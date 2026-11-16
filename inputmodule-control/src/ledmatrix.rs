@@ -203,6 +203,11 @@ pub struct LedMatrixSubcommand {
     #[arg(long)]
     pub flap: bool,
 
+    /// Show the status of Claude Code sessions, one bar each. Needs the hooks from
+    /// `inputmodule-control claude-hook --help` set up in Claude Code. Runs until stopped
+    #[arg(long)]
+    pub claude: bool,
+
     /// Limit --demo, the games, --video or --camera to this many frames per second.
     /// Uncapped for --demo and the games, the video's frame rate for --video
     /// and the camera's frame rate for --camera by default

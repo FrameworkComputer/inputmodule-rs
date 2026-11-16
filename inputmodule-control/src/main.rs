@@ -4,6 +4,7 @@ mod b1display;
 mod bricks;
 mod c1minimal;
 mod cave;
+mod claude;
 mod flap;
 mod font;
 mod hostgame;
@@ -25,6 +26,7 @@ enum Commands {
     LedMatrix(LedMatrixSubcommand),
     B1Display(B1DisplaySubcommand),
     C1Minimal(C1MinimalSubcommand),
+    ClaudeHook(claude::ClaudeHookSubcommand),
 }
 
 impl Commands {
@@ -33,6 +35,7 @@ impl Commands {
             Self::LedMatrix(_) => LED_MATRIX_PID,
             Self::B1Display(_) => B1_LCD_PID,
             Self::C1Minimal(_) => 0x22,
+            Self::ClaudeHook(_) => LED_MATRIX_PID,
         }
     }
 }
@@ -66,6 +69,8 @@ fn main() {
     let args = ClapCli::parse_from(args);
 
     match args.command {
+        // Runs from Claude Code, doesn't talk to the device itself
+        Some(Commands::ClaudeHook(_)) => claude::hook_cmd(),
         Some(_) => serial_commands(&args),
         None => {
             if args.list {
