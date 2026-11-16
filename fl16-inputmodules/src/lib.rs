@@ -36,4 +36,5 @@ pub mod minimal_hal;
 pub mod qtpy_hal;
 
 pub mod control;
+pub mod picotool_reset;
 pub mod serialnum;

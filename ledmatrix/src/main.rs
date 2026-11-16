@@ -147,6 +147,7 @@ use fl16_inputmodules::control::*;
 use fl16_inputmodules::games::{pong, snake};
 use fl16_inputmodules::matrix::*;
 use fl16_inputmodules::patterns::*;
+use fl16_inputmodules::picotool_reset::PicoToolReset;
 use fl16_inputmodules::serialnum::{device_release, get_serialnum};
 
 //                            FRA                - Framwork
@@ -201,6 +202,7 @@ fn main() -> ! {
 
     // Set up the USB Communications Class Device driver
     let mut serial = SerialPort::new(&usb_bus);
+    let mut picotool = PicoToolReset::new(&usb_bus);
 
     let serialnum = if let Some(serialnum) = get_serialnum() {
         serialnum.serialnum
@@ -412,7 +414,7 @@ fn main() -> ! {
         }
 
         // Check for new data
-        if usb_dev.poll(&mut [&mut serial]) {
+        if usb_dev.poll(&mut [&mut serial, &mut picotool]) {
             match usb_dev.state() {
                 // Default: Device has just been created or reset
                 // Addressed: Device has received an address for the host
