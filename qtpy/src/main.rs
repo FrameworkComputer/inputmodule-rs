@@ -40,6 +40,8 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
+use fl16_inputmodules::picotool_reset::PicoToolReset;
+
 // Used to demonstrate writing formatted strings
 // use core::fmt::Write;
 // use heapless::String;
@@ -99,6 +101,8 @@ fn main() -> ! {
         &mut pac.RESETS,
     ));
 
+    let mut picotool: PicoToolReset<_> = PicoToolReset::new(&usb_bus);
+
     // Set up the USB Communications Class Device driver
     let mut serial = SerialPort::new(&usb_bus);
 
@@ -147,7 +151,7 @@ fn main() -> ! {
         }
 
         // Check for new data
-        if usb_dev.poll(&mut [&mut serial]) {
+        if usb_dev.poll(&mut [&mut picotool, &mut serial]) {
             let mut buf = [0u8; 64];
             match serial.read(&mut buf) {
                 Err(_e) => {
