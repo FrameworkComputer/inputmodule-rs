@@ -174,6 +174,33 @@ cargo install cargo-make --locked
 > cargo make --cwd inputmodule-control run -- --version
 ```
 
+## Using the Nix flake
+
+If you have Nix with flakes enabled, you can build and run everything without
+installing a toolchain yourself.
+
+```sh
+# Drop into a dev shell with rustup, flip-link, cargo-make, elf2uf2-rs, etc.
+nix develop
+
+# Build the host control tool (default package)
+nix build
+
+# Run it directly
+nix run . -- --list
+
+# Build firmware ELFs for a specific module
+nix build .#ledmatrix
+nix build .#b1display
+nix build .#c1minimal
+nix build .#qtpy
+```
+
+Each firmware build drops both the ELF and a ready-to-flash UF2 in
+`result/bin/`, e.g. `result/bin/ledmatrix.elf` and `result/bin/ledmatrix.uf2`.
+Put the module in bootloader mode and copy the `.uf2` onto the drive it
+exposes.
+
 ### Check the firmware version of the device
 
 ###### In-band using commandline
