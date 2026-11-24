@@ -71,6 +71,8 @@ fn main() {
     match args.command {
         // Runs from Claude Code, doesn't talk to the device itself
         Some(Commands::ClaudeHook(_)) => claude::hook_cmd(),
+        // Waits for the LED matrix itself, so it can start before it's plugged in
+        Some(Commands::LedMatrix(ref ledmatrix)) if ledmatrix.claude => claude::claude_cmd(&args),
         Some(_) => serial_commands(&args),
         None => {
             if args.list {
