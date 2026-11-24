@@ -17,19 +17,35 @@ Linux only. It runs `inputmodule-control`, built from
 
 ## Install
 
-Build the binary into the plugin, then add the folder as a marketplace:
+The repository is the marketplace. Add it from GitHub, with `#branch` for a branch:
+
+```
+/plugin marketplace add FrameworkComputer/inputmodule-rs#inputmodule-rs-claude
+/plugin install ledmatrix@inputmodule
+```
+
+Installed that way, the plugin has no binary, so it uses `inputmodule-control` from your PATH. It
+needs one with `claude-hook`, built from the same branch:
+
+```
+cargo install --path inputmodule-control --target "$(rustc -vV | sed -n 's/^host: //p')"
+```
+
+Or build the binary into a clone, and add the clone as the marketplace:
 
 ```
 plugin/build.sh
 ```
 
 ```
-/plugin marketplace add ./plugin
+/plugin marketplace add /path/to/inputmodule-rs
 /plugin install ledmatrix@inputmodule
 ```
 
-The build is for your machine's architecture and needs libudev. Without a build in the plugin, it
-uses `inputmodule-control` from your PATH.
+That build is for your machine's architecture and needs libudev.
+
+After new commits, run `/plugin marketplace update inputmodule`; third-party marketplaces don't
+update on their own.
 
 To give the LED Matrix to your user without root, install the udev rule in
 [`release/50-framework-inputmodule.rules`](https://github.com/FrameworkComputer/inputmodule-rs/blob/main/release/50-framework-inputmodule.rules)
@@ -73,7 +89,7 @@ keeps two sessions from starting two copies.
 
 | Path | Contents |
 |---|---|
-| `.claude-plugin/marketplace.json` | A marketplace with this one plugin. |
+| `../.claude-plugin/marketplace.json` | The marketplace, at the top of the repository, with this one plugin. |
 | `ledmatrix/hooks/hooks.json` | Every hook runs `inputmodule-control claude-hook`. `SessionStart` also starts the display if autostart is on. |
 | `ledmatrix/skills/` | `/ledmatrix:open`, `/ledmatrix:close` and `/ledmatrix:autostart`. |
 | `ledmatrix/scripts/inputmodule-control` | Runs the build for this machine, or the one on PATH. Without either, the hooks do nothing. |

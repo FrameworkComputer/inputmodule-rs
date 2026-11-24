@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "ledmatrix",
-      "source": "./ledmatrix",
+      "source": "./plugin/ledmatrix",
       "description": "Shows each Claude Code session's status on the Framework 16 LED Matrix. Linux only."
     }
   ]

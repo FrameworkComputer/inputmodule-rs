@@ -104,6 +104,18 @@ Failed to find serial device. Please manually specify with --serial-dev
 Device already present. No need to wait. Not executing command.
 ```
 
+### Claude Code status on the LED Matrix
+
+This repository is also a Claude Code plugin marketplace. Its `ledmatrix` plugin shows what each
+Claude Code session is doing on the LED Matrix. On Linux:
+
+```
+/plugin marketplace add FrameworkComputer/inputmodule-rs
+/plugin install ledmatrix@inputmodule
+```
+
+It needs `inputmodule-control` with `claude-hook` on your PATH. See [plugin/README.md](plugin/README.md).
+
 ## Update the Firmware
 
 First, put the module into bootloader mode.
