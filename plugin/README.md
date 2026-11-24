@@ -24,25 +24,16 @@ The repository is the marketplace. Add it from GitHub, with `#branch` for a bran
 /plugin install ledmatrix@inputmodule
 ```
 
-Installed that way, the plugin has no binary, so it uses `inputmodule-control` from your PATH. It
-needs one with `claude-hook`, built from the same branch:
+The plugin includes `inputmodule-control` for x86_64, which runs with glibc 2.34 or newer and needs
+libudev. On other architectures it uses `inputmodule-control` from your PATH, which needs a build
+with `claude-hook`.
 
-```
-cargo install --path inputmodule-control --target "$(rustc -vV | sed -n 's/^host: //p')"
-```
-
-Or build the binary into a clone, and add the clone as the marketplace:
-
-```
-plugin/build.sh
-```
+From a clone, add it as a local marketplace:
 
 ```
 /plugin marketplace add /path/to/inputmodule-rs
 /plugin install ledmatrix@inputmodule
 ```
-
-That build is for your machine's architecture and needs libudev.
 
 After new commits, run `/plugin marketplace update inputmodule`; third-party marketplaces don't
 update on their own.
@@ -94,5 +85,5 @@ keeps two sessions from starting two copies.
 | `ledmatrix/skills/` | `/ledmatrix:open`, `/ledmatrix:close` and `/ledmatrix:autostart`. |
 | `ledmatrix/scripts/inputmodule-control` | Runs the build for this machine, or the one on PATH. Without either, the hooks do nothing. |
 | `ledmatrix/scripts/ledmatrix-claude` | Starts and stops the display, and keeps the autostart setting. |
-| `ledmatrix/libexec/` | `inputmodule-control` for this machine, made by `build.sh`. Not in git. |
-| `build.sh` | Builds the binary. With a folder argument, also copies the finished marketplace there, to publish as its own repository. |
+| `ledmatrix/libexec/` | `inputmodule-control` for x86_64, made by `build.sh`. |
+| `build.sh` | Builds the binary, in a Debian 12 container if podman or docker is available. Run it after changing `inputmodule-control`, and commit the binary with the change. With a folder argument, also copies the finished marketplace there, to publish as its own repository. |

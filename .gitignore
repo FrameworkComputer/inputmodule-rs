@@ -32,6 +32,3 @@ ledmatrix_control.spec
 # devenv
 .devenv/
 .devenv.flake.nix
-
-# Claude Code plugin binaries, made by plugin/build.sh
-plugin/ledmatrix/libexec/

@@ -5,8 +5,11 @@
 #
 #   plugin/build.sh [OUTPUT_DIR]
 #
-# It builds for this machine's architecture only. The binary needs libudev and
-# this machine's glibc or newer.
+# It builds for this machine's architecture only. With podman or docker, it
+# builds in a Debian 12 container, so the binary runs with glibc 2.36 or newer,
+# like the one committed in the plugin. Without either, or with NATIVE=1, it
+# builds here, and the binary needs this machine's glibc or newer. Either way
+# it needs libudev.
 set -eu
 out=
 if [ $# -gt 0 ]; then
@@ -20,11 +23,28 @@ mkdir -p "$libexec"
 [ "$(uname -s)" = Linux ] || { echo "The plugin only runs on Linux" >&2; exit 1; }
 arch=$(uname -m)
 # The workspace builds for the firmware's target by default.
-target=$(rustc -vV | sed -n 's/^host: //p')
-cargo build --release -p inputmodule-control --target "$target"
+target=$arch-unknown-linux-gnu
+engine=
+if [ -z "${NATIVE:-}" ]; then
+    engine=$(command -v podman || command -v docker || true)
+fi
+if [ -n "$engine" ]; then
+    # Its own target folder, so it doesn't mix with builds for this machine.
+    build=target/plugin-bookworm
+    mkdir -p "$build"
+    "$engine" run --rm -v "$PWD:/src:ro,Z" -v "$PWD/$build:/target:Z" \
+        -e CARGO_TARGET_DIR=/target -w /src docker.io/library/rust:1-bookworm \
+        sh -c "apt-get update -qq >/dev/null &&
+            apt-get install -y -qq libudev-dev pkg-config >/dev/null &&
+            cargo build --release --locked -p inputmodule-control --target $target"
+else
+    echo "Building for this machine's glibc. Install podman or docker for a build that runs on older ones." >&2
+    build=target
+    cargo build --release --locked -p inputmodule-control --target "$target"
+fi
 # Rename over the old one, which the display may be running from.
 tmp="$libexec/.inputmodule-control-$arch.tmp"
-cp "target/$target/release/inputmodule-control" "$tmp"
+cp "$build/$target/release/inputmodule-control" "$tmp"
 # The release profile keeps debug info, which the plugin doesn't need.
 if command -v strip >/dev/null 2>&1; then
     strip "$tmp"

@@ -114,7 +114,7 @@ Claude Code session is doing on the LED Matrix. On Linux:
 /plugin install ledmatrix@inputmodule
 ```
 
-It needs `inputmodule-control` with `claude-hook` on your PATH. See [plugin/README.md](plugin/README.md).
+It includes `inputmodule-control` for x86_64. See [plugin/README.md](plugin/README.md).
 
 ## Update the Firmware
 
