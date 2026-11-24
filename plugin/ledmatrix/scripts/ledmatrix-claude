@@ -1,0 +1,147 @@
+#!/bin/sh
+# Starts and stops `inputmodule-control led-matrix --claude`, which shows the
+# Claude Code sessions on the LED Matrix.
+#
+#   ledmatrix-claude open            Start it, unless it's already running
+#   ledmatrix-claude close           Stop it
+#   ledmatrix-claude status          Show whether it runs, and the autostart setting
+#   ledmatrix-claude autostart [on|off]
+#   ledmatrix-claude session-start   From the SessionStart hook: open, if autostart is on
+#
+# Where systemd is available it runs as the user unit inputmodule-claude, so it
+# outlives the session that started it. Otherwise it runs in the background
+# with a pidfile. Either way, a lock keeps two of them from sharing the device.
+set -u
+scripts=$(cd "$(dirname "$0")" && pwd)
+wrapper="$scripts/inputmodule-control"
+unit=inputmodule-claude
+conf="${XDG_CONFIG_HOME:-$HOME/.config}/inputmodule-claude"
+autostart_file="$conf/autostart"
+# The same folder the hooks write to
+run="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/inputmodule-claude"
+pidfile="$run/display.pid"
+lockfile="$run/display.lock"
+logfile="$run/display.log"
+
+use_systemd() {
+    command -v systemd-run >/dev/null 2>&1 &&
+        systemctl --user show-environment >/dev/null 2>&1
+}
+
+running() {
+    if use_systemd && systemctl --user is-active --quiet "$unit"; then
+        return 0
+    fi
+    [ -f "$pidfile" ] || return 1
+    pid=$(cat "$pidfile" 2>/dev/null)
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null &&
+        tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null | grep -q -- '--claude'
+}
+
+open() {
+    if running; then
+        echo "The LED Matrix already shows the Claude Code sessions."
+        return 0
+    fi
+    if ! bin=$("$wrapper" --plugin-which); then
+        return 1
+    fi
+    mkdir -p "$run"
+    # flock -n makes a second copy exit right away instead of fighting over the device.
+    lock=
+    command -v flock >/dev/null 2>&1 && lock="flock -n $lockfile"
+    if use_systemd; then
+        # --collect, so a copy that failed doesn't keep the unit name taken.
+        # shellcheck disable=SC2086
+        if ! systemd-run --user --quiet --collect --unit="$unit" \
+            --description="Claude Code status on the LED Matrix" \
+            $lock "$bin" led-matrix --claude 2>/dev/null; then
+            # Another session may have just started it.
+            running && echo "The LED Matrix already shows the Claude Code sessions." && return 0
+            echo "Couldn't start the systemd user unit $unit. See: journalctl --user -u $unit" >&2
+            return 1
+        fi
+        where="journalctl --user -u $unit"
+    else
+        # shellcheck disable=SC2086
+        nohup setsid $lock "$bin" led-matrix --claude >"$logfile" 2>&1 </dev/null &
+        echo $! >"$pidfile"
+        where="$logfile"
+    fi
+    [ "${quick-}" ] && return 0
+    # It only fails right away if something is wrong, like a broken binary.
+    sleep 1
+    if running; then
+        echo "Started showing the Claude Code sessions on the LED Matrix. If it isn't plugged in, it waits for it."
+    else
+        echo "It stopped right after starting. See: $where" >&2
+        return 1
+    fi
+}
+
+close() {
+    stopped=
+    if use_systemd && systemctl --user is-active --quiet "$unit"; then
+        systemctl --user stop "$unit" && stopped=1
+    fi
+    if [ -f "$pidfile" ]; then
+        pid=$(cat "$pidfile" 2>/dev/null)
+        if [ -n "$pid" ] && tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null | grep -q -- '--claude'; then
+            # setsid made it a process group, with flock's child in it
+            kill -- "-$pid" 2>/dev/null || kill "$pid"
+            stopped=1
+        fi
+        rm -f "$pidfile"
+    fi
+    if [ "$stopped" ]; then
+        echo "Stopped showing the Claude Code sessions. The LED Matrix goes to sleep within a minute."
+    else
+        echo "It wasn't running."
+    fi
+}
+
+autostart() {
+    case "${1-}" in
+    on)
+        mkdir -p "$conf" && : >"$autostart_file" &&
+            echo "Autostart is on: Claude Code sessions start the LED Matrix display."
+        ;;
+    off)
+        rm -f "$autostart_file" &&
+            echo "Autostart is off."
+        ;;
+    "")
+        if [ -e "$autostart_file" ]; then
+            echo "Autostart is on ($autostart_file exists)."
+        else
+            echo "Autostart is off."
+        fi
+        ;;
+    *)
+        echo "Use on or off." >&2
+        return 1
+        ;;
+    esac
+}
+
+case "${1-}" in
+open) open ;;
+close) close ;;
+status)
+    if running; then echo "Running."; else echo "Not running."; fi
+    autostart
+    ;;
+autostart) autostart "${2-}" ;;
+session-start)
+    # What a SessionStart hook prints goes into Claude's context, so print nothing.
+    # Never fail, so the session starts normally either way.
+    if [ -e "$autostart_file" ]; then
+        quick=1 open >/dev/null 2>&1
+    fi
+    exit 0
+    ;;
+*)
+    sed -n '5,9s/^# *//p' "$0" >&2
+    exit 1
+    ;;
+esac

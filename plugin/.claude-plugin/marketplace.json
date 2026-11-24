@@ -1,0 +1,14 @@
+{
+  "name": "inputmodule",
+  "owner": {
+    "name": "Framework"
+  },
+  "description": "Claude Code status on Framework 16 input modules",
+  "plugins": [
+    {
+      "name": "ledmatrix",
+      "source": "./ledmatrix",
+      "description": "Shows each Claude Code session's status on the Framework 16 LED Matrix. Linux only."
+    }
+  ]
+}

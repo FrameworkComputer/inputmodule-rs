@@ -1,0 +1,16 @@
+{
+  "name": "ledmatrix",
+  "version": "0.1.0",
+  "description": "Shows what each Claude Code session is doing on the Framework 16 LED Matrix: working, idle, or waiting for you. Linux only.",
+  "author": {
+    "name": "Framework"
+  },
+  "license": "MIT",
+  "keywords": [
+    "status",
+    "led",
+    "notifications",
+    "framework",
+    "linux"
+  ]
+}

@@ -1,0 +1,33 @@
+#!/bin/sh
+# Runs the inputmodule-control built into the plugin for this machine's
+# architecture, or else the one on PATH.
+#
+# It must exec, not run it as a child: `claude-hook` finds the Claude Code
+# process through its parent, past the shell that runs the hook.
+dir=$(cd "$(dirname "$0")/.." && pwd)
+
+find_bin() {
+    if [ "$(uname -s)" = Linux ]; then
+        bin="$dir/libexec/inputmodule-control-$(uname -m)"
+        if [ -f "$bin" ]; then
+            # Plugin installs may not keep the executable bit.
+            [ -x "$bin" ] || chmod +x "$bin" 2>/dev/null
+            echo "$bin"
+            return
+        fi
+    fi
+    command -v inputmodule-control
+}
+
+if ! bin=$(find_bin); then
+    # Hooks stay quiet, so they never get in Claude's way.
+    [ "${1-}" = claude-hook ] && exit 0
+    echo "inputmodule-control: no build for $(uname -s) $(uname -m) in the plugin, and none on PATH" >&2
+    exit 1
+fi
+# For ledmatrix-claude, to check there is one before starting it.
+if [ "${1-}" = --plugin-which ]; then
+    echo "$bin"
+    exit 0
+fi
+exec "$bin" "$@"
