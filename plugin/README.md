@@ -5,9 +5,10 @@ bar, two LEDs high, in the order the sessions started:
 
 | State | Looks like | When |
 |---|---|---|
-| Working | Dim, with a light moving back and forth | You send a prompt, and while Claude runs tools. |
-| Idle | Steady | Claude finished its turn and waits for your next prompt. |
-| Needs you | Blinking | Claude, or one of its subagents, waits for a permission or asked you a question. |
+| Working | A comet with a fading tail crossing the bar | You send a prompt, and while Claude runs tools. |
+| Needs you | Breathing | Claude, or one of its subagents, waits for a permission or asked you a question. |
+| Done | A bright flash that fades to a dim glow | Claude finished its turn. The glow stays until your next prompt. |
+| Idle | A dim glow | A new session that hasn't had a prompt yet. |
 
 Up to 11 sessions fit. With more, the ones that need you are shown first. A session's bar goes
 away when it ends, or when its Claude Code process is gone.

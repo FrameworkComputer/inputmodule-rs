@@ -3,11 +3,12 @@
 //! Claude Code runs `inputmodule-control claude-hook` on its hook events. That writes
 //! a small state file per session and exits right away, so Claude never waits for the
 //! LED matrix. `inputmodule-control led-matrix --claude` reads the state files and
-//! draws one bar per session:
+//! draws one bar per session, with the same animations as the RGB Expansion Card:
 //!
-//! - Working: dim, with a light moving back and forth
-//! - Idle, waiting for the next prompt: steady
-//! - Needs attention, like a permission prompt or a question: blinking
+//! - Working: a comet with a fading tail, crossing the bar
+//! - Needs attention, like a permission prompt or a question: breathing
+//! - Done: a bright flash that settles to a dim glow until the next prompt
+//! - Idle, a new session that hasn't had a prompt yet: the same dim glow
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -45,6 +46,7 @@ enum State {
     Working,
     Idle,
     Attention,
+    Done,
 }
 
 impl State {
@@ -53,6 +55,7 @@ impl State {
             State::Working => "working",
             State::Idle => "idle",
             State::Attention => "attention",
+            State::Done => "done",
         }
     }
 
@@ -61,6 +64,7 @@ impl State {
             "working" => Some(State::Working),
             "idle" => Some(State::Idle),
             "attention" => Some(State::Attention),
+            "done" => Some(State::Done),
             _ => None,
         }
     }
@@ -163,7 +167,8 @@ fn handle_hook_event(event: &Value) -> Option<()> {
             let _ = fs::remove_file(&path);
             return Some(());
         }
-        "SessionStart" | "Stop" => State::Idle,
+        "SessionStart" => State::Idle,
+        "Stop" => State::Done,
         "UserPromptSubmit" | "PostToolUse" | "PostToolUseFailure" => State::Working,
         "PreToolUse" => match str_field("tool_name") {
             // Tools that ask the user something
@@ -207,6 +212,9 @@ fn handle_hook_event(event: &Value) -> Option<()> {
         // Keep the order of the bars when the state changes
         "started": old["started"].as_u64().unwrap_or(now),
         "updated": now,
+        // When the state changed, where its animation starts.
+        // Getting the same state again doesn't restart it, like a second Stop the flash.
+        "since": if old_state == Some(new_state) { old["since"].as_u64().unwrap_or(now) } else { now },
         "pid": process.map(|p| p.0),
         "pid_start": process.map(|p| p.1),
         "attention_agent": if new_state == State::Attention { agent } else { None },
@@ -223,6 +231,7 @@ fn handle_hook_event(event: &Value) -> Option<()> {
 struct Session {
     state: State,
     started: u64,
+    since: u64,
 }
 
 /// Read the state of all sessions, oldest first.
@@ -258,6 +267,10 @@ fn read_sessions(dir: &Path) -> Vec<Session> {
         sessions.push(Session {
             state,
             started: v["started"].as_u64().unwrap_or(0),
+            since: v["since"]
+                .as_u64()
+                .or(v["updated"].as_u64())
+                .unwrap_or(0),
         });
     }
     sessions.sort_by_key(|s| s.started);
@@ -268,19 +281,69 @@ fn read_sessions(dir: &Path) -> Vec<Session> {
 const BAR_HEIGHT: usize = 2;
 const MAX_BARS: usize = (HEIGHT + 1) / (BAR_HEIGHT + 1);
 
-// The firmware has no gamma curve for greyscale, these are PWM values.
-// Very low values look uneven on the hardware, so dim isn't too dim.
-const WORKING_DIM: u8 = 24;
-const WORKING_LIGHT: u8 = 180;
-const IDLE: u8 = 90;
-const ATTENTION: u8 = 255;
+// The firmware has no gamma curve for greyscale, so these are PWM values, which are linear in
+// light. Very low values look uneven on the hardware, so nothing stays dimmer than this.
+const DIM_FLOOR: u8 = 24;
+/// The glow after a flash and while idle, the RGB Expansion Card's 110 of 255 after gamma
+const GLOW: u8 = 40;
 
-/// How long the working light takes to go across and back
-const WORKING_PERIOD: f32 = 1.6;
-/// How long attention blinks are on and off
-const BLINK_PERIOD: f32 = 1.0;
+/// One pass of the comet, plus its tail, across the bar
+const COMET_PERIOD_MS: u64 = 1400;
+/// From dim to bright and back
+const BREATHE_PERIOD_MS: u64 = 1600;
+/// How long the done flash takes to fade to the glow
+const FLASH_MS: u64 = 4000;
 
-fn render(sessions: &[Session], t: f32) -> GreyGrid {
+/// Smoothstep from 0 to 1
+fn smooth(x: f32) -> f32 {
+    let x = x.clamp(0.0, 1.0);
+    x * x * (3.0 - 2.0 * x)
+}
+
+/// Fades between two PWM values evenly to the eye, by mixing them with gamma 2.2
+fn mix(from: u8, to: u8, w: f32) -> u8 {
+    let enc = |v: u8| (v as f32 / 255.0).powf(1.0 / 2.2);
+    let level = enc(from) + (enc(to) - enc(from)) * w.clamp(0.0, 1.0);
+    (level.powf(2.2) * 255.0).round() as u8
+}
+
+/// Comet brightness at column `x`, `t_ms` after it started.
+///
+/// The head enters from one column before the bar. A column fades in over the column before the
+/// head reaches it and out along the tail. That's linear in light, so the total light stays the
+/// same while the comet moves and it glides instead of pulsing.
+fn comet(x: usize, t_ms: u64) -> u8 {
+    let n = WIDTH as i64;
+    let tail = (n as u64).div_ceil(3).max(2) as i64;
+    let pass = (n + tail) * 256;
+    let head = (t_ms as i64 * pass / COMET_PERIOD_MS as i64) % pass - 256;
+    let d = head - x as i64 * 256;
+    let light = if (-256..0).contains(&d) {
+        d + 256
+    } else if (0..tail * 256).contains(&d) {
+        256 - d / tail
+    } else {
+        0
+    };
+    (light.clamp(0, 256) * 255 / 256) as u8
+}
+
+/// Brightness of a session's bar at column `x`, `t_ms` after it got into its state
+fn brightness(state: State, x: usize, t_ms: u64) -> u8 {
+    match state {
+        State::Working => comet(x, t_ms),
+        State::Attention => {
+            let phase = (t_ms % BREATHE_PERIOD_MS) as f32 / BREATHE_PERIOD_MS as f32;
+            let triangle = 1.0 - (2.0 * phase - 1.0).abs();
+            mix(DIM_FLOOR, 255, smooth(triangle))
+        }
+        // Stays near full for the first part, so it reads as a flash, then eases down
+        State::Done => mix(GLOW, 255, smooth(1.0 - t_ms as f32 / FLASH_MS as f32)),
+        State::Idle => GLOW,
+    }
+}
+
+fn render(sessions: &[Session], now: u64) -> GreyGrid {
     let mut grid = [[0; HEIGHT]; WIDTH];
 
     // If there are more sessions than fit, the ones that need attention go first
@@ -292,34 +355,27 @@ fn render(sessions: &[Session], t: f32) -> GreyGrid {
         .collect();
     shown.sort_by_key(|s| s.started);
 
-    // Triangle wave from 0 to WIDTH-1 and back
-    let phase = (t / WORKING_PERIOD).fract();
-    let light_x = ((1.0 - (2.0 * phase - 1.0).abs()) * (WIDTH - 1) as f32).round() as usize;
-    let blink_on = (t / BLINK_PERIOD).fract() < 0.5;
-
     for (i, session) in shown.iter().enumerate() {
         let top = i * (BAR_HEIGHT + 1);
+        let t_ms = now.saturating_sub(session.since);
         for (x, col) in grid.iter_mut().enumerate() {
-            let val = match session.state {
-                State::Working if x == light_x => WORKING_LIGHT,
-                State::Working => WORKING_DIM,
-                State::Idle => IDLE,
-                State::Attention if blink_on => ATTENTION,
-                State::Attention => 0,
-            };
-            col[top..top + BAR_HEIGHT].fill(val);
+            col[top..top + BAR_HEIGHT].fill(brightness(session.state, x, t_ms));
         }
     }
     grid
 }
 
 /// Whether the picture changes over time
-fn animating(sessions: &[Session]) -> bool {
-    sessions.iter().any(|s| s.state != State::Idle)
+fn animating(sessions: &[Session], now: u64) -> bool {
+    sessions.iter().any(|s| match s.state {
+        State::Working | State::Attention => true,
+        State::Done => now.saturating_sub(s.since) < FLASH_MS,
+        State::Idle => false,
+    })
 }
 
 /// Frames per second while something moves or blinks
-const ANIMATION_FPS: u64 = 20;
+const ANIMATION_FPS: u64 = 30;
 /// How often to look for changes in the state files
 const POLL_INTERVAL: Duration = Duration::from_millis(200);
 /// The firmware goes to sleep after 60s without commands. Resend the picture before that.
@@ -347,7 +403,6 @@ fn open_ports(args: &crate::ClapCli) -> Vec<Box<dyn SerialPort>> {
 pub fn claude_cmd(args: &crate::ClapCli) {
     let dir = state_dir();
     println!("Showing Claude Code sessions from {}", dir.display());
-    let start = Instant::now();
     let mut ports = vec![];
     let mut sessions = vec![];
     let mut last_poll: Option<Instant> = None;
@@ -371,7 +426,8 @@ pub fn claude_cmd(args: &crate::ClapCli) {
             last_poll = Some(Instant::now());
         }
 
-        let frame = render(&sessions, start.elapsed().as_secs_f32());
+        let now = now_ms();
+        let frame = render(&sessions, now);
         let blank = frame.iter().flatten().all(|&v| v == 0);
         // A blank picture can let the device sleep, that turns the LEDs off anyway
         let keepalive = !blank && last_sent.elapsed() >= KEEPALIVE;
@@ -398,7 +454,7 @@ pub fn claude_cmd(args: &crate::ClapCli) {
             }
         }
 
-        let wait = if animating(&sessions) {
+        let wait = if animating(&sessions, now) {
             Duration::from_millis(1000 / ANIMATION_FPS)
         } else {
             POLL_INTERVAL
